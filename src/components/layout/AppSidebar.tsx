@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame
+  ChevronRight, Flame, ClipboardCheck
 } from 'lucide-react';
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { path: '/schedule', label: 'Schedule', icon: CalendarDays },
   { path: '/fleet', label: 'Fleet', icon: Truck },
   { path: '/workforce', label: 'Workforce', icon: Users },
+  { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
 ];
 
 export default function AppSidebar() {
