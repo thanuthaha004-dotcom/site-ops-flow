@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { getProjects, addProject } from '@/lib/localStorage';
+import { getProjects, addProject, saveProjects } from '@/lib/localStorage';
 import type { Project, ProjectType } from '@/data/mockData';
 import { StatusBadge, PriorityBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { Progress } from '@/components/ui/progress';
 import { MapPin, Users, Calendar, Search } from 'lucide-react';
 import AddProjectDialog from '@/components/forms/AddProjectDialog';
+import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
+import { parseProjectsExcel } from '@/lib/excelImport';
+import { toast } from '@/hooks/use-toast';
 
 const projectTypes: ('All' | ProjectType)[] = ['All', 'LPG', 'Fire Fighting', 'Small Job', 'AMC'];
 
@@ -30,11 +33,22 @@ export default function Projects() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground text-sm">{projectList.length} total projects</p>
         </div>
-        <AddProjectDialog onAdd={handleAdd}>
-          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
-            + New Project
-          </button>
-        </AddProjectDialog>
+        <div className="flex gap-2">
+          <ExcelUploadButton label="Import Excel" onFileSelect={async (file) => {
+            try {
+              const imported = await parseProjectsExcel(file);
+              const merged = [...projectList, ...imported];
+              saveProjects(merged);
+              setProjectList(merged);
+              toast({ title: `Imported ${imported.length} projects` });
+            } catch { toast({ title: 'Failed to parse file', variant: 'destructive' }); }
+          }} />
+          <AddProjectDialog onAdd={handleAdd}>
+            <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
+              + New Project
+            </button>
+          </AddProjectDialog>
+        </div>
       </div>
 
       {/* Filters */}

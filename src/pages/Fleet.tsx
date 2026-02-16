@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { getVehicles, addVehicle } from '@/lib/localStorage';
+import { getVehicles, addVehicle, saveVehicles } from '@/lib/localStorage';
 import type { Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
 import { Fuel, Route, Gauge } from 'lucide-react';
 import AddVehicleDialog from '@/components/forms/AddVehicleDialog';
+import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
+import { parseVehiclesExcel } from '@/lib/excelImport';
+import { toast } from '@/hooks/use-toast';
 
 export default function Fleet() {
   const [vehicleList, setVehicleList] = useState<Vehicle[]>(getVehicles);
@@ -21,11 +24,22 @@ export default function Fleet() {
           <h1 className="text-2xl font-bold tracking-tight">Fleet Management</h1>
           <p className="text-muted-foreground text-sm">{vehicleList.length} vehicles • {avgUtil}% avg utilization</p>
         </div>
-        <AddVehicleDialog onAdd={handleAdd}>
-          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
-            + Add Vehicle
-          </button>
-        </AddVehicleDialog>
+        <div className="flex gap-2">
+          <ExcelUploadButton label="Import Excel" onFileSelect={async (file) => {
+            try {
+              const imported = await parseVehiclesExcel(file);
+              const merged = [...vehicleList, ...imported];
+              saveVehicles(merged);
+              setVehicleList(merged);
+              toast({ title: `Imported ${imported.length} vehicles` });
+            } catch { toast({ title: 'Failed to parse file', variant: 'destructive' }); }
+          }} />
+          <AddVehicleDialog onAdd={handleAdd}>
+            <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
+              + Add Vehicle
+            </button>
+          </AddVehicleDialog>
+        </div>
       </div>
 
       {/* Summary Cards */}
