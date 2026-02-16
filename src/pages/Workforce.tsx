@@ -1,25 +1,40 @@
 import { useState } from 'react';
-import { workers } from '@/data/mockData';
+import { getWorkers, addWorker } from '@/lib/localStorage';
+import type { Worker } from '@/data/mockData';
 import { Search, Phone, MapPin } from 'lucide-react';
+import AddWorkerDialog from '@/components/forms/AddWorkerDialog';
 
 export default function Workforce() {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
+  const [workerList, setWorkerList] = useState<Worker[]>(getWorkers);
 
-  const departments = ['All', ...Array.from(new Set(workers.map(w => w.department)))];
-  const filtered = workers.filter(w =>
+  const departments = ['All', ...Array.from(new Set(workerList.map(w => w.department)))];
+  const filtered = workerList.filter(w =>
     (deptFilter === 'All' || w.department === deptFilter) &&
     w.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const onSite = workers.filter(w => w.status === 'On Site').length;
-  const available = workers.filter(w => w.status === 'Available').length;
+  const onSite = workerList.filter(w => w.status === 'On Site').length;
+  const available = workerList.filter(w => w.status === 'Available').length;
+
+  const handleAdd = (worker: Worker) => {
+    const updated = addWorker(worker);
+    setWorkerList(updated);
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Workforce</h1>
-        <p className="text-muted-foreground text-sm">{workers.length} workers • {onSite} on site • {available} available</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Workforce</h1>
+          <p className="text-muted-foreground text-sm">{workerList.length} workers • {onSite} on site • {available} available</p>
+        </div>
+        <AddWorkerDialog onAdd={handleAdd}>
+          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
+            + Add Worker
+          </button>
+        </AddWorkerDialog>
       </div>
 
       {/* Filters */}
