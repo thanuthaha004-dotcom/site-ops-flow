@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { getWorkers, addWorker } from '@/lib/localStorage';
+import { getWorkers, addWorker, saveWorkers } from '@/lib/localStorage';
 import type { Worker } from '@/data/mockData';
 import { Search, Phone, MapPin } from 'lucide-react';
 import AddWorkerDialog from '@/components/forms/AddWorkerDialog';
+import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
+import { parseWorkersExcel } from '@/lib/excelImport';
+import { toast } from '@/hooks/use-toast';
 
 export default function Workforce() {
   const [search, setSearch] = useState('');
@@ -30,11 +33,22 @@ export default function Workforce() {
           <h1 className="text-2xl font-bold tracking-tight">Workforce</h1>
           <p className="text-muted-foreground text-sm">{workerList.length} workers • {onSite} on site • {available} available</p>
         </div>
-        <AddWorkerDialog onAdd={handleAdd}>
-          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
-            + Add Worker
-          </button>
-        </AddWorkerDialog>
+        <div className="flex gap-2">
+          <ExcelUploadButton label="Import Excel" onFileSelect={async (file) => {
+            try {
+              const imported = await parseWorkersExcel(file);
+              const merged = [...workerList, ...imported];
+              saveWorkers(merged);
+              setWorkerList(merged);
+              toast({ title: `Imported ${imported.length} workers` });
+            } catch { toast({ title: 'Failed to parse file', variant: 'destructive' }); }
+          }} />
+          <AddWorkerDialog onAdd={handleAdd}>
+            <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
+              + Add Worker
+            </button>
+          </AddWorkerDialog>
+        </div>
       </div>
 
       {/* Filters */}
