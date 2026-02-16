@@ -1,30 +1,46 @@
-import { vehicles } from '@/data/mockData';
+import { useState } from 'react';
+import { getVehicles, addVehicle } from '@/lib/localStorage';
+import type { Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
-import { Fuel, Route, Gauge, Wrench } from 'lucide-react';
+import { Fuel, Route, Gauge } from 'lucide-react';
+import AddVehicleDialog from '@/components/forms/AddVehicleDialog';
 
 export default function Fleet() {
-  const avgUtil = Math.round(vehicles.reduce((a, v) => a + v.utilization, 0) / vehicles.length);
+  const [vehicleList, setVehicleList] = useState<Vehicle[]>(getVehicles);
+  const avgUtil = Math.round(vehicleList.reduce((a, v) => a + v.utilization, 0) / (vehicleList.length || 1));
+
+  const handleAdd = (vehicle: Vehicle) => {
+    const updated = addVehicle(vehicle);
+    setVehicleList(updated);
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Fleet Management</h1>
-        <p className="text-muted-foreground text-sm">{vehicles.length} vehicles • {avgUtil}% avg utilization</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Fleet Management</h1>
+          <p className="text-muted-foreground text-sm">{vehicleList.length} vehicles • {avgUtil}% avg utilization</p>
+        </div>
+        <AddVehicleDialog onAdd={handleAdd}>
+          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
+            + Add Vehicle
+          </button>
+        </AddVehicleDialog>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="kpi-card">
           <p className="text-sm text-muted-foreground">Active</p>
-          <p className="text-3xl font-bold text-success">{vehicles.filter(v => v.status === 'Active').length}</p>
+          <p className="text-3xl font-bold text-success">{vehicleList.filter(v => v.status === 'Active').length}</p>
         </div>
         <div className="kpi-card">
           <p className="text-sm text-muted-foreground">Idle</p>
-          <p className="text-3xl font-bold text-muted-foreground">{vehicles.filter(v => v.status === 'Idle').length}</p>
+          <p className="text-3xl font-bold text-muted-foreground">{vehicleList.filter(v => v.status === 'Idle').length}</p>
         </div>
         <div className="kpi-card">
           <p className="text-sm text-muted-foreground">Maintenance</p>
-          <p className="text-3xl font-bold text-warning">{vehicles.filter(v => v.status === 'Maintenance').length}</p>
+          <p className="text-3xl font-bold text-warning">{vehicleList.filter(v => v.status === 'Maintenance').length}</p>
         </div>
         <div className="kpi-card">
           <p className="text-sm text-muted-foreground">Avg Utilization</p>
@@ -34,7 +50,7 @@ export default function Fleet() {
 
       {/* Vehicle Cards */}
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {vehicles.map((v) => (
+        {vehicleList.map((v) => (
           <div key={v.id} className={`kpi-card ${v.status === 'Maintenance' ? 'border-warning/40' : ''}`}>
             <div className="flex items-start justify-between mb-3">
               <div>

@@ -1,30 +1,40 @@
 import { useState } from 'react';
-import { projects, type ProjectType } from '@/data/mockData';
+import { getProjects, addProject } from '@/lib/localStorage';
+import type { Project, ProjectType } from '@/data/mockData';
 import { StatusBadge, PriorityBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { Progress } from '@/components/ui/progress';
-import { MapPin, Users, Calendar, Search, Filter } from 'lucide-react';
+import { MapPin, Users, Calendar, Search } from 'lucide-react';
+import AddProjectDialog from '@/components/forms/AddProjectDialog';
 
 const projectTypes: ('All' | ProjectType)[] = ['All', 'LPG', 'Fire Fighting', 'Small Job', 'AMC'];
 
 export default function Projects() {
   const [typeFilter, setTypeFilter] = useState<'All' | ProjectType>('All');
   const [search, setSearch] = useState('');
+  const [projectList, setProjectList] = useState<Project[]>(getProjects);
 
-  const filtered = projects.filter(p =>
+  const filtered = projectList.filter(p =>
     (typeFilter === 'All' || p.type === typeFilter) &&
     p.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleAdd = (project: Project) => {
+    const updated = addProject(project);
+    setProjectList(updated);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground text-sm">{projects.length} total projects</p>
+          <p className="text-muted-foreground text-sm">{projectList.length} total projects</p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
-          + New Project
-        </button>
+        <AddProjectDialog onAdd={handleAdd}>
+          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
+            + New Project
+          </button>
+        </AddProjectDialog>
       </div>
 
       {/* Filters */}
