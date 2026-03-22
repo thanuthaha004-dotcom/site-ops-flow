@@ -12,6 +12,7 @@ const navItems = [
   { path: '/fleet', label: 'Fleet', icon: Truck },
   { path: '/workforce', label: 'Workforce', icon: Users },
   { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
+  { path: '/trips', label: 'Trip Planning', icon: Route },
 ];
 
 export default function AppSidebar() {
