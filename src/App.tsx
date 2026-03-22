@@ -10,6 +10,7 @@ import Schedule from "./pages/Schedule";
 import Fleet from "./pages/Fleet";
 import Workforce from "./pages/Workforce";
 import Attendance from "./pages/Attendance";
+import TripPlanning from "./pages/TripPlanning";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/fleet" element={<Fleet />} />
             <Route path="/workforce" element={<Workforce />} />
             <Route path="/attendance" element={<Attendance />} />
+            <Route path="/trips" element={<TripPlanning />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
