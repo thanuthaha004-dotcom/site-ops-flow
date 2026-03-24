@@ -51,7 +51,9 @@ export interface KPI {
 
 export const projects: Project[] = [];
 
-export const vehicles: Vehicle[] = [];
+export const vehicles: Vehicle[];
+
+export const workers: Worker[] = [];
 
 export const workers: Worker[] = [
   { id: 'WK-001', name: 'Anil Thorat', role: 'Site Engineer', department: 'LPG', skills: ['Pipe Fitting', 'Welding', 'Testing'], status: 'On Site', currentSite: 'Ambuja Tower', phone: '+91 98765 43210' },
