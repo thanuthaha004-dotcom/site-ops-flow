@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { fetchWorkers, insertWorker, deleteWorkerDb } from '@/lib/supabaseData';
+import { fetchWorkers, insertWorker, deleteWorkerDb, updateWorkerDb } from '@/lib/supabaseData';
 import type { Worker } from '@/data/mockData';
-import { Search, Phone, MapPin, Trash2 } from 'lucide-react';
+import { Search, Phone, MapPin, Trash2, Edit3 } from 'lucide-react';
 import AddWorkerDialog from '@/components/forms/AddWorkerDialog';
+import EditWorkerDialog from '@/components/forms/EditWorkerDialog';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { parseWorkersExcel } from '@/lib/excelImport';
 import { toast } from '@/hooks/use-toast';
