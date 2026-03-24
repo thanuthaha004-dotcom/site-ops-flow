@@ -1,4 +1,5 @@
 export type ProjectType = 'LPG' | 'Fire Fighting' | 'Small Job' | 'AMC Gas' | 'AMC Fire';
+export type WorkType = 'Material Delivery' | 'Pipe Installation' | 'Kitchen Installation' | 'Detection System' | 'Testing' | 'Snag Work' | 'DCD Inspection' | 'Handing Over';
 export type ProjectStatus = 'Active' | 'Scheduled' | 'Completed' | 'On Hold';
 export type Priority = 'High' | 'Medium' | 'Low';
 export type VehicleStatus = 'Active' | 'Idle' | 'Maintenance';
