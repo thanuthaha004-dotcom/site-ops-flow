@@ -1,5 +1,5 @@
 import type { Vehicle } from '@/data/mockData';
-import { fetchVehicles } from '@/lib/supabaseData';
+
 
 export interface TripWorker {
   id: string;
