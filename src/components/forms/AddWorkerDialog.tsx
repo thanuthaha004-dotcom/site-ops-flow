@@ -13,7 +13,7 @@ interface Props {
 export default function AddWorkerDialog({ onAdd, children }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    name: '', role: '', department: '', skills: '',
+    staffCode: '', name: '', role: '', department: '', skills: '',
     status: 'Available' as WorkerStatus, currentSite: '—', phone: '',
   });
 
