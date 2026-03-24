@@ -162,6 +162,7 @@ export default function Workforce() {
       {filtered.length === 0 && !loading && (
         <div className="text-center py-12 text-muted-foreground">No workers found. Add your first worker above.</div>
       )}
+      <EditWorkerDialog worker={editWorker} open={!!editWorker} onOpenChange={open => { if (!open) setEditWorker(null); }} onSave={handleEdit} />
     </div>
   );
 }
