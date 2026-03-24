@@ -3,11 +3,12 @@ import { getProjects, addProject, saveProjects } from '@/lib/localStorage';
 import type { Project, ProjectType } from '@/data/mockData';
 import { StatusBadge, PriorityBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { Progress } from '@/components/ui/progress';
-import { MapPin, Users, Calendar, Search } from 'lucide-react';
+import { MapPin, Users, Calendar, Search, Download } from 'lucide-react';
 import AddProjectDialog from '@/components/forms/AddProjectDialog';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { parseProjectsExcel } from '@/lib/excelImport';
 import { toast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 const projectTypes: ('All' | ProjectType)[] = ['All', 'LPG', 'Fire Fighting', 'Small Job', 'AMC'];
 
