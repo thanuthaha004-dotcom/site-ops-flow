@@ -128,6 +128,7 @@ export async function deleteVehicleDb(id: string) {
 function rowToWorker(r: any): Worker {
   return {
     id: r.id,
+    staffCode: r.staff_code || '',
     name: r.name,
     role: r.role,
     department: r.department,
