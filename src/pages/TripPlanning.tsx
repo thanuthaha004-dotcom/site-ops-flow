@@ -412,7 +412,7 @@ export default function TripPlanning() {
             <div className="flex justify-center gap-6 text-sm">
               <div><span className="text-muted-foreground">Trips saved:</span> <strong className="text-success">{stats.tripsSaved}</strong></div>
               <div><span className="text-muted-foreground">Avg utilization:</span> <strong>{stats.avgUtilization}%</strong></div>
-              <div><span className="text-muted-foreground">Workers grouped:</span> <strong>{stats.totalWorkers}</strong></div>
+              <div><span className="text-muted-foreground">Workers grouped:</span> <strong>{workers.length}</strong></div>
             </div>
           )}
         </div>
