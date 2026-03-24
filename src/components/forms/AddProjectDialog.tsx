@@ -20,15 +20,18 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const workerNames = form.workerNamesText.split(',').map(n => n.trim()).filter(Boolean);
+    const { workerNamesText, ...rest } = form;
     const project: Project = {
       id: `PRJ-${String(Date.now()).slice(-4)}`,
-      ...form,
+      ...rest,
+      workerNames,
       progress: 0,
-      workersAssigned: 0,
+      workersAssigned: workerNames.length,
     };
     onAdd(project);
     setOpen(false);
-    setForm({ name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1 });
+    setForm({ name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '' });
   };
 
   return (
