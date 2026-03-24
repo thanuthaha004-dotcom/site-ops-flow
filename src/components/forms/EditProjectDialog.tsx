@@ -132,6 +132,17 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
             </div>
           </div>
           <div className="space-y-2">
+            <Label>Work Type</Label>
+            <Select value={form.workType} onValueChange={v => setForm(f => ({ ...f, workType: v }))}>
+              <SelectTrigger><SelectValue placeholder="Select work type" /></SelectTrigger>
+              <SelectContent>
+                {workTypes.map(w => (
+                  <SelectItem key={w} value={w}>{w}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label>Site Location *</Label>
             <Input required value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} />
           </div>

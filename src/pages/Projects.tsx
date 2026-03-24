@@ -68,6 +68,7 @@ export default function Projects() {
       Priority: p.priority, 'Start Date': p.startDate, 'End Date': p.endDate,
       Engineer: p.engineer, 'Workers Required': p.workersRequired,
       'Workers Assigned': p.workersAssigned, Progress: p.progress,
+      'Work Type': p.workType || '',
       'Worker Names': (p.workerNames || []).join(', '),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
