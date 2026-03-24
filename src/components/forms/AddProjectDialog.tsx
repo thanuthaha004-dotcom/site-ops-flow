@@ -17,7 +17,7 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
   const [form, setForm] = useState({
     code: '', name: '', type: 'LPG' as ProjectType, site: '', status: 'Active' as ProjectStatus,
     priority: 'Medium' as Priority, startDate: '', endDate: '', engineer: '',
-    workersRequired: 1, workerNamesText: '',
+    workersRequired: 1, workerNamesText: '', workType: '' as string,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
