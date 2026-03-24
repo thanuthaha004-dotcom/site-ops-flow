@@ -46,6 +46,14 @@ export default function Workforce() {
     } catch { toast({ title: 'Failed to add worker', variant: 'destructive' }); }
   };
 
+  const handleEdit = async (id: string, updates: Partial<Worker>) => {
+    try {
+      const updated = await updateWorkerDb(id, updates);
+      setWorkerList(prev => prev.map(w => w.id === id ? updated : w));
+      toast({ title: 'Worker updated' });
+    } catch { toast({ title: 'Failed to update worker', variant: 'destructive' }); }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteWorkerDb(id);
