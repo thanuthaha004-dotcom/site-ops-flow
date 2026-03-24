@@ -34,6 +34,7 @@ export async function parseProjectsExcel(file: File): Promise<Project[]> {
     workersRequired: Number(r['workersRequired'] || r['Workers Required'] || 1),
     engineer: r['engineer'] || r['Engineer'] || '',
     workerNames: (r['workerNames'] || r['Worker Names'] || r['Workers'] || '').split(',').map((s: string) => s.trim()).filter(Boolean),
+    workType: r['workType'] || r['Work Type'] || r['work_type'] || '',
   }));
 }
 

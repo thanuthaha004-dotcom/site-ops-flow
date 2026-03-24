@@ -29,6 +29,7 @@ export type Database = {
           status: string
           type: string
           updated_at: string
+          work_type: string
           worker_names: string[]
           workers_assigned: number
           workers_required: number
@@ -47,6 +48,7 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string
+          work_type?: string
           worker_names?: string[]
           workers_assigned?: number
           workers_required?: number
@@ -65,6 +67,7 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string
+          work_type?: string
           worker_names?: string[]
           workers_assigned?: number
           workers_required?: number

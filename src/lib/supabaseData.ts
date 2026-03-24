@@ -19,6 +19,7 @@ function rowToProject(r: any): Project {
     workersRequired: r.workers_required,
     engineer: r.engineer,
     workerNames: r.worker_names || [],
+    workType: r.work_type || '',
   };
 }
 
@@ -43,6 +44,7 @@ export async function insertProject(p: Omit<Project, 'id'>): Promise<Project> {
     workers_required: p.workersRequired,
     engineer: p.engineer,
     worker_names: p.workerNames,
+    work_type: p.workType || '',
   }).select().single();
   if (error) throw error;
   return rowToProject(data);
@@ -63,6 +65,7 @@ export async function updateProject(id: string, updates: Partial<Project>): Prom
   if (updates.workersRequired !== undefined) dbUpdates.workers_required = updates.workersRequired;
   if (updates.engineer !== undefined) dbUpdates.engineer = updates.engineer;
   if (updates.workerNames !== undefined) dbUpdates.worker_names = updates.workerNames;
+  if (updates.workType !== undefined) dbUpdates.work_type = updates.workType;
 
   const { data, error } = await supabase.from('projects').update(dbUpdates).eq('id', id).select().single();
   if (error) throw error;

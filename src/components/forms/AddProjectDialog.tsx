@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Project, ProjectType, ProjectStatus, Priority } from '@/data/mockData';
+import type { Project, ProjectType, ProjectStatus, Priority, WorkType } from '@/data/mockData';
+
+const workTypes: WorkType[] = ['Material Delivery', 'Pipe Installation', 'Kitchen Installation', 'Detection System', 'Testing', 'Snag Work', 'DCD Inspection', 'Handing Over'];
 
 interface Props {
   onAdd: (project: Omit<Project, 'id'>) => void;
@@ -15,7 +17,7 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
   const [form, setForm] = useState({
     code: '', name: '', type: 'LPG' as ProjectType, site: '', status: 'Active' as ProjectStatus,
     priority: 'Medium' as Priority, startDate: '', endDate: '', engineer: '',
-    workersRequired: 1, workerNamesText: '',
+    workersRequired: 1, workerNamesText: '', workType: '' as string,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -33,11 +35,12 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
       engineer: form.engineer,
       workersRequired: form.workersRequired,
       workerNames,
+      workType: form.workType,
       progress: 0,
       workersAssigned: workerNames.length,
     });
     setOpen(false);
-    setForm({ code: '', name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '' });
+    setForm({ code: '', name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '', workType: '' });
   };
 
   return (
@@ -87,6 +90,17 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
               <SelectContent>
                 {(['Active', 'Scheduled', 'Completed', 'On Hold'] as ProjectStatus[]).map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+          </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Work Type</Label>
+            <Select value={form.workType} onValueChange={v => setForm(f => ({ ...f, workType: v }))}>
+              <SelectTrigger><SelectValue placeholder="Select work type" /></SelectTrigger>
+              <SelectContent>
+                {workTypes.map(w => (
+                  <SelectItem key={w} value={w}>{w}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

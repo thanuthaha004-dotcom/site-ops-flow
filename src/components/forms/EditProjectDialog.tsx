@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Project, ProjectType, ProjectStatus, Priority } from '@/data/mockData';
+import type { Project, ProjectType, ProjectStatus, Priority, WorkType } from '@/data/mockData';
+
+const workTypes: WorkType[] = ['Material Delivery', 'Pipe Installation', 'Kitchen Installation', 'Detection System', 'Testing', 'Snag Work', 'DCD Inspection', 'Handing Over'];
 
 interface Props {
   project: Project;
@@ -26,6 +28,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
     workersRequired: project.workersRequired,
     workerNamesText: (project.workerNames || []).join(', '),
     progress: project.progress,
+    workType: project.workType || '',
   });
 
   const handleOpen = (isOpen: boolean) => {
@@ -43,6 +46,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
         workersRequired: project.workersRequired,
         workerNamesText: (project.workerNames || []).join(', '),
         progress: project.progress,
+        workType: project.workType || '',
       });
     }
     setOpen(isOpen);
@@ -65,6 +69,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
       workerNames,
       workersAssigned: workerNames.length,
       progress: form.progress,
+      workType: form.workType,
     });
     setOpen(false);
   };
@@ -125,6 +130,17 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
               <Label>Progress %</Label>
               <Input type="number" min={0} max={100} value={form.progress} onChange={e => setForm(f => ({ ...f, progress: +e.target.value }))} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Work Type</Label>
+            <Select value={form.workType} onValueChange={v => setForm(f => ({ ...f, workType: v }))}>
+              <SelectTrigger><SelectValue placeholder="Select work type" /></SelectTrigger>
+              <SelectContent>
+                {workTypes.map(w => (
+                  <SelectItem key={w} value={w}>{w}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Site Location *</Label>
