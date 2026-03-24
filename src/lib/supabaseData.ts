@@ -19,6 +19,7 @@ function rowToProject(r: any): Project {
     workersRequired: r.workers_required,
     engineer: r.engineer,
     workerNames: r.worker_names || [],
+    workType: r.work_type || '',
   };
 }
 
