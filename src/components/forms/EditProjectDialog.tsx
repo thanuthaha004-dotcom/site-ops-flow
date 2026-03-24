@@ -46,6 +46,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
         workersRequired: project.workersRequired,
         workerNamesText: (project.workerNames || []).join(', '),
         progress: project.progress,
+        workType: project.workType || '',
       });
     }
     setOpen(isOpen);
