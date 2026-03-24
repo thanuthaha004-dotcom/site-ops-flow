@@ -44,6 +44,7 @@ export async function insertProject(p: Omit<Project, 'id'>): Promise<Project> {
     workers_required: p.workersRequired,
     engineer: p.engineer,
     worker_names: p.workerNames,
+    work_type: p.workType || '',
   }).select().single();
   if (error) throw error;
   return rowToProject(data);
