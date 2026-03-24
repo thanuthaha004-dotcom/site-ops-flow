@@ -127,6 +127,7 @@ export default function Workforce() {
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                   w.status === 'On Site' ? 'status-active' : w.status === 'Available' ? 'bg-info/10 text-info' : 'status-idle'
                 }`}>{w.status}</span>
+                <button onClick={() => setEditWorker(w)} className="p-1 rounded hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"><Edit3 className="h-3.5 w-3.5" /></button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
