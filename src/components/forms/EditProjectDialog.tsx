@@ -69,6 +69,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
       workerNames,
       workersAssigned: workerNames.length,
       progress: form.progress,
+      workType: form.workType,
     });
     setOpen(false);
   };
