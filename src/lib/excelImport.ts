@@ -42,7 +42,8 @@ export async function parseWorkersExcel(file: File): Promise<Worker[]> {
   const rows = await readSheet(file);
   return rows.map((r, i) => ({
     id: r['id'] || r['ID'] || `WK-${String(i + 1).padStart(3, '0')}`,
-    name: r['name'] || r['Name'] || r['Worker Name'] || '',
+    staffCode: r['staffCode'] || r['Staff Code'] || r['staff_code'] || r['StaffCode'] || r['STAFF CODE'] || r['Code'] || r['code'] || '',
+    name: r['name'] || r['Name'] || r['Worker Name'] || r['Full Name'] || r['full_name'] || r['FullName'] || r['FULL NAME'] || r['worker_name'] || '',
     role: r['role'] || r['Role'] || '',
     department: r['department'] || r['Department'] || '',
     skills: (r['skills'] || r['Skills'] || '').split(',').map(s => s.trim()).filter(Boolean),

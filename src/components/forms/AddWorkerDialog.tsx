@@ -33,9 +33,15 @@ export default function AddWorkerDialog({ onAdd, children }: Props) {
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Add New Worker</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Full Name *</Label>
-            <Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Anil Thorat" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-2">
+              <Label>Staff Code *</Label>
+              <Input required value={form.staffCode} onChange={e => setForm(f => ({ ...f, staffCode: e.target.value }))} placeholder="e.g. ST-001" />
+            </div>
+            <div className="col-span-2 space-y-2">
+              <Label>Full Name *</Label>
+              <Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Anil Thorat" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">

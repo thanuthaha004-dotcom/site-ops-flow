@@ -110,7 +110,7 @@ export default function Workforce() {
                 </div>
                 <div>
                   <h3 className="font-semibold">{w.name}</h3>
-                  <p className="text-xs text-muted-foreground">{w.role} • {w.department}</p>
+                  <p className="text-xs text-muted-foreground">{w.staffCode && <span className="font-mono">{w.staffCode} • </span>}{w.role} • {w.department}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

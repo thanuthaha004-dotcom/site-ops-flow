@@ -147,6 +147,7 @@ export async function fetchWorkers(): Promise<Worker[]> {
 
 export async function insertWorker(w: Omit<Worker, 'id'>): Promise<Worker> {
   const { data, error } = await supabase.from('workers').insert({
+    staff_code: w.staffCode || '',
     name: w.name,
     role: w.role,
     department: w.department,
