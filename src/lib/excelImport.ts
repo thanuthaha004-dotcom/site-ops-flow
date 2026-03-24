@@ -21,6 +21,7 @@ export async function parseProjectsExcel(file: File): Promise<Project[]> {
   const rows = await readSheet(file);
   return rows.map((r, i) => ({
     id: r['id'] || r['ID'] || `PRJ-${String(i + 1).padStart(3, '0')}`,
+    code: r['code'] || r['Code'] || r['Project Code'] || `PRJ-${String(i + 1).padStart(3, '0')}`,
     name: r['name'] || r['Name'] || r['Project Name'] || '',
     type: (r['type'] || r['Type'] || 'LPG') as ProjectType,
     site: r['site'] || r['Site'] || r['Location'] || '',
