@@ -65,6 +65,7 @@ export async function updateProject(id: string, updates: Partial<Project>): Prom
   if (updates.workersRequired !== undefined) dbUpdates.workers_required = updates.workersRequired;
   if (updates.engineer !== undefined) dbUpdates.engineer = updates.engineer;
   if (updates.workerNames !== undefined) dbUpdates.worker_names = updates.workerNames;
+  if (updates.workType !== undefined) dbUpdates.work_type = updates.workType;
 
   const { data, error } = await supabase.from('projects').update(dbUpdates).eq('id', id).select().single();
   if (error) throw error;

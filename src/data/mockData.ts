@@ -20,6 +20,7 @@ export interface Project {
   workersRequired: number;
   engineer: string;
   workerNames: string[];
+  workType: string;
 }
 
 export interface Vehicle {
