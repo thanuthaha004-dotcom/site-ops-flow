@@ -72,11 +72,14 @@ export function suggestVehicleType(workerCount: number): { type: string; capacit
   return { type: '13-seater', capacity: 13 };
 }
 
+let cachedVehicles: Vehicle[] = [];
+export function setCachedVehicles(v: Vehicle[]) { cachedVehicles = v; }
+
 export function findBestVehicle(
   workerCount: number,
   usedVehicleIds: Set<string>
 ): SuggestedVehicle | null {
-  const vehicles = getVehicles();
+  const vehicles = cachedVehicles;
   const available = vehicles.filter(
     v => v.status !== 'Maintenance' && !usedVehicleIds.has(v.id)
   );
