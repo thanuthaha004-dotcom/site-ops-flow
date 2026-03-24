@@ -51,20 +51,9 @@ export interface KPI {
 
 export const projects: Project[] = [];
 
-export const vehicles: Vehicle[];
+export const vehicles: Vehicle[] = [];
 
 export const workers: Worker[] = [];
-
-export const workers: Worker[] = [
-  { id: 'WK-001', name: 'Anil Thorat', role: 'Site Engineer', department: 'LPG', skills: ['Pipe Fitting', 'Welding', 'Testing'], status: 'On Site', currentSite: 'Ambuja Tower', phone: '+91 98765 43210' },
-  { id: 'WK-002', name: 'Sunil Gaikwad', role: 'Technician', department: 'Fire Fighting', skills: ['Sprinkler Systems', 'Alarm Installation'], status: 'On Site', currentSite: 'Phoenix Mall', phone: '+91 98765 43211' },
-  { id: 'WK-003', name: 'Kiran Jadhav', role: 'Helper', department: 'LPG', skills: ['Pipe Fitting'], status: 'Available', currentSite: '—', phone: '+91 98765 43212' },
-  { id: 'WK-004', name: 'Rahul Mane', role: 'Technician', department: 'AMC', skills: ['Maintenance', 'Testing', 'Documentation'], status: 'On Site', currentSite: 'Oberoi Realty', phone: '+91 98765 43213' },
-  { id: 'WK-005', name: 'Sachin Pawar', role: 'Welder', department: 'LPG', skills: ['Welding', 'Fabrication'], status: 'Off Duty', currentSite: '—', phone: '+91 98765 43214' },
-  { id: 'WK-006', name: 'Vikas Shinde', role: 'Site Engineer', department: 'Fire Fighting', skills: ['Fire Systems', 'Hydraulics', 'Testing'], status: 'On Site', currentSite: 'Phoenix Mall', phone: '+91 98765 43215' },
-  { id: 'WK-007', name: 'Ganesh Bhosle', role: 'Helper', department: 'Small Jobs', skills: ['General', 'Pipe Fitting'], status: 'Available', currentSite: '—', phone: '+91 98765 43216' },
-  { id: 'WK-008', name: 'Pratik Nikam', role: 'Technician', department: 'Fire Fighting', skills: ['Alarm Systems', 'Wiring'], status: 'On Site', currentSite: 'Phoenix Mall', phone: '+91 98765 43217' },
-];
 
 export const kpis: KPI[] = [
   { label: 'Active Projects', value: '12', change: 8, trend: 'up' },
