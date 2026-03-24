@@ -35,6 +35,7 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
       engineer: form.engineer,
       workersRequired: form.workersRequired,
       workerNames,
+      workType: form.workType,
       progress: 0,
       workersAssigned: workerNames.length,
     });
