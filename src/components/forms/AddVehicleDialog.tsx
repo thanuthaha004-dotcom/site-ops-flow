@@ -27,7 +27,7 @@ export default function AddVehicleDialog({ onAdd, children }: Props) {
     };
     onAdd(vehicle);
     setOpen(false);
-    setForm({ number: '', type: 'Utility Van', capacity: 6, status: 'Idle', driver: '', currentRoute: '—' });
+    setForm({ number: '', type: '3 Ton Pickup', capacity: 6, status: 'Idle', driver: '', currentRoute: '—' });
   };
 
   return (
