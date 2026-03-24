@@ -13,7 +13,7 @@ interface Props {
 export default function AddVehicleDialog({ onAdd, children }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    number: '', type: 'Utility Van', capacity: 6,
+    number: '', type: '3 Ton Pickup', capacity: 6,
     status: 'Idle' as VehicleStatus, driver: '', currentRoute: '—',
   });
 
