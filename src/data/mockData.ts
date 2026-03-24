@@ -49,22 +49,9 @@ export interface KPI {
   trend: 'up' | 'down' | 'neutral';
 }
 
-export const projects: Project[] = [
-  { id: 'PRJ-001', name: 'Ambuja Tower LPG Installation', type: 'LPG', site: 'Andheri East, Mumbai', status: 'Active', priority: 'High', startDate: '2026-02-01', endDate: '2026-03-15', progress: 65, workersAssigned: 8, workersRequired: 10, engineer: 'Rajesh Sharma' },
-  { id: 'PRJ-002', name: 'Phoenix Mall Fire System', type: 'Fire Fighting', site: 'Lower Parel, Mumbai', status: 'Active', priority: 'High', startDate: '2026-01-15', endDate: '2026-04-30', progress: 40, workersAssigned: 12, workersRequired: 12, engineer: 'Amit Patel' },
-  { id: 'PRJ-003', name: 'Oberoi Realty AMC Q1', type: 'AMC', site: 'Goregaon, Mumbai', status: 'Scheduled', priority: 'Medium', startDate: '2026-02-20', endDate: '2026-02-28', progress: 0, workersAssigned: 4, workersRequired: 6, engineer: 'Priya Desai' },
-  { id: 'PRJ-004', name: 'Tech Park Gas Fitting', type: 'Small Job', site: 'Whitefield, Bangalore', status: 'Active', priority: 'Low', startDate: '2026-02-10', endDate: '2026-02-18', progress: 85, workersAssigned: 3, workersRequired: 3, engineer: 'Vikram Singh' },
-  { id: 'PRJ-005', name: 'Hiranandani Complex Fire Safety', type: 'Fire Fighting', site: 'Powai, Mumbai', status: 'On Hold', priority: 'Medium', startDate: '2026-03-01', endDate: '2026-05-15', progress: 10, workersAssigned: 0, workersRequired: 15, engineer: 'Rajesh Sharma' },
-  { id: 'PRJ-006', name: 'Lodha World Towers LPG', type: 'LPG', site: 'Worli, Mumbai', status: 'Completed', priority: 'High', startDate: '2025-12-01', endDate: '2026-02-10', progress: 100, workersAssigned: 0, workersRequired: 8, engineer: 'Amit Patel' },
-];
+export const projects: Project[] = [];
 
-export const vehicles: Vehicle[] = [
-  { id: 'VH-001', number: 'MH-04-AB-1234', type: 'Utility Van', capacity: 8, status: 'Active', driver: 'Suresh Kumar', utilization: 87, fuelLevel: 65, currentRoute: 'Andheri → Lower Parel → Worli' },
-  { id: 'VH-002', number: 'MH-04-CD-5678', type: 'Pickup Truck', capacity: 4, status: 'Active', driver: 'Ravi Patil', utilization: 72, fuelLevel: 40, currentRoute: 'Goregaon → Malad → Kandivali' },
-  { id: 'VH-003', number: 'MH-04-EF-9012', type: 'Utility Van', capacity: 8, status: 'Idle', driver: 'Manoj Yadav', utilization: 45, fuelLevel: 90, currentRoute: '—' },
-  { id: 'VH-004', number: 'MH-04-GH-3456', type: 'Heavy Truck', capacity: 12, status: 'Active', driver: 'Deepak Joshi', utilization: 91, fuelLevel: 30, currentRoute: 'Powai → Vikhroli → Bhandup' },
-  { id: 'VH-005', number: 'KA-01-MN-7890', type: 'Utility Van', capacity: 6, status: 'Maintenance', driver: '—', utilization: 0, fuelLevel: 55, currentRoute: '—' },
-];
+export const vehicles: Vehicle[] = [];
 
 export const workers: Worker[] = [
   { id: 'WK-001', name: 'Anil Thorat', role: 'Site Engineer', department: 'LPG', skills: ['Pipe Fitting', 'Welding', 'Testing'], status: 'On Site', currentSite: 'Ambuja Tower', phone: '+91 98765 43210' },
