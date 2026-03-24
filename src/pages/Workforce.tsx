@@ -17,6 +17,7 @@ export default function Workforce() {
   const [deptFilter, setDeptFilter] = useState('All');
   const [workerList, setWorkerList] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editWorker, setEditWorker] = useState<Worker | null>(null);
 
   const loadWorkers = async () => {
     try {
