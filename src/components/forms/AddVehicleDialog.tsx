@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Vehicle, VehicleStatus } from '@/data/mockData';
 
 interface Props {
-  onAdd: (vehicle: Vehicle) => void;
+  onAdd: (vehicle: Omit<Vehicle, 'id'>) => void;
   children: React.ReactNode;
 }
 
@@ -19,13 +19,11 @@ export default function AddVehicleDialog({ onAdd, children }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const vehicle: Vehicle = {
-      id: `VH-${String(Date.now()).slice(-4)}`,
+    onAdd({
       ...form,
       utilization: 0,
       fuelLevel: 100,
-    };
-    onAdd(vehicle);
+    });
     setOpen(false);
     setForm({ number: '', type: '3 Ton Pickup', brand: '', department: '', capacity: 6, status: 'Idle', driver: '', currentRoute: '—' });
   };

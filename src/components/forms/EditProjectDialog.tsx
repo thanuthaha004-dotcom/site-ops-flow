@@ -6,23 +6,53 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Project, ProjectType, ProjectStatus, Priority } from '@/data/mockData';
 
 interface Props {
-  onAdd: (project: Omit<Project, 'id'>) => void;
+  project: Project;
+  onSave: (updates: Partial<Project>) => void;
   children: React.ReactNode;
 }
 
-export default function AddProjectDialog({ onAdd, children }: Props) {
+export default function EditProjectDialog({ project, onSave, children }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    code: '', name: '', type: 'LPG' as ProjectType, site: '', status: 'Active' as ProjectStatus,
-    priority: 'Medium' as Priority, startDate: '', endDate: '', engineer: '',
-    workersRequired: 1, workerNamesText: '',
+    code: project.code,
+    name: project.name,
+    type: project.type,
+    site: project.site,
+    status: project.status,
+    priority: project.priority,
+    startDate: project.startDate,
+    endDate: project.endDate,
+    engineer: project.engineer,
+    workersRequired: project.workersRequired,
+    workerNamesText: (project.workerNames || []).join(', '),
+    progress: project.progress,
   });
+
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen) {
+      setForm({
+        code: project.code,
+        name: project.name,
+        type: project.type,
+        site: project.site,
+        status: project.status,
+        priority: project.priority,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        engineer: project.engineer,
+        workersRequired: project.workersRequired,
+        workerNamesText: (project.workerNames || []).join(', '),
+        progress: project.progress,
+      });
+    }
+    setOpen(isOpen);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const workerNames = form.workerNamesText.split(',').map(n => n.trim()).filter(Boolean);
-    onAdd({
-      code: form.code || `PRJ-${String(Date.now()).slice(-4)}`,
+    onSave({
+      code: form.code,
       name: form.name,
       type: form.type,
       site: form.site,
@@ -33,27 +63,26 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
       engineer: form.engineer,
       workersRequired: form.workersRequired,
       workerNames,
-      progress: 0,
       workersAssigned: workerNames.length,
+      progress: form.progress,
     });
     setOpen(false);
-    setForm({ code: '', name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '' });
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Add New Project</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Edit Project</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Project Code</Label>
-              <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. PRJ-001" />
+              <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label>Project Name *</Label>
-              <Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Ambuja Tower LPG" />
+              <Input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -80,35 +109,41 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
               </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as ProjectStatus }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(['Active', 'Scheduled', 'Completed', 'On Hold'] as ProjectStatus[]).map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as ProjectStatus }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['Active', 'Scheduled', 'Completed', 'On Hold'] as ProjectStatus[]).map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Progress %</Label>
+              <Input type="number" min={0} max={100} value={form.progress} onChange={e => setForm(f => ({ ...f, progress: +e.target.value }))} />
+            </div>
           </div>
           <div className="space-y-2">
             <Label>Site Location *</Label>
-            <Input required value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Andheri East, Mumbai" />
+            <Input required value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Start Date *</Label>
-              <Input required type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
+              <Label>Start Date</Label>
+              <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label>End Date *</Label>
-              <Input required type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
+              <Label>End Date</Label>
+              <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Engineer *</Label>
-              <Input required value={form.engineer} onChange={e => setForm(f => ({ ...f, engineer: e.target.value }))} placeholder="Name" />
+              <Label>Engineer</Label>
+              <Input value={form.engineer} onChange={e => setForm(f => ({ ...f, engineer: e.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label>Workers Needed</Label>
@@ -118,11 +153,11 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
           <div className="space-y-2">
             <Label>Workers Names</Label>
             <textarea value={form.workerNamesText} onChange={e => setForm(f => ({ ...f, workerNamesText: e.target.value }))}
-              placeholder="Enter names separated by commas (e.g. Ahmed, Ravi, John)"
+              placeholder="Comma separated names"
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px]" />
           </div>
           <button type="submit" className="w-full py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
-            Add Project
+            Save Changes
           </button>
         </form>
       </DialogContent>

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Worker, WorkerStatus } from '@/data/mockData';
 
 interface Props {
-  onAdd: (worker: Worker) => void;
+  onAdd: (worker: Omit<Worker, 'id'>) => void;
   children: React.ReactNode;
 }
 
@@ -19,12 +19,10 @@ export default function AddWorkerDialog({ onAdd, children }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const worker: Worker = {
-      id: `WK-${String(Date.now()).slice(-4)}`,
+    onAdd({
       ...form,
       skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
-    };
-    onAdd(worker);
+    });
     setOpen(false);
     setForm({ name: '', role: '', department: '', skills: '', status: 'Available', currentSite: '—', phone: '' });
   };
@@ -49,7 +47,7 @@ export default function AddWorkerDialog({ onAdd, children }: Props) {
               <Select value={form.department || 'LPG'} onValueChange={v => setForm(f => ({ ...f, department: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['LPG', 'Fire Fighting', 'Small Jobs', 'AMC'].map(d => (
+                  {['LPG', 'Fire Fighting', 'Small Jobs', 'AMC Gas', 'AMC Fire'].map(d => (
                     <SelectItem key={d} value={d}>{d}</SelectItem>
                   ))}
                 </SelectContent>
