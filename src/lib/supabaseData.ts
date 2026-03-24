@@ -160,6 +160,22 @@ export async function insertWorker(w: Omit<Worker, 'id'>): Promise<Worker> {
   return rowToWorker(data);
 }
 
+export async function updateWorkerDb(id: string, updates: Partial<Worker>): Promise<Worker> {
+  const dbUpdates: any = {};
+  if (updates.staffCode !== undefined) dbUpdates.staff_code = updates.staffCode;
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
+  if (updates.department !== undefined) dbUpdates.department = updates.department;
+  if (updates.skills !== undefined) dbUpdates.skills = updates.skills;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.currentSite !== undefined) dbUpdates.current_site = updates.currentSite;
+  if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+
+  const { data, error } = await supabase.from('workers').update(dbUpdates).eq('id', id).select().single();
+  if (error) throw error;
+  return rowToWorker(data);
+}
+
 export async function deleteWorkerDb(id: string) {
   const { error } = await supabase.from('workers').delete().eq('id', id);
   if (error) throw error;

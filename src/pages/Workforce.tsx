@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { fetchWorkers, insertWorker, deleteWorkerDb } from '@/lib/supabaseData';
+import { fetchWorkers, insertWorker, deleteWorkerDb, updateWorkerDb } from '@/lib/supabaseData';
 import type { Worker } from '@/data/mockData';
-import { Search, Phone, MapPin, Trash2 } from 'lucide-react';
+import { Search, Phone, MapPin, Trash2, Edit3 } from 'lucide-react';
 import AddWorkerDialog from '@/components/forms/AddWorkerDialog';
+import EditWorkerDialog from '@/components/forms/EditWorkerDialog';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { parseWorkersExcel } from '@/lib/excelImport';
 import { toast } from '@/hooks/use-toast';
@@ -16,6 +17,7 @@ export default function Workforce() {
   const [deptFilter, setDeptFilter] = useState('All');
   const [workerList, setWorkerList] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editWorker, setEditWorker] = useState<Worker | null>(null);
 
   const loadWorkers = async () => {
     try {
@@ -42,6 +44,14 @@ export default function Workforce() {
       setWorkerList(prev => [created, ...prev]);
       toast({ title: 'Worker added' });
     } catch { toast({ title: 'Failed to add worker', variant: 'destructive' }); }
+  };
+
+  const handleEdit = async (id: string, updates: Partial<Worker>) => {
+    try {
+      const updated = await updateWorkerDb(id, updates);
+      setWorkerList(prev => prev.map(w => w.id === id ? updated : w));
+      toast({ title: 'Worker updated' });
+    } catch { toast({ title: 'Failed to update worker', variant: 'destructive' }); }
   };
 
   const handleDelete = async (id: string) => {
@@ -117,6 +127,7 @@ export default function Workforce() {
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                   w.status === 'On Site' ? 'status-active' : w.status === 'Available' ? 'bg-info/10 text-info' : 'status-idle'
                 }`}>{w.status}</span>
+                <button onClick={() => setEditWorker(w)} className="p-1 rounded hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"><Edit3 className="h-3.5 w-3.5" /></button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -151,6 +162,7 @@ export default function Workforce() {
       {filtered.length === 0 && !loading && (
         <div className="text-center py-12 text-muted-foreground">No workers found. Add your first worker above.</div>
       )}
+      <EditWorkerDialog worker={editWorker} open={!!editWorker} onOpenChange={open => { if (!open) setEditWorker(null); }} onSave={handleEdit} />
     </div>
   );
 }
