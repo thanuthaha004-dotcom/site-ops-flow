@@ -17,6 +17,7 @@ export interface Project {
   workersAssigned: number;
   workersRequired: number;
   engineer: string;
+  workerNames: string[];
 }
 
 export interface Vehicle {

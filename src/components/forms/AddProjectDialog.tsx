@@ -15,20 +15,23 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
   const [form, setForm] = useState({
     name: '', type: 'LPG' as ProjectType, site: '', status: 'Active' as ProjectStatus,
     priority: 'Medium' as Priority, startDate: '', endDate: '', engineer: '',
-    workersRequired: 1,
+    workersRequired: 1, workerNamesText: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const workerNames = form.workerNamesText.split(',').map(n => n.trim()).filter(Boolean);
+    const { workerNamesText, ...rest } = form;
     const project: Project = {
       id: `PRJ-${String(Date.now()).slice(-4)}`,
-      ...form,
+      ...rest,
+      workerNames,
       progress: 0,
-      workersAssigned: 0,
+      workersAssigned: workerNames.length,
     };
     onAdd(project);
     setOpen(false);
-    setForm({ name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1 });
+    setForm({ name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '' });
   };
 
   return (
@@ -88,6 +91,15 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
               <Label>Workers Needed</Label>
               <Input type="number" min={1} value={form.workersRequired} onChange={e => setForm(f => ({ ...f, workersRequired: +e.target.value }))} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Workers Names</Label>
+            <textarea
+              value={form.workerNamesText}
+              onChange={e => setForm(f => ({ ...f, workerNamesText: e.target.value }))}
+              placeholder="Enter names separated by commas (e.g. Ahmed, Ravi, John)"
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px]"
+            />
           </div>
           <button type="submit" className="w-full py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
             Add Project

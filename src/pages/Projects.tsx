@@ -3,11 +3,12 @@ import { getProjects, addProject, saveProjects } from '@/lib/localStorage';
 import type { Project, ProjectType } from '@/data/mockData';
 import { StatusBadge, PriorityBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { Progress } from '@/components/ui/progress';
-import { MapPin, Users, Calendar, Search } from 'lucide-react';
+import { MapPin, Users, Calendar, Search, Download } from 'lucide-react';
 import AddProjectDialog from '@/components/forms/AddProjectDialog';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { parseProjectsExcel } from '@/lib/excelImport';
 import { toast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 const projectTypes: ('All' | ProjectType)[] = ['All', 'LPG', 'Fire Fighting', 'Small Job', 'AMC'];
 
@@ -26,6 +27,20 @@ export default function Projects() {
     setProjectList(updated);
   };
 
+  const handleExport = () => {
+    const data = projectList.map(p => ({
+      ID: p.id, Name: p.name, Type: p.type, Site: p.site, Status: p.status,
+      Priority: p.priority, 'Start Date': p.startDate, 'End Date': p.endDate,
+      Engineer: p.engineer, 'Workers Required': p.workersRequired,
+      'Workers Assigned': p.workersAssigned, Progress: p.progress,
+      'Worker Names': (p.workerNames || []).join(', '),
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Projects');
+    XLSX.writeFile(wb, 'Projects.xlsx');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -34,6 +49,9 @@ export default function Projects() {
           <p className="text-muted-foreground text-sm">{projectList.length} total projects</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={handleExport} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 transition-colors">
+            <Download className="h-4 w-4" /> Export Excel
+          </button>
           <ExcelUploadButton label="Import Excel" onFileSelect={async (file) => {
             try {
               const imported = await parseProjectsExcel(file);
@@ -103,6 +121,12 @@ export default function Projects() {
               <Progress value={p.progress} className="h-2 flex-1" />
               <span className="text-xs font-medium">{p.progress}%</span>
             </div>
+
+            {p.workerNames && p.workerNames.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Workers:</span> {p.workerNames.join(', ')}
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
               <span className="flex items-center gap-1"><Users className="h-3 w-3" />{p.workersAssigned}/{p.workersRequired} workers</span>
