@@ -341,7 +341,7 @@ export default function TripPlanning() {
               <div className="kpi-card"><p className="text-sm text-muted-foreground">Total Trips</p><p className="text-3xl font-bold">{stats.totalTrips}</p></div>
               <div className="kpi-card"><p className="text-sm text-muted-foreground">Trips Saved</p><p className="text-3xl font-bold text-success">{stats.tripsSaved}</p></div>
               <div className="kpi-card"><p className="text-sm text-muted-foreground">Avg Utilization</p><p className="text-3xl font-bold">{stats.avgUtilization}%</p></div>
-              <div className="kpi-card"><p className="text-sm text-muted-foreground">Workers Grouped</p><p className="text-3xl font-bold">{stats.totalWorkers}</p></div>
+              <div className="kpi-card"><p className="text-sm text-muted-foreground">Workers Grouped</p><p className="text-3xl font-bold">{workers.length}</p></div>
             </div>
           )}
           <div className="flex gap-2 flex-wrap">
