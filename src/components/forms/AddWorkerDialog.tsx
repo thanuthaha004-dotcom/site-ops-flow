@@ -24,7 +24,7 @@ export default function AddWorkerDialog({ onAdd, children }: Props) {
       skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
     });
     setOpen(false);
-    setForm({ name: '', role: '', department: '', skills: '', status: 'Available', currentSite: '—', phone: '' });
+    setForm({ staffCode: '', name: '', role: '', department: '', skills: '', status: 'Available', currentSite: '—', phone: '' });
   };
 
   return (
