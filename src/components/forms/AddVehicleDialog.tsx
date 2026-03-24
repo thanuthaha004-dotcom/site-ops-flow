@@ -46,7 +46,7 @@ export default function AddVehicleDialog({ onAdd, children }: Props) {
               <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['Utility Van', 'Pickup Truck', 'Heavy Truck'].map(t => (
+                  {['3 Ton Pickup', '1 Ton Pickup', 'Van Passenger', 'Car'].map(t => (
                     <SelectItem key={t} value={t}>{t}</SelectItem>
                   ))}
                 </SelectContent>
