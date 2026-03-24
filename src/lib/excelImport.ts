@@ -62,7 +62,7 @@ export async function parseVehiclesExcel(file: File): Promise<Vehicle[]> {
     department: r['department'] || r['Department'] || '',
     capacity: Number(r['capacity'] || r['Capacity'] || 6),
     status: (r['status'] || r['Status'] || 'Idle') as VehicleStatus,
-    driver: r['driver'] || r['Driver'] || '—',
+    driver: r['driver'] || r['Driver'] || r['Driver Name'] || r['driver name'] || r['DriverName'] || r['DRIVER'] || '',
     utilization: Number(r['utilization'] || r['Utilization'] || 0),
     fuelLevel: Number(r['fuelLevel'] || r['Fuel Level'] || r['fuel'] || 100),
     currentRoute: r['currentRoute'] || r['Current Route'] || r['Route'] || '—',
