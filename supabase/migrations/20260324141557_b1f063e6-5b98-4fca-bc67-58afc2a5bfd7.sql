@@ -1,0 +1,1 @@
+ALTER TABLE public.workers ADD COLUMN staff_code text NOT NULL DEFAULT '';

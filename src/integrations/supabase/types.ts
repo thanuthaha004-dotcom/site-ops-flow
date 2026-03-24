@@ -132,6 +132,7 @@ export type Database = {
           phone: string
           role: string
           skills: string[]
+          staff_code: string
           status: string
           updated_at: string
         }
@@ -144,6 +145,7 @@ export type Database = {
           phone?: string
           role?: string
           skills?: string[]
+          staff_code?: string
           status?: string
           updated_at?: string
         }
@@ -156,6 +158,7 @@ export type Database = {
           phone?: string
           role?: string
           skills?: string[]
+          staff_code?: string
           status?: string
           updated_at?: string
         }

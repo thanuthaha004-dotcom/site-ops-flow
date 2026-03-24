@@ -39,6 +39,7 @@ export interface Vehicle {
 
 export interface Worker {
   id: string;
+  staffCode: string;
   name: string;
   role: string;
   department: string;
