@@ -166,8 +166,9 @@ export default function Projects() {
               <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{p.site}</span>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <span className="bg-secondary px-2 py-0.5 rounded text-secondary-foreground">{p.type}</span>
+              {p.workType && <span className="bg-muted px-2 py-0.5 rounded text-muted-foreground">{p.workType}</span>}
               <StatusBadge status={p.status} />
             </div>
 
