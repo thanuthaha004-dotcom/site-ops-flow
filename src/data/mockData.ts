@@ -23,6 +23,8 @@ export interface Vehicle {
   id: string;
   number: string;
   type: string;
+  brand: string;
+  department: string;
   capacity: number;
   status: VehicleStatus;
   driver: string;

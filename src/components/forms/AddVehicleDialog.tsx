@@ -13,7 +13,7 @@ interface Props {
 export default function AddVehicleDialog({ onAdd, children }: Props) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    number: '', type: '3 Ton Pickup', capacity: 6,
+    number: '', type: '3 Ton Pickup', brand: '', department: '', capacity: 6,
     status: 'Idle' as VehicleStatus, driver: '', currentRoute: '—',
   });
 
@@ -27,7 +27,7 @@ export default function AddVehicleDialog({ onAdd, children }: Props) {
     };
     onAdd(vehicle);
     setOpen(false);
-    setForm({ number: '', type: '3 Ton Pickup', capacity: 6, status: 'Idle', driver: '', currentRoute: '—' });
+    setForm({ number: '', type: '3 Ton Pickup', brand: '', department: '', capacity: 6, status: 'Idle', driver: '', currentRoute: '—' });
   };
 
   return (
@@ -51,6 +51,16 @@ export default function AddVehicleDialog({ onAdd, children }: Props) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Brand</Label>
+              <Input value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} placeholder="e.g. Toyota" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Department</Label>
+              <Input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Operations" />
             </div>
             <div className="space-y-2">
               <Label>Capacity</Label>

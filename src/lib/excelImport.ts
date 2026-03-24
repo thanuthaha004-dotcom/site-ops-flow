@@ -55,6 +55,8 @@ export async function parseVehiclesExcel(file: File): Promise<Vehicle[]> {
     id: r['id'] || r['ID'] || `VH-${String(i + 1).padStart(3, '0')}`,
     number: r['number'] || r['Number'] || r['Vehicle Number'] || '',
     type: r['type'] || r['Type'] || 'Utility Van',
+    brand: r['brand'] || r['Brand'] || r['Vehicle Brand'] || '',
+    department: r['department'] || r['Department'] || '',
     capacity: Number(r['capacity'] || r['Capacity'] || 6),
     status: (r['status'] || r['Status'] || 'Idle') as VehicleStatus,
     driver: r['driver'] || r['Driver'] || '—',
