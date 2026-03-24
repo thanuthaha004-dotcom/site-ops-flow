@@ -92,6 +92,17 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
+          </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Work Type</Label>
+            <Select value={form.workType} onValueChange={v => setForm(f => ({ ...f, workType: v }))}>
+              <SelectTrigger><SelectValue placeholder="Select work type" /></SelectTrigger>
+              <SelectContent>
+                {workTypes.map(w => (
+                  <SelectItem key={w} value={w}>{w}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
