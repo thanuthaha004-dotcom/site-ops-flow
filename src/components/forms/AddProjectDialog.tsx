@@ -40,7 +40,7 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
       workersAssigned: workerNames.length,
     });
     setOpen(false);
-    setForm({ code: '', name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '' });
+    setForm({ code: '', name: '', type: 'LPG', site: '', status: 'Active', priority: 'Medium', startDate: '', endDate: '', engineer: '', workersRequired: 1, workerNamesText: '', workType: '' });
   };
 
   return (
