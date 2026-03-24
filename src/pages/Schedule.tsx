@@ -1,4 +1,6 @@
-import { projects } from '@/data/mockData';
+import { useState, useEffect } from 'react';
+import { fetchProjects } from '@/lib/supabaseData';
+import type { Project } from '@/data/mockData';
 import { StatusBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { Clock, MapPin, Users } from 'lucide-react';
 
@@ -10,20 +12,23 @@ const columns = [
 ] as const;
 
 export default function Schedule() {
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => { fetchProjects().then(setProjects).catch(() => {}); }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule Board</h1>
-          <p className="text-muted-foreground text-sm">Drag-and-drop project scheduling</p>
+          <p className="text-muted-foreground text-sm">Project scheduling overview</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
-          Week of Feb 15 – Feb 21, 2026
+          {new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
         </div>
       </div>
 
-      {/* Kanban Board */}
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         {columns.map((col) => {
           const items = projects.filter(p => p.status === col.key);
@@ -36,8 +41,8 @@ export default function Schedule() {
               </div>
               <div className="space-y-2">
                 {items.map((p) => (
-                  <div key={p.id} className="bg-card rounded-md border p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
-                    <p className="text-xs text-muted-foreground">{p.id}</p>
+                  <div key={p.id} className="bg-card rounded-md border p-3 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="text-xs text-muted-foreground">{p.code}</p>
                     <h4 className="font-medium text-sm mt-0.5 mb-2">{p.name}</h4>
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{p.site.split(',')[0]}</span>
@@ -49,9 +54,7 @@ export default function Schedule() {
                   </div>
                 ))}
                 {items.length === 0 && (
-                  <div className="text-center py-8 text-xs text-muted-foreground border-2 border-dashed border-border rounded-md">
-                    No projects
-                  </div>
+                  <div className="text-center py-8 text-xs text-muted-foreground border-2 border-dashed border-border rounded-md">No projects</div>
                 )}
               </div>
             </div>

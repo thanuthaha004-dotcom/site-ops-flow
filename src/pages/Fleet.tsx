@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getVehicles, addVehicle, deleteVehicle, saveVehicles } from '@/lib/localStorage';
+import { useState, useEffect } from 'react';
+import { fetchVehicles, insertVehicle, deleteVehicleDb } from '@/lib/supabaseData';
 import type { Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
 import { Fuel, Route, Gauge, Trash2, Download } from 'lucide-react';
@@ -14,32 +14,42 @@ import {
 import * as XLSX from 'xlsx';
 
 export default function Fleet() {
-  const [vehicleList, setVehicleList] = useState<Vehicle[]>(getVehicles);
-  const avgUtil = Math.round(vehicleList.reduce((a, v) => a + v.utilization, 0) / (vehicleList.length || 1));
+  const [vehicleList, setVehicleList] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAdd = (vehicle: Vehicle) => {
-    const updated = addVehicle(vehicle);
-    setVehicleList(updated);
+  const loadVehicles = async () => {
+    try {
+      const data = await fetchVehicles();
+      setVehicleList(data);
+    } catch { toast({ title: 'Failed to load vehicles', variant: 'destructive' }); }
+    finally { setLoading(false); }
   };
 
-  const handleDelete = (id: string) => {
-    const updated = deleteVehicle(id);
-    setVehicleList(updated);
-    toast({ title: 'Vehicle deleted' });
+  useEffect(() => { loadVehicles(); }, []);
+
+  const avgUtil = Math.round(vehicleList.reduce((a, v) => a + v.utilization, 0) / (vehicleList.length || 1));
+
+  const handleAdd = async (vehicle: Omit<Vehicle, 'id'>) => {
+    try {
+      const created = await insertVehicle(vehicle);
+      setVehicleList(prev => [created, ...prev]);
+      toast({ title: 'Vehicle added' });
+    } catch { toast({ title: 'Failed to add vehicle', variant: 'destructive' }); }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteVehicleDb(id);
+      setVehicleList(prev => prev.filter(v => v.id !== id));
+      toast({ title: 'Vehicle deleted' });
+    } catch { toast({ title: 'Failed to delete vehicle', variant: 'destructive' }); }
   };
 
   const handleExport = () => {
     const data = vehicleList.map(v => ({
-      'Vehicle Number': v.number,
-      'Type': v.type,
-      'Brand': v.brand || '',
-      'Department': v.department || '',
-      'Capacity': v.capacity,
-      'Status': v.status,
-      'Driver': v.driver,
-      'Utilization %': v.utilization,
-      'Fuel Level %': v.fuelLevel,
-      'Current Route': v.currentRoute,
+      'Vehicle Number': v.number, Type: v.type, Brand: v.brand, Department: v.department,
+      Capacity: v.capacity, Status: v.status, Driver: v.driver,
+      'Utilization %': v.utilization, 'Fuel Level %': v.fuelLevel, 'Current Route': v.currentRoute,
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -47,6 +57,19 @@ export default function Fleet() {
     XLSX.writeFile(wb, 'vehicles.xlsx');
     toast({ title: 'Excel downloaded' });
   };
+
+  const handleImport = async (file: File) => {
+    try {
+      const imported = await parseVehiclesExcel(file);
+      for (const v of imported) {
+        const created = await insertVehicle(v);
+        setVehicleList(prev => [created, ...prev]);
+      }
+      toast({ title: `Imported ${imported.length} vehicles` });
+    } catch { toast({ title: 'Failed to parse file', variant: 'destructive' }); }
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground">Loading vehicles...</div>;
 
   return (
     <div className="space-y-6">
@@ -59,15 +82,7 @@ export default function Fleet() {
           <button onClick={handleExport} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 transition-colors">
             <Download className="h-4 w-4" /> Export Excel
           </button>
-          <ExcelUploadButton label="Import Excel" onFileSelect={async (file) => {
-            try {
-              const imported = await parseVehiclesExcel(file);
-              const merged = [...vehicleList, ...imported];
-              saveVehicles(merged);
-              setVehicleList(merged);
-              toast({ title: `Imported ${imported.length} vehicles` });
-            } catch { toast({ title: 'Failed to parse file', variant: 'destructive' }); }
-          }} />
+          <ExcelUploadButton label="Import Excel" onFileSelect={handleImport} />
           <AddVehicleDialog onAdd={handleAdd}>
             <button className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors">
               + Add Vehicle
@@ -78,22 +93,10 @@ export default function Fleet() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="kpi-card">
-          <p className="text-sm text-muted-foreground">Active</p>
-          <p className="text-3xl font-bold text-success">{vehicleList.filter(v => v.status === 'Active').length}</p>
-        </div>
-        <div className="kpi-card">
-          <p className="text-sm text-muted-foreground">Idle</p>
-          <p className="text-3xl font-bold text-muted-foreground">{vehicleList.filter(v => v.status === 'Idle').length}</p>
-        </div>
-        <div className="kpi-card">
-          <p className="text-sm text-muted-foreground">Maintenance</p>
-          <p className="text-3xl font-bold text-warning">{vehicleList.filter(v => v.status === 'Maintenance').length}</p>
-        </div>
-        <div className="kpi-card">
-          <p className="text-sm text-muted-foreground">Avg Utilization</p>
-          <p className="text-3xl font-bold">{avgUtil}%</p>
-        </div>
+        <div className="kpi-card"><p className="text-sm text-muted-foreground">Active</p><p className="text-3xl font-bold text-success">{vehicleList.filter(v => v.status === 'Active').length}</p></div>
+        <div className="kpi-card"><p className="text-sm text-muted-foreground">Idle</p><p className="text-3xl font-bold text-muted-foreground">{vehicleList.filter(v => v.status === 'Idle').length}</p></div>
+        <div className="kpi-card"><p className="text-sm text-muted-foreground">Maintenance</p><p className="text-3xl font-bold text-warning">{vehicleList.filter(v => v.status === 'Maintenance').length}</p></div>
+        <div className="kpi-card"><p className="text-sm text-muted-foreground">Avg Utilization</p><p className="text-3xl font-bold">{avgUtil}%</p></div>
       </div>
 
       {/* Vehicle Cards */}
@@ -109,14 +112,10 @@ export default function Fleet() {
               <div className="flex items-center gap-2">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                   v.status === 'Active' ? 'status-active' : v.status === 'Maintenance' ? 'status-warning' : 'status-idle'
-                }`}>
-                  {v.status}
-                </span>
+                }`}>{v.status}</span>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -131,21 +130,14 @@ export default function Fleet() {
                 </AlertDialog>
               </div>
             </div>
-
             <div className="space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-muted-foreground"><Gauge className="h-3.5 w-3.5" />Utilization</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={v.utilization} className="h-2 w-20" />
-                  <span className="text-xs font-medium">{v.utilization}%</span>
-                </div>
+                <div className="flex items-center gap-2"><Progress value={v.utilization} className="h-2 w-20" /><span className="text-xs font-medium">{v.utilization}%</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-muted-foreground"><Fuel className="h-3.5 w-3.5" />Fuel</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={v.fuelLevel} className="h-2 w-20" />
-                  <span className={`text-xs font-medium ${v.fuelLevel < 35 ? 'text-destructive' : ''}`}>{v.fuelLevel}%</span>
-                </div>
+                <div className="flex items-center gap-2"><Progress value={v.fuelLevel} className="h-2 w-20" /><span className={`text-xs font-medium ${v.fuelLevel < 35 ? 'text-destructive' : ''}`}>{v.fuelLevel}%</span></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-muted-foreground">Driver</span>
@@ -158,6 +150,9 @@ export default function Fleet() {
           </div>
         ))}
       </div>
+      {vehicleList.length === 0 && !loading && (
+        <div className="text-center py-12 text-muted-foreground">No vehicles found. Add your first vehicle above.</div>
+      )}
     </div>
   );
 }

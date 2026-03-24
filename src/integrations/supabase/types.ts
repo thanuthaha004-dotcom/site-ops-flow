@@ -14,7 +14,150 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      projects: {
+        Row: {
+          code: string
+          created_at: string
+          end_date: string
+          engineer: string
+          id: string
+          name: string
+          priority: string
+          progress: number
+          site: string
+          start_date: string
+          status: string
+          type: string
+          updated_at: string
+          worker_names: string[]
+          workers_assigned: number
+          workers_required: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          end_date?: string
+          engineer?: string
+          id?: string
+          name: string
+          priority?: string
+          progress?: number
+          site?: string
+          start_date?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          worker_names?: string[]
+          workers_assigned?: number
+          workers_required?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          end_date?: string
+          engineer?: string
+          id?: string
+          name?: string
+          priority?: string
+          progress?: number
+          site?: string
+          start_date?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          worker_names?: string[]
+          workers_assigned?: number
+          workers_required?: number
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          brand: string
+          capacity: number
+          created_at: string
+          current_route: string
+          department: string
+          driver: string
+          fuel_level: number
+          id: string
+          number: string
+          status: string
+          type: string
+          updated_at: string
+          utilization: number
+        }
+        Insert: {
+          brand?: string
+          capacity?: number
+          created_at?: string
+          current_route?: string
+          department?: string
+          driver?: string
+          fuel_level?: number
+          id?: string
+          number: string
+          status?: string
+          type?: string
+          updated_at?: string
+          utilization?: number
+        }
+        Update: {
+          brand?: string
+          capacity?: number
+          created_at?: string
+          current_route?: string
+          department?: string
+          driver?: string
+          fuel_level?: number
+          id?: string
+          number?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          utilization?: number
+        }
+        Relationships: []
+      }
+      workers: {
+        Row: {
+          created_at: string
+          current_site: string
+          department: string
+          id: string
+          name: string
+          phone: string
+          role: string
+          skills: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_site?: string
+          department?: string
+          id?: string
+          name: string
+          phone?: string
+          role?: string
+          skills?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_site?: string
+          department?: string
+          id?: string
+          name?: string
+          phone?: string
+          role?: string
+          skills?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
