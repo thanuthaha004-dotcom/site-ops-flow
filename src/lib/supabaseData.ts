@@ -225,6 +225,8 @@ export async function saveTripAssignments(
     site: a.site,
     department: a.department,
     time_slot: a.time_slot,
+    start_time: a.start_time,
+    end_time: a.end_time,
     urgent: a.urgent || false,
     project_id: a.project_id,
     project_name: a.project_name,
