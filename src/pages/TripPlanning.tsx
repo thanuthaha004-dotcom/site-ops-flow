@@ -827,7 +827,7 @@ export default function TripPlanning() {
               );
             })}
           </div>
-          {role === 'admin' && tripGroups.some(g => g.status !== 'dispatched') && (
+          {tripGroups.some(g => g.status !== 'dispatched') && (
             <div className="flex justify-end">
               <button onClick={handleDispatchAll} className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" /> Dispatch All Trips
