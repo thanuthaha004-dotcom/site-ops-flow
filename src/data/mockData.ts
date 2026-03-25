@@ -49,6 +49,13 @@ export interface Worker {
   phone: string;
 }
 
+export interface Engineer {
+  id: string;
+  name: string;
+  department: string;
+  phone: string;
+}
+
 export interface KPI {
   label: string;
   value: string;

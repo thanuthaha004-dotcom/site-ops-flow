@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Project, Vehicle, Worker, ProjectType, ProjectStatus, Priority, VehicleStatus, WorkerStatus } from '@/data/mockData';
+import type { Project, Vehicle, Worker, Engineer, ProjectType, ProjectStatus, Priority, VehicleStatus, WorkerStatus } from '@/data/mockData';
 
 // ── Projects ──
 
