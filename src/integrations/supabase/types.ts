@@ -78,10 +78,12 @@ export type Database = {
         Row: {
           created_at: string
           department: string
+          end_time: string | null
           id: string
           project_id: string | null
           project_name: string
           site: string
+          start_time: string | null
           status: string
           time_slot: string
           trip_date: string
@@ -93,10 +95,12 @@ export type Database = {
         Insert: {
           created_at?: string
           department?: string
+          end_time?: string | null
           id?: string
           project_id?: string | null
           project_name?: string
           site: string
+          start_time?: string | null
           status?: string
           time_slot: string
           trip_date: string
@@ -108,10 +112,12 @@ export type Database = {
         Update: {
           created_at?: string
           department?: string
+          end_time?: string | null
           id?: string
           project_id?: string | null
           project_name?: string
           site?: string
+          start_time?: string | null
           status?: string
           time_slot?: string
           trip_date?: string
