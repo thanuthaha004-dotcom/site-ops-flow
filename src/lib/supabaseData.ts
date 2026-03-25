@@ -299,3 +299,34 @@ export async function getRecentTripDates(): Promise<string[]> {
   const unique = [...new Set((data || []).map((r: any) => r.trip_date))];
   return unique.slice(0, 30);
 }
+
+// ── Driver-Area Defaults ──
+
+export interface DriverAreaDefault {
+  id: string;
+  driver_name: string;
+  area: string;
+}
+
+export async function fetchDriverAreaDefaults(): Promise<DriverAreaDefault[]> {
+  const { data, error } = await supabase
+    .from('driver_area_defaults')
+    .select('*')
+    .order('driver_name');
+  if (error) throw error;
+  return (data || []) as DriverAreaDefault[];
+}
+
+export async function upsertDriverAreaDefaults(driver_name: string, areas: string[]): Promise<void> {
+  // Remove existing for this driver
+  await supabase.from('driver_area_defaults').delete().eq('driver_name', driver_name);
+  if (areas.length === 0) return;
+  const rows = areas.map(area => ({ driver_name, area }));
+  const { error } = await supabase.from('driver_area_defaults').insert(rows);
+  if (error) throw error;
+}
+
+export async function deleteDriverAreaDefault(id: string): Promise<void> {
+  const { error } = await supabase.from('driver_area_defaults').delete().eq('id', id);
+  if (error) throw error;
+}

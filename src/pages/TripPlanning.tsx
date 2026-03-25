@@ -4,14 +4,18 @@ import {
   optimizeTrips, TIME_SLOTS, MIN_UTILIZATION,
   snapToTimeSlot, getAreaCluster,
 } from '@/lib/tripPlanning';
-import { fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates } from '@/lib/supabaseData';
-import type { Project, Worker } from '@/data/mockData';
+import {
+  fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
+  fetchDriverAreaDefaults, upsertDriverAreaDefaults,
+} from '@/lib/supabaseData';
+import type { DriverAreaDefault } from '@/lib/supabaseData';
+import type { Project, Worker, Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
 import {
   Bus, Users, MapPin, Clock, Zap, AlertTriangle, CheckCircle2,
   BarChart3, TrendingUp, Merge, Shield, UserCog, ShieldCheck,
   Plus, Trash2, Edit3, FolderKanban, ArrowRight, CalendarIcon, Copy, Save,
-  RefreshCw,
+  RefreshCw, Settings2,
 } from 'lucide-react';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { toast } from '@/hooks/use-toast';
@@ -20,6 +24,7 @@ import { format, subDays, addDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 type ViewRole = 'engineer' | 'admin';
 type PlanningStep = 'review' | 'optimize' | 'dispatch';
@@ -28,6 +33,11 @@ const STEPS: { key: PlanningStep; label: string; adminOnly?: boolean }[] = [
   { key: 'review', label: 'Review Assignments' },
   { key: 'optimize', label: 'Optimize Trips', adminOnly: true },
   { key: 'dispatch', label: 'Dispatch', adminOnly: true },
+];
+
+const AREA_LIST = [
+  'Al Quoz', 'DIP', 'Jebel Ali', 'Bur Dubai', 'Deira', 'DAFZA',
+  'Al Quasis', 'Khawaneej', 'International City', 'Silicon Oasis', 'Other',
 ];
 
 function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
@@ -42,6 +52,7 @@ export default function TripPlanning() {
 
   const [projectList, setProjectList] = useState<Project[]>([]);
   const [workerList, setWorkerList] = useState<Worker[]>([]);
+  const [vehicleList, setVehicleList] = useState<Vehicle[]>([]);
 
   // Date-based scheduling
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -53,11 +64,29 @@ export default function TripPlanning() {
   // Default time slot for auto-generation
   const [defaultTimeSlot, setDefaultTimeSlot] = useState(TIME_SLOTS[0]);
 
+  // Project selection for trip generation
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [showProjectSelector, setShowProjectSelector] = useState(false);
+
+  // Driver-area defaults
+  const [driverAreaDefaults, setDriverAreaDefaults] = useState<DriverAreaDefault[]>([]);
+  const [showDriverSettings, setShowDriverSettings] = useState(false);
+  const [editingDriver, setEditingDriver] = useState('');
+  const [editingAreas, setEditingAreas] = useState<string[]>([]);
+
   useEffect(() => {
     fetchProjects().then(setProjectList).catch(() => {});
     fetchWorkers().then(setWorkerList).catch(() => {});
+    fetchVehicles().then(setVehicleList).catch(() => {});
     getRecentTripDates().then(setRecentDates).catch(() => {});
+    fetchDriverAreaDefaults().then(setDriverAreaDefaults).catch(() => {});
   }, []);
+
+  // Initialize selected projects when project list loads
+  useEffect(() => {
+    const active = projectList.filter(p => (p.status === 'Active' || p.status === 'Scheduled') && (p.workerNames || []).length > 0);
+    setSelectedProjectIds(new Set(active.map(p => p.id)));
+  }, [projectList]);
 
   // Load trips when date changes
   const loadTripsForDate = useCallback(async (date: Date) => {
@@ -99,18 +128,33 @@ export default function TripPlanning() {
     if (date) setSelectedDate(date);
   };
 
-  // Auto-generate trips from active projects
+  const toggleProjectSelection = (id: string) => {
+    setSelectedProjectIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllProjects = () => {
+    const active = projectList.filter(p => (p.status === 'Active' || p.status === 'Scheduled') && (p.workerNames || []).length > 0);
+    setSelectedProjectIds(new Set(active.map(p => p.id)));
+  };
+
+  const deselectAllProjects = () => setSelectedProjectIds(new Set());
+
+  // Auto-generate trips from SELECTED projects only
   const handleAutoGenerate = () => {
-    const activeProjects = projectList.filter(p => p.status === 'Active' || p.status === 'Scheduled');
-    if (activeProjects.length === 0) {
-      toast({ title: 'No active projects found', variant: 'destructive' });
+    const selectedProjects = projectList.filter(p => selectedProjectIds.has(p.id));
+    if (selectedProjects.length === 0) {
+      toast({ title: 'No projects selected. Pick projects to include.', variant: 'destructive' });
       return;
     }
 
-    const generated: TripWorker[] = [];
+    const gen: TripWorker[] = [];
     const seen = new Set<string>();
 
-    activeProjects.forEach(project => {
+    selectedProjects.forEach(project => {
       const workerNames = project.workerNames || [];
       workerNames.forEach((name, idx) => {
         if (!name.trim()) return;
@@ -118,10 +162,9 @@ export default function TripPlanning() {
         if (seen.has(key)) return;
         seen.add(key);
 
-        // Try to find matching worker from worker master for department info
         const masterWorker = workerList.find(w => w.name.toLowerCase() === name.trim().toLowerCase());
 
-        generated.push({
+        gen.push({
           id: `TW-AUTO-${project.id}-${idx}`,
           name: name.trim(),
           site: project.site || 'Unassigned',
@@ -134,15 +177,55 @@ export default function TripPlanning() {
       });
     });
 
-    if (generated.length === 0) {
-      toast({ title: 'No workers found in active projects. Add workers to your projects first.', variant: 'destructive' });
+    if (gen.length === 0) {
+      toast({ title: 'No workers found in selected projects.', variant: 'destructive' });
       return;
     }
 
-    setWorkers(generated);
+    setWorkers(gen);
     setGenerated(true);
     setSaved(false);
-    toast({ title: `Auto-generated ${generated.length} worker trips from ${activeProjects.length} active projects` });
+    setShowProjectSelector(false);
+    toast({ title: `Generated ${gen.length} trips from ${selectedProjects.length} projects` });
+  };
+
+  // Driver-area helpers
+  const driversByArea = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    driverAreaDefaults.forEach(d => {
+      if (!map[d.area]) map[d.area] = [];
+      map[d.area].push(d.driver_name);
+    });
+    return map;
+  }, [driverAreaDefaults]);
+
+  const getDefaultDriverForArea = (area: string): string => {
+    return driversByArea[area]?.[0] || '';
+  };
+
+  const allDrivers = useMemo(() => {
+    const fromVehicles = vehicleList.filter(v => v.driver).map(v => v.driver);
+    const fromDefaults = driverAreaDefaults.map(d => d.driver_name);
+    return [...new Set([...fromVehicles, ...fromDefaults])].sort();
+  }, [vehicleList, driverAreaDefaults]);
+
+  const handleSaveDriverArea = async () => {
+    if (!editingDriver) return;
+    try {
+      await upsertDriverAreaDefaults(editingDriver, editingAreas);
+      const updated = await fetchDriverAreaDefaults();
+      setDriverAreaDefaults(updated);
+      setEditingDriver('');
+      setEditingAreas([]);
+      toast({ title: `Driver area assignments saved` });
+    } catch {
+      toast({ title: 'Failed to save driver area', variant: 'destructive' });
+    }
+  };
+
+  const startEditDriver = (driver: string) => {
+    setEditingDriver(driver);
+    setEditingAreas(driverAreaDefaults.filter(d => d.driver_name === driver).map(d => d.area));
   };
 
   const handleCopyFromDate = async (fromDateStr: string) => {
@@ -237,6 +320,13 @@ export default function TripPlanning() {
     toast({ title: 'Vehicle overridden' });
   };
 
+  const handleOverrideDriver = (groupId: string, driver: string) => {
+    setTripGroups(prev => prev.map(g => {
+      if (g.id !== groupId || !g.suggestedVehicle) return g;
+      return { ...g, suggestedVehicle: { ...g.suggestedVehicle, driver } };
+    }));
+  };
+
   const handleExcelImport = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
@@ -281,10 +371,8 @@ export default function TripPlanning() {
 
   const visibleSteps = STEPS.filter(s => role === 'admin' ? true : !s.adminOnly);
 
-  // Previous dates for copy
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
 
-  // Count active projects with workers
   const activeProjectsWithWorkers = projectList.filter(p => (p.status === 'Active' || p.status === 'Scheduled') && (p.workerNames || []).length > 0);
 
   return (
@@ -295,6 +383,74 @@ export default function TripPlanning() {
           <p className="text-muted-foreground text-sm">{workers.length} workers assigned • {tripGroups.length} trips planned</p>
         </div>
         <div className="flex items-center gap-2">
+          {role === 'admin' && (
+            <Dialog open={showDriverSettings} onOpenChange={setShowDriverSettings}>
+              <DialogTrigger asChild>
+                <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors">
+                  <Settings2 className="h-4 w-4" /> Driver Areas
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Driver–Area Default Assignments</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Assign default areas to drivers. When trips are optimized, drivers will be auto-suggested based on area. You can override per trip.
+                </p>
+                {/* Existing assignments */}
+                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
+                  {allDrivers.length === 0 && <p className="text-sm text-muted-foreground">No drivers found. Add vehicles with drivers first.</p>}
+                  {allDrivers.map(driver => {
+                    const areas = driverAreaDefaults.filter(d => d.driver_name === driver).map(d => d.area);
+                    return (
+                      <div key={driver} className="flex items-center justify-between bg-muted/30 px-3 py-2 rounded-md">
+                        <div>
+                          <span className="text-sm font-medium">{driver}</span>
+                          {areas.length > 0 ? (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {areas.map(a => <span key={a} className="text-xs bg-accent/20 text-accent-foreground px-2 py-0.5 rounded">{a}</span>)}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No area assigned</p>
+                          )}
+                        </div>
+                        <button onClick={() => startEditDriver(driver)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Edit form */}
+                {editingDriver && (
+                  <div className="border border-border rounded-md p-3 space-y-3">
+                    <p className="text-sm font-medium">Editing: <strong>{editingDriver}</strong></p>
+                    <div className="flex flex-wrap gap-2">
+                      {AREA_LIST.map(area => (
+                        <label key={area} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={editingAreas.includes(area)}
+                            onChange={e => {
+                              if (e.target.checked) setEditingAreas(prev => [...prev, area]);
+                              else setEditingAreas(prev => prev.filter(a => a !== area));
+                            }}
+                            className="rounded border-input" />
+                          <span className="text-xs">{area}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleSaveDriverArea} className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+                        Save
+                      </button>
+                      <button onClick={() => { setEditingDriver(''); setEditingAreas([]); }} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          )}
           <div className="flex rounded-md border border-input overflow-hidden">
             <button onClick={() => { setRole('engineer'); setStep('review'); }}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${role === 'engineer' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
@@ -325,13 +481,7 @@ export default function TripPlanning() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateChange}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
+              <Calendar mode="single" selected={selectedDate} onSelect={handleDateChange} initialFocus className={cn("p-3 pointer-events-auto")} />
             </PopoverContent>
           </Popover>
           <button onClick={() => setSelectedDate(addDays(selectedDate, 1))}
@@ -385,14 +535,14 @@ export default function TripPlanning() {
 
       {step === 'review' && (
         <div className="space-y-4">
-          {/* Auto-generate panel */}
-          {!generated && workers.length === 0 && (
+          {/* Auto-generate panel with project selection */}
+          {!generated && workers.length === 0 && !showProjectSelector && (
             <div className="kpi-card text-center py-8 space-y-4">
               <FolderKanban className="h-12 w-12 text-accent mx-auto" />
               <div>
-                <h2 className="text-lg font-semibold">Auto-Generate from Active Projects</h2>
+                <h2 className="text-lg font-semibold">Generate Trips from Projects</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Pull all workers from {activeProjectsWithWorkers.length} active project{activeProjectsWithWorkers.length !== 1 ? 's' : ''} and create trip assignments automatically.
+                  Select which projects to include for {format(selectedDate, 'MMM d, yyyy')}.
                 </p>
               </div>
               <div className="flex items-center justify-center gap-3">
@@ -404,14 +554,61 @@ export default function TripPlanning() {
                   </select>
                 </div>
                 <div className="pt-4">
-                  <button onClick={handleAutoGenerate}
+                  <button onClick={() => setShowProjectSelector(true)}
                     className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
-                    <Zap className="h-4 w-4" /> Generate Trips
+                    <Zap className="h-4 w-4" /> Select Projects & Generate
                   </button>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-3 pt-2">
                 <ExcelUploadButton label="Or Import from Excel" onFileSelect={handleExcelImport} />
+              </div>
+            </div>
+          )}
+
+          {/* Project selector */}
+          {showProjectSelector && !generated && (
+            <div className="kpi-card space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-lg">Select Projects for {format(selectedDate, 'MMM d, yyyy')}</h2>
+                <div className="flex gap-2">
+                  <button onClick={selectAllProjects} className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80">Select All</button>
+                  <button onClick={deselectAllProjects} className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80">Deselect All</button>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">Uncheck projects that don't need trips on this date.</p>
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {activeProjectsWithWorkers.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No active projects with workers found.</p>
+                )}
+                {activeProjectsWithWorkers.map(p => (
+                  <label key={p.id} className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-colors ${selectedProjectIds.has(p.id) ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/30'}`}>
+                    <input type="checkbox" checked={selectedProjectIds.has(p.id)} onChange={() => toggleProjectSelection(p.id)}
+                      className="rounded border-input mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{p.name}</span>
+                        <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{p.code}</span>
+                        {p.priority === 'High' && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">High Priority</span>}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {p.site || 'No site'}</span>
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(p.workerNames || []).length} workers</span>
+                        <span>{p.status}</span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <span className="text-sm text-muted-foreground">{selectedProjectIds.size} of {activeProjectsWithWorkers.length} projects selected</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowProjectSelector(false)} className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80">Cancel</button>
+                  <button onClick={handleAutoGenerate} disabled={selectedProjectIds.size === 0}
+                    className="px-4 py-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 disabled:opacity-50 flex items-center gap-2">
+                    <Zap className="h-4 w-4" /> Generate {selectedProjectIds.size > 0 ? `(${selectedProjectIds.size} projects)` : ''}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -447,9 +644,9 @@ export default function TripPlanning() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold">Assignments — {format(selectedDate, 'MMM d, yyyy')} ({workers.length})</h2>
                   <div className="flex gap-2">
-                    <button onClick={handleAutoGenerate}
+                    <button onClick={() => { setGenerated(false); setShowProjectSelector(true); }}
                       className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors flex items-center gap-1">
-                      <RefreshCw className="h-3 w-3" /> Re-generate
+                      <RefreshCw className="h-3 w-3" /> Re-select Projects
                     </button>
                     <ExcelUploadButton label="Import Excel" onFileSelect={handleExcelImport} />
                     {role === 'admin' && (
@@ -532,45 +729,66 @@ export default function TripPlanning() {
             ))}
           </div>
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredGroups.map(g => (
-              <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'dispatched' ? 'opacity-60' : ''}`}>
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold flex items-center gap-1.5"><Bus className="h-4 w-4 text-accent" /> {g.area}</h3>
-                    <p className="text-xs text-muted-foreground">{g.timeSlot} • {g.workers.length} workers</p>
+            {filteredGroups.map(g => {
+              const defaultDriver = getDefaultDriverForArea(g.area);
+              const currentDriver = g.suggestedVehicle?.driver || defaultDriver;
+              return (
+                <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'dispatched' ? 'opacity-60' : ''}`}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold flex items-center gap-1.5"><Bus className="h-4 w-4 text-accent" /> {g.area}</h3>
+                      <p className="text-xs text-muted-foreground">{g.timeSlot} • {g.workers.length} workers</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {g.isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
+                      {g.status === 'dispatched' && <CheckCircle2 className="h-4 w-4 text-success" />}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {g.isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
-                    {g.status === 'dispatched' && <CheckCircle2 className="h-4 w-4 text-success" />}
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex flex-wrap gap-1">
-                    {g.workers.map(w => <span key={w.id} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{w.name}</span>)}
-                  </div>
-                  {g.suggestedVehicle && (
-                    <div className="flex items-center justify-between bg-muted/30 px-2 py-1.5 rounded text-xs">
-                      <span>{g.suggestedVehicle.type} (cap: {g.suggestedVehicle.capacity})</span>
-                      <div className="flex items-center gap-2">
-                        <Progress value={g.utilization * 100} className="h-1.5 w-12" />
-                        <span>{Math.round(g.utilization * 100)}%</span>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex flex-wrap gap-1">
+                      {g.workers.map(w => <span key={w.id} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{w.name}</span>)}
+                    </div>
+                    {g.suggestedVehicle && (
+                      <div className="flex items-center justify-between bg-muted/30 px-2 py-1.5 rounded text-xs">
+                        <span>{g.suggestedVehicle.type} (cap: {g.suggestedVehicle.capacity})</span>
+                        <div className="flex items-center gap-2">
+                          <Progress value={g.utilization * 100} className="h-1.5 w-12" />
+                          <span>{Math.round(g.utilization * 100)}%</span>
+                        </div>
                       </div>
+                    )}
+                    {/* Driver assignment */}
+                    <div className="flex items-center gap-2 bg-muted/20 px-2 py-1.5 rounded text-xs">
+                      <UserCog className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">Driver:</span>
+                      {role === 'admin' && g.status !== 'dispatched' ? (
+                        <select value={currentDriver}
+                          onChange={e => handleOverrideDriver(g.id, e.target.value)}
+                          className="flex-1 px-1.5 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
+                          <option value="">— Select —</option>
+                          {allDrivers.map(d => (
+                            <option key={d} value={d}>{d} {driversByArea[g.area]?.includes(d) ? '(default)' : ''}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="font-medium">{currentDriver || 'Unassigned'}</span>
+                      )}
                     </div>
-                  )}
-                  {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
-                  {role === 'admin' && g.status !== 'dispatched' && (
-                    <div className="flex gap-2 pt-2 border-t border-border">
-                      <button onClick={() => handleOverrideVehicle(g.id)} className="flex-1 px-2 py-1.5 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 transition-colors flex items-center justify-center gap-1">
-                        <Edit3 className="h-3 w-3" /> Override
-                      </button>
-                      <button onClick={() => handleDispatch(g.id)} className="flex-1 px-2 py-1.5 rounded bg-accent text-accent-foreground text-xs hover:bg-accent/90 transition-colors flex items-center justify-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Dispatch
-                      </button>
-                    </div>
-                  )}
+                    {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
+                    {role === 'admin' && g.status !== 'dispatched' && (
+                      <div className="flex gap-2 pt-2 border-t border-border">
+                        <button onClick={() => handleOverrideVehicle(g.id)} className="flex-1 px-2 py-1.5 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 transition-colors flex items-center justify-center gap-1">
+                          <Edit3 className="h-3 w-3" /> Override Vehicle
+                        </button>
+                        <button onClick={() => handleDispatch(g.id)} className="flex-1 px-2 py-1.5 rounded bg-accent text-accent-foreground text-xs hover:bg-accent/90 transition-colors flex items-center justify-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Dispatch
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           {role === 'admin' && tripGroups.some(g => g.status !== 'dispatched') && (
             <div className="flex justify-end">
