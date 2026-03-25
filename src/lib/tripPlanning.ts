@@ -42,7 +42,7 @@ export interface TripStats {
   inefficientTrips: number;
 }
 
-export const TIME_SLOTS = ['5:30 AM', '7:30 AM', '9:30 AM'];
+export const TIME_SLOTS = ['5:30 AM', '6:30 AM', '7:30 AM', '9:30 AM'];
 export const MIN_UTILIZATION = 0.7;
 
 // Dubai area clusters
