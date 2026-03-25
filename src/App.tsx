@@ -11,6 +11,7 @@ import Fleet from "./pages/Fleet";
 import Workforce from "./pages/Workforce";
 import Attendance from "./pages/Attendance";
 import TripPlanning from "./pages/TripPlanning";
+import Engineers from "./pages/Engineers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
