@@ -159,6 +159,8 @@ export default function TripPlanning() {
         site: selectedProjectData.site,
         department: w.department,
         timeSlot: assignTimeSlot,
+        startTime: assignStartTime,
+        endTime: assignEndTime,
         urgent: assignUrgent,
       });
     });
