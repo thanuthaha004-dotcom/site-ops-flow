@@ -1,20 +1,24 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   TripGroup, TripWorker, TripStats,
   optimizeTrips, TIME_SLOTS, MIN_UTILIZATION,
   snapToTimeSlot, getAreaCluster,
 } from '@/lib/tripPlanning';
-import { fetchProjects, fetchWorkers } from '@/lib/supabaseData';
+import { fetchProjects, fetchWorkers, fetchTripsByDate, saveTripAssignments, getRecentTripDates } from '@/lib/supabaseData';
 import type { Project, Worker } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
 import {
   Bus, Users, MapPin, Clock, Zap, AlertTriangle, CheckCircle2,
   BarChart3, TrendingUp, Merge, Shield, UserCog, ShieldCheck,
-  Plus, Trash2, Edit3, FolderKanban, ArrowRight,
+  Plus, Trash2, Edit3, FolderKanban, ArrowRight, CalendarIcon, Copy, Save,
 } from 'lucide-react';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { toast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+import { format, subDays, addDays } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 type ViewRole = 'engineer' | 'admin';
 type PlanningStep = 'assign' | 'review' | 'optimize' | 'dispatch';
@@ -25,6 +29,8 @@ const STEPS: { key: PlanningStep; label: string; engineerOnly?: boolean; adminOn
   { key: 'optimize', label: 'Optimize Trips', adminOnly: true },
   { key: 'dispatch', label: 'Dispatch', adminOnly: true },
 ];
+
+function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
 
 export default function TripPlanning() {
   const [role, setRole] = useState<ViewRole>('engineer');
@@ -42,10 +48,94 @@ export default function TripPlanning() {
   const [projectList, setProjectList] = useState<Project[]>([]);
   const [workerList, setWorkerList] = useState<Worker[]>([]);
 
+  // Date-based scheduling
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [recentDates, setRecentDates] = useState<string[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   useEffect(() => {
     fetchProjects().then(setProjectList).catch(() => {});
     fetchWorkers().then(setWorkerList).catch(() => {});
+    getRecentTripDates().then(setRecentDates).catch(() => {});
   }, []);
+
+  // Load trips when date changes
+  const loadTripsForDate = useCallback(async (date: Date) => {
+    setLoadingTrips(true);
+    try {
+      const rows = await fetchTripsByDate(toDateStr(date));
+      const loaded: TripWorker[] = rows.map((r, i) => ({
+        id: `TW-DB-${r.id}`,
+        name: r.worker_name,
+        site: r.site,
+        department: r.department,
+        timeSlot: r.time_slot,
+        urgent: r.urgent,
+      }));
+      setWorkers(loaded);
+      setTripGroups([]);
+      setStats(null);
+      setStep('assign');
+      setSaved(rows.length > 0);
+    } catch {
+      toast({ title: 'Failed to load trips for this date', variant: 'destructive' });
+    } finally {
+      setLoadingTrips(false);
+    }
+  }, []);
+
+  useEffect(() => { loadTripsForDate(selectedDate); }, [selectedDate, loadTripsForDate]);
+
+  const handleDateChange = (date: Date | undefined) => {
+    if (date) setSelectedDate(date);
+  };
+
+  const handleCopyFromDate = async (fromDateStr: string) => {
+    try {
+      const rows = await fetchTripsByDate(fromDateStr);
+      if (rows.length === 0) {
+        toast({ title: 'No trips found on that date', variant: 'destructive' });
+        return;
+      }
+      const copied: TripWorker[] = rows.map((r, i) => ({
+        id: `TW-COPY-${Date.now()}-${i}`,
+        name: r.worker_name,
+        site: r.site,
+        department: r.department,
+        timeSlot: r.time_slot,
+        urgent: r.urgent,
+      }));
+      setWorkers(copied);
+      setSaved(false);
+      toast({ title: `Copied ${copied.length} assignments from ${fromDateStr}` });
+    } catch {
+      toast({ title: 'Failed to copy trips', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveTrips = async () => {
+    try {
+      const assignments = workers.map(w => ({
+        trip_date: toDateStr(selectedDate),
+        worker_name: w.name,
+        site: w.site,
+        department: w.department,
+        time_slot: w.timeSlot,
+        urgent: w.urgent || false,
+        project_id: null,
+        project_name: '',
+        vehicle_type: null,
+        vehicle_number: null,
+      }));
+      await saveTripAssignments(toDateStr(selectedDate), assignments);
+      setSaved(true);
+      getRecentDates().then(setRecentDates).catch(() => {});
+      toast({ title: `Saved ${workers.length} assignments for ${format(selectedDate, 'MMM d, yyyy')}` });
+    } catch {
+      toast({ title: 'Failed to save trips', variant: 'destructive' });
+    }
+  };
 
   const selectedProjectData = projectList.find(p => p.id === selectedProject);
 
@@ -71,10 +161,11 @@ export default function TripPlanning() {
     setWorkers(prev => [...prev, ...newAssignments]);
     setSelectedWorkers(new Set());
     setAssignUrgent(false);
+    setSaved(false);
     toast({ title: `${newAssignments.length} workers assigned to ${selectedProjectData.name}` });
   };
 
-  const handleRemoveWorker = (id: string) => { setWorkers(prev => prev.filter(w => w.id !== id)); };
+  const handleRemoveWorker = (id: string) => { setWorkers(prev => prev.filter(w => w.id !== id)); setSaved(false); };
 
   const handleOptimize = () => {
     if (workers.length === 0) { toast({ title: 'No workers assigned yet', variant: 'destructive' }); return; }
@@ -132,6 +223,7 @@ export default function TripPlanning() {
       const unique = new Map<string, TripWorker>();
       imported.forEach(w => { const key = `${w.name.toUpperCase()}-${getAreaCluster(w.site)}-${w.timeSlot}`; if (!unique.has(key)) unique.set(key, w); });
       setWorkers(Array.from(unique.values()));
+      setSaved(false);
       toast({ title: `Imported ${unique.size} worker assignments` });
     } catch { toast({ title: 'Failed to parse Excel file', variant: 'destructive' }); }
   };
@@ -152,6 +244,9 @@ export default function TripPlanning() {
 
   const visibleSteps = STEPS.filter(s => role === 'admin' ? true : !s.adminOnly);
 
+  // Previous dates for copy
+  const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -170,6 +265,67 @@ export default function TripPlanning() {
               <ShieldCheck className="h-4 w-4" /> Admin
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Date Picker Bar */}
+      <div className="kpi-card flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="h-4 w-4 text-accent" />
+          <span className="text-sm font-medium">Trip Date:</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+            className="px-2 py-1 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80">←</button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="px-4 py-2 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                {format(selectedDate, 'EEEE, MMM d, yyyy')}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateChange}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          <button onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+            className="px-2 py-1 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80">→</button>
+          <button onClick={() => setSelectedDate(new Date())}
+            className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/90">Today</button>
+        </div>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          {loadingTrips && <span className="text-xs text-muted-foreground">Loading...</span>}
+          {!loadingTrips && saved && <span className="text-xs text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Saved</span>}
+          <button onClick={handleSaveTrips} disabled={workers.length === 0}
+            className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1">
+            <Save className="h-3 w-3" /> Save
+          </button>
+          {copyableDates.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs font-medium hover:bg-secondary/80 flex items-center gap-1">
+                  <Copy className="h-3 w-3" /> Copy From...
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="end">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Copy trips from a previous date:</p>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {copyableDates.slice(0, 10).map(d => (
+                    <button key={d} onClick={() => handleCopyFromDate(d)}
+                      className="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors">
+                      {format(new Date(d + 'T00:00:00'), 'EEE, MMM d, yyyy')}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
       </div>
 
@@ -255,7 +411,7 @@ export default function TripPlanning() {
           {workers.length > 0 && (
             <div className="kpi-card">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-accent" /> Today's Assignments ({workers.length})</h2>
+                <h2 className="font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-accent" /> Assignments for {format(selectedDate, 'MMM d')} ({workers.length})</h2>
                 <button onClick={() => setStep('review')} className="text-sm text-accent hover:underline flex items-center gap-1">Review All <ArrowRight className="h-3 w-3" /></button>
               </div>
               <div className="space-y-3">
@@ -294,7 +450,7 @@ export default function TripPlanning() {
           </div>
           <div className="kpi-card overflow-x-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">All Assignments</h2>
+              <h2 className="font-semibold">All Assignments — {format(selectedDate, 'MMM d, yyyy')}</h2>
               <div className="flex gap-2">
                 <button onClick={() => setStep('assign')} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors flex items-center gap-1">
                   <Plus className="h-3 w-3" /> Add More
@@ -407,7 +563,7 @@ export default function TripPlanning() {
         <div className="kpi-card text-center py-12">
           <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">All Trips Dispatched!</h2>
-          <p className="text-muted-foreground mb-4">{tripGroups.length} trips have been dispatched successfully.</p>
+          <p className="text-muted-foreground mb-4">{tripGroups.length} trips dispatched for {format(selectedDate, 'MMM d, yyyy')}.</p>
           {stats && (
             <div className="flex justify-center gap-6 text-sm">
               <div><span className="text-muted-foreground">Trips saved:</span> <strong className="text-success">{stats.tripsSaved}</strong></div>
