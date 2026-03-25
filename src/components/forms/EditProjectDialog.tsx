@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import EngineerSelect from '@/components/forms/EngineerSelect';
 import type { Project, ProjectType, ProjectStatus, Priority, WorkType } from '@/data/mockData';
 
 const workTypes: WorkType[] = ['Material Delivery', 'Pipe Installation', 'Kitchen Installation', 'Detection System', 'Testing', 'Snag Work', 'DCD Inspection', 'Handing Over'];
@@ -159,7 +160,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Engineer</Label>
-              <Input value={form.engineer} onChange={e => setForm(f => ({ ...f, engineer: e.target.value }))} />
+              <EngineerSelect value={form.engineer} onChange={(name) => setForm(f => ({ ...f, engineer: name }))} />
             </div>
             <div className="space-y-2">
               <Label>Workers Needed</Label>

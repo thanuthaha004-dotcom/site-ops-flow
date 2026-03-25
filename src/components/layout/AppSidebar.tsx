@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame, ClipboardCheck, Route
+  ChevronRight, Flame, ClipboardCheck, Route, UserCog
 } from 'lucide-react';
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { path: '/workforce', label: 'Workforce', icon: Users },
   { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
   { path: '/trips', label: 'Trip Planning', icon: Route },
+  { path: '/engineers', label: 'Engineers', icon: UserCog },
 ];
 
 export default function AppSidebar() {
