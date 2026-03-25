@@ -812,7 +812,7 @@ export default function TripPlanning() {
                       )}
                     </div>
                     {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
-                    {role === 'admin' && g.status !== 'dispatched' && (
+                    {g.status !== 'dispatched' && (
                       <div className="flex gap-2 pt-2 border-t border-border">
                         <button onClick={() => handleOverrideVehicle(g.id)} className="flex-1 px-2 py-1.5 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 transition-colors flex items-center justify-center gap-1">
                           <Edit3 className="h-3 w-3" /> Override Vehicle
