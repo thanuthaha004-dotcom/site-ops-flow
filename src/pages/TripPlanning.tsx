@@ -73,6 +73,8 @@ export default function TripPlanning() {
         site: r.site,
         department: r.department,
         timeSlot: r.time_slot,
+        startTime: r.start_time || '',
+        endTime: r.end_time || '',
         urgent: r.urgent,
       }));
       setWorkers(loaded);
