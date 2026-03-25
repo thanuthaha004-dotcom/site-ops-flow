@@ -499,17 +499,7 @@ export default function TripPlanning() {
                 )}
               </DialogContent>
             </Dialog>
-          )}
-          <div className="flex rounded-md border border-input overflow-hidden">
-            <button onClick={() => { setRole('engineer'); setStep('review'); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${role === 'engineer' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
-              <UserCog className="h-4 w-4" /> Engineer
-            </button>
-            <button onClick={() => { setRole('admin'); setStep('review'); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-input ${role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
-              <ShieldCheck className="h-4 w-4" /> Admin
-            </button>
-          </div>
+           )}
         </div>
       </div>
 
