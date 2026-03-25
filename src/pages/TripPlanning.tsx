@@ -8,6 +8,7 @@ import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
   fetchDriverAreaDefaults, upsertDriverAreaDefaults,
 } from '@/lib/supabaseData';
+import { fetchTripRequestsByDate, type DailyTripRequest } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
 import type { Project, Worker, Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -15,7 +16,7 @@ import {
   Bus, Users, MapPin, Clock, Zap, AlertTriangle, CheckCircle2,
   BarChart3, TrendingUp, Merge, Shield, UserCog, ShieldCheck,
   Plus, Trash2, Edit3, FolderKanban, ArrowRight, CalendarIcon, Copy, Save,
-  RefreshCw, Settings2,
+  RefreshCw, Settings2, Inbox,
 } from 'lucide-react';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { toast } from '@/hooks/use-toast';
@@ -26,13 +27,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
-type ViewRole = 'engineer' | 'admin';
-type PlanningStep = 'review' | 'optimize' | 'dispatch';
+type PlanningStep = 'requests' | 'review' | 'optimize' | 'dispatch';
 
-const STEPS: { key: PlanningStep; label: string; adminOnly?: boolean }[] = [
+const STEPS: { key: PlanningStep; label: string }[] = [
+  { key: 'requests', label: 'Engineer Requests' },
   { key: 'review', label: 'Review Assignments' },
-  { key: 'optimize', label: 'Optimize Trips', adminOnly: true },
-  { key: 'dispatch', label: 'Dispatch', adminOnly: true },
+  { key: 'optimize', label: 'Optimize Trips' },
+  { key: 'dispatch', label: 'Dispatch' },
 ];
 
 const AREA_LIST = [
@@ -43,8 +44,8 @@ const AREA_LIST = [
 function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
 
 export default function TripPlanning() {
-  const [role, setRole] = useState<ViewRole>('engineer');
-  const [step, setStep] = useState<PlanningStep>('review');
+  const [step, setStep] = useState<PlanningStep>('requests');
+  const [tripRequests, setTripRequests] = useState<DailyTripRequest[]>([]);
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
   const [stats, setStats] = useState<TripStats | null>(null);
@@ -369,7 +370,55 @@ export default function TripPlanning() {
     return map;
   }, [workers]);
 
-  const visibleSteps = STEPS.filter(s => role === 'admin' ? true : !s.adminOnly);
+  const visibleSteps = STEPS;
+
+  // Load engineer requests for selected date
+  const loadRequests = useCallback(async () => {
+    try {
+      const reqs = await fetchTripRequestsByDate(toDateStr(selectedDate));
+      setTripRequests(reqs);
+    } catch { /* ignore */ }
+  }, [selectedDate]);
+
+  useEffect(() => { loadRequests(); }, [loadRequests]);
+
+  // Generate workers from engineer requests
+  const handleGenerateFromRequests = () => {
+    if (tripRequests.length === 0) {
+      toast({ title: 'No engineer submissions for this date', variant: 'destructive' });
+      return;
+    }
+    const gen: TripWorker[] = [];
+    const seen = new Set<string>();
+    tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
+      (req.worker_names || []).forEach((name, idx) => {
+        if (!name.trim()) return;
+        const key = `${name.trim().toUpperCase()}-${req.site}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const masterWorker = workerList.find(w => w.name.toLowerCase() === name.trim().toLowerCase());
+        gen.push({
+          id: `TW-REQ-${req.id}-${idx}`,
+          name: name.trim(),
+          site: req.site || 'Unassigned',
+          department: masterWorker?.department || req.work_type || 'General',
+          timeSlot: defaultTimeSlot,
+          startTime: '',
+          endTime: '',
+          urgent: req.priority === 'High',
+        });
+      });
+    });
+    if (gen.length === 0) {
+      toast({ title: 'No workers found in submissions', variant: 'destructive' });
+      return;
+    }
+    setWorkers(gen);
+    setGenerated(true);
+    setSaved(false);
+    setStep('review');
+    toast({ title: `Generated ${gen.length} trips from ${tripRequests.length} engineer submissions` });
+  };
 
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
 
@@ -383,7 +432,7 @@ export default function TripPlanning() {
           <p className="text-muted-foreground text-sm">{workers.length} workers assigned • {tripGroups.length} trips planned</p>
         </div>
         <div className="flex items-center gap-2">
-          {role === 'admin' && (
+          {(
             <Dialog open={showDriverSettings} onOpenChange={setShowDriverSettings}>
               <DialogTrigger asChild>
                 <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors">
@@ -450,17 +499,7 @@ export default function TripPlanning() {
                 )}
               </DialogContent>
             </Dialog>
-          )}
-          <div className="flex rounded-md border border-input overflow-hidden">
-            <button onClick={() => { setRole('engineer'); setStep('review'); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${role === 'engineer' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
-              <UserCog className="h-4 w-4" /> Engineer
-            </button>
-            <button onClick={() => { setRole('admin'); setStep('review'); }}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-input ${role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
-              <ShieldCheck className="h-4 w-4" /> Admin
-            </button>
-          </div>
+           )}
         </div>
       </div>
 
@@ -532,6 +571,78 @@ export default function TripPlanning() {
           </div>
         ))}
       </div>
+
+      {/* Step: Engineer Requests */}
+      {step === 'requests' && (
+        <div className="space-y-4">
+          <div className="kpi-card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2">
+                <Inbox className="h-5 w-5 text-accent" /> Engineer Submissions for {format(selectedDate, 'MMM d, yyyy')}
+              </h2>
+              <button onClick={loadRequests} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 flex items-center gap-1">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+            {tripRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-lg font-semibold">No Submissions Yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">Engineers haven't submitted trip requests for this date yet.</p>
+                <p className="text-xs text-muted-foreground mt-2">You can also generate trips directly from projects using the Review step.</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {tripRequests.map(req => (
+                    <div key={req.id} className={`p-4 rounded-md border transition-colors ${req.status === 'pending' ? 'border-accent/40 bg-accent/5' : 'border-border'}`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium">{req.project_name}</span>
+                            {req.priority === 'High' && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">High</span>}
+                            <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{req.work_type || 'General'}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${req.status === 'pending' ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'}`}>
+                              {req.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {req.site}</span>
+                            <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(req.worker_names || []).length} workers</span>
+                            <span className="flex items-center gap-1"><UserCog className="h-3 w-3" /> {req.engineer_name}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {(req.worker_names || []).map((n, i) => (
+                              <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {tripRequests.length} submissions • {tripRequests.reduce((s, r) => s + (r.worker_names || []).length, 0)} total workers
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <div>
+                      <select value={defaultTimeSlot} onChange={e => setDefaultTimeSlot(e.target.value)}
+                        className="px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                        {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={handleGenerateFromRequests}
+                      className="px-5 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
+                      <Zap className="h-4 w-4" /> Generate Trips from Submissions
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {step === 'review' && (
         <div className="space-y-4">
@@ -649,11 +760,9 @@ export default function TripPlanning() {
                       <RefreshCw className="h-3 w-3" /> Re-select Projects
                     </button>
                     <ExcelUploadButton label="Import Excel" onFileSelect={handleExcelImport} />
-                    {role === 'admin' && (
-                      <button onClick={handleOptimize} className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">
-                        <Zap className="h-3 w-3" /> Optimize Trips
-                      </button>
-                    )}
+                    <button onClick={handleOptimize} className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">
+                      <Zap className="h-3 w-3" /> Optimize Trips
+                    </button>
                   </div>
                 </div>
                 <table className="w-full text-sm">
@@ -761,7 +870,7 @@ export default function TripPlanning() {
                     <div className="flex items-center gap-2 bg-muted/20 px-2 py-1.5 rounded text-xs">
                       <UserCog className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">Driver:</span>
-                      {role === 'admin' && g.status !== 'dispatched' ? (
+                      {g.status !== 'dispatched' ? (
                         <select value={currentDriver}
                           onChange={e => handleOverrideDriver(g.id, e.target.value)}
                           className="flex-1 px-1.5 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
@@ -775,7 +884,7 @@ export default function TripPlanning() {
                       )}
                     </div>
                     {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
-                    {role === 'admin' && g.status !== 'dispatched' && (
+                    {g.status !== 'dispatched' && (
                       <div className="flex gap-2 pt-2 border-t border-border">
                         <button onClick={() => handleOverrideVehicle(g.id)} className="flex-1 px-2 py-1.5 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 transition-colors flex items-center justify-center gap-1">
                           <Edit3 className="h-3 w-3" /> Override Vehicle
@@ -790,7 +899,7 @@ export default function TripPlanning() {
               );
             })}
           </div>
-          {role === 'admin' && tripGroups.some(g => g.status !== 'dispatched') && (
+          {tripGroups.some(g => g.status !== 'dispatched') && (
             <div className="flex justify-end">
               <button onClick={handleDispatchAll} className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" /> Dispatch All Trips
