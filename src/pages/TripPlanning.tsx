@@ -43,6 +43,8 @@ export default function TripPlanning() {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedWorkers, setSelectedWorkers] = useState<Set<string>>(new Set());
   const [assignTimeSlot, setAssignTimeSlot] = useState(TIME_SLOTS[0]);
+  const [assignStartTime, setAssignStartTime] = useState('');
+  const [assignEndTime, setAssignEndTime] = useState('');
   const [assignUrgent, setAssignUrgent] = useState(false);
 
   const [projectList, setProjectList] = useState<Project[]>([]);
