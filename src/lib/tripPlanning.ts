@@ -218,7 +218,8 @@ export function excelTimeToString(val: number): string {
 export function snapToTimeSlot(timeVal: number): string {
   const totalMinutes = Math.round((timeVal >= 1 ? timeVal - Math.floor(timeVal) : timeVal) * 24 * 60);
   const hours = totalMinutes / 60;
-  if (hours < 6.5) return '5:30 AM';
+  if (hours < 6) return '5:30 AM';
+  if (hours < 7) return '6:30 AM';
   if (hours < 8.5) return '7:30 AM';
   return '9:30 AM';
 }
