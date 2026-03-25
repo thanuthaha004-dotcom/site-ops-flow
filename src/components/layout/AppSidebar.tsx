@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame, ClipboardCheck, Route
+  ChevronRight, Flame, ClipboardCheck, Route, UserCog
 } from 'lucide-react';
 
 const navItems = [
