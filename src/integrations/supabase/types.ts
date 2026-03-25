@@ -74,6 +74,62 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_schedules: {
+        Row: {
+          created_at: string
+          department: string
+          id: string
+          project_id: string | null
+          project_name: string
+          site: string
+          status: string
+          time_slot: string
+          trip_date: string
+          urgent: boolean
+          vehicle_number: string | null
+          vehicle_type: string | null
+          worker_name: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string
+          id?: string
+          project_id?: string | null
+          project_name?: string
+          site: string
+          status?: string
+          time_slot: string
+          trip_date: string
+          urgent?: boolean
+          vehicle_number?: string | null
+          vehicle_type?: string | null
+          worker_name: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          id?: string
+          project_id?: string | null
+          project_name?: string
+          site?: string
+          status?: string
+          time_slot?: string
+          trip_date?: string
+          urgent?: boolean
+          vehicle_number?: string | null
+          vehicle_type?: string | null
+          worker_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_schedules_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           brand: string
