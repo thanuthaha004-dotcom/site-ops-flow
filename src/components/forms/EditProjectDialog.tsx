@@ -160,7 +160,7 @@ export default function EditProjectDialog({ project, onSave, children }: Props) 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Engineer</Label>
-              <Input value={form.engineer} onChange={e => setForm(f => ({ ...f, engineer: e.target.value }))} />
+              <EngineerSelect value={form.engineer} onChange={(name) => setForm(f => ({ ...f, engineer: name }))} />
             </div>
             <div className="space-y-2">
               <Label>Workers Needed</Label>

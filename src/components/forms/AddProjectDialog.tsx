@@ -123,7 +123,7 @@ export default function AddProjectDialog({ onAdd, children }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Engineer *</Label>
-              <Input required value={form.engineer} onChange={e => setForm(f => ({ ...f, engineer: e.target.value }))} placeholder="Name" />
+              <EngineerSelect value={form.engineer} onChange={(name) => setForm(f => ({ ...f, engineer: name }))} />
             </div>
             <div className="space-y-2">
               <Label>Workers Needed</Label>
