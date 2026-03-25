@@ -8,6 +8,7 @@ import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
   fetchDriverAreaDefaults, upsertDriverAreaDefaults,
 } from '@/lib/supabaseData';
+import { fetchTripRequestsByDate, type DailyTripRequest } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
 import type { Project, Worker, Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -15,7 +16,7 @@ import {
   Bus, Users, MapPin, Clock, Zap, AlertTriangle, CheckCircle2,
   BarChart3, TrendingUp, Merge, Shield, UserCog, ShieldCheck,
   Plus, Trash2, Edit3, FolderKanban, ArrowRight, CalendarIcon, Copy, Save,
-  RefreshCw, Settings2,
+  RefreshCw, Settings2, Inbox,
 } from 'lucide-react';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { toast } from '@/hooks/use-toast';
@@ -26,13 +27,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
-type ViewRole = 'engineer' | 'admin';
-type PlanningStep = 'review' | 'optimize' | 'dispatch';
+type PlanningStep = 'requests' | 'review' | 'optimize' | 'dispatch';
 
-const STEPS: { key: PlanningStep; label: string; adminOnly?: boolean }[] = [
+const STEPS: { key: PlanningStep; label: string }[] = [
+  { key: 'requests', label: 'Engineer Requests' },
   { key: 'review', label: 'Review Assignments' },
-  { key: 'optimize', label: 'Optimize Trips', adminOnly: true },
-  { key: 'dispatch', label: 'Dispatch', adminOnly: true },
+  { key: 'optimize', label: 'Optimize Trips' },
+  { key: 'dispatch', label: 'Dispatch' },
 ];
 
 const AREA_LIST = [
@@ -43,7 +44,6 @@ const AREA_LIST = [
 function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
 
 export default function TripPlanning() {
-  const [role, setRole] = useState<ViewRole>('engineer');
   const [step, setStep] = useState<PlanningStep>('review');
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
