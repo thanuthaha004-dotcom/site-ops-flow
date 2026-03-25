@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      driver_area_defaults: {
+        Row: {
+          area: string
+          created_at: string
+          driver_name: string
+          id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          driver_name: string
+          id?: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          driver_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
       engineers: {
         Row: {
           created_at: string
