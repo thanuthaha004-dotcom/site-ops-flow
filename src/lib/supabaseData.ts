@@ -190,6 +190,8 @@ export interface TripScheduleRow {
   site: string;
   department: string;
   time_slot: string;
+  start_time: string | null;
+  end_time: string | null;
   urgent: boolean;
   project_id: string | null;
   project_name: string;
