@@ -7,6 +7,8 @@ export interface TripWorker {
   site: string;
   department: string;
   timeSlot: string;
+  startTime?: string;
+  endTime?: string;
   urgent?: boolean;
 }
 
