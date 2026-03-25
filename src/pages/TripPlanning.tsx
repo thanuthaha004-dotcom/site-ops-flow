@@ -357,7 +357,7 @@ export default function TripPlanning() {
               <h2 className="font-semibold flex items-center gap-2"><FolderKanban className="h-4 w-4 text-accent" /> Select Project & Assign Workers</h2>
               <ExcelUploadButton label="Import from Excel" onFileSelect={handleExcelImport} />
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Project</label>
                 <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
@@ -369,15 +369,25 @@ export default function TripPlanning() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Trip Time</label>
+                <label className="text-xs font-medium text-muted-foreground">Trip Time Slot</label>
                 <select value={assignTimeSlot} onChange={e => setAssignTimeSlot(e.target.value)}
                   className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                   {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Start Time</label>
+                <input type="time" value={assignStartTime} onChange={e => setAssignStartTime(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">End Time</label>
+                <input type="time" value={assignEndTime} onChange={e => setAssignEndTime(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
               <div className="flex items-end gap-2 pb-0.5">
                 <input type="checkbox" id="urgent-assign" checked={assignUrgent} onChange={e => setAssignUrgent(e.target.checked)} className="rounded border-input" />
-                <label htmlFor="urgent-assign" className="text-sm text-muted-foreground">Mark as Urgent</label>
+                <label htmlFor="urgent-assign" className="text-sm text-muted-foreground">Urgent</label>
               </div>
               <div className="flex items-end">
                 <button onClick={handleAssignWorkers} disabled={!selectedProject || selectedWorkers.size === 0}
