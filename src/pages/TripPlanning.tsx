@@ -44,7 +44,8 @@ const AREA_LIST = [
 function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
 
 export default function TripPlanning() {
-  const [step, setStep] = useState<PlanningStep>('review');
+  const [step, setStep] = useState<PlanningStep>('requests');
+  const [tripRequests, setTripRequests] = useState<DailyTripRequest[]>([]);
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
   const [stats, setStats] = useState<TripStats | null>(null);
