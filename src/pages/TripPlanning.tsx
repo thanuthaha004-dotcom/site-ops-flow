@@ -798,7 +798,7 @@ export default function TripPlanning() {
                     <div className="flex items-center gap-2 bg-muted/20 px-2 py-1.5 rounded text-xs">
                       <UserCog className="h-3 w-3 text-muted-foreground" />
                       <span className="text-muted-foreground">Driver:</span>
-                      {role === 'admin' && g.status !== 'dispatched' ? (
+                      {g.status !== 'dispatched' ? (
                         <select value={currentDriver}
                           onChange={e => handleOverrideDriver(g.id, e.target.value)}
                           className="flex-1 px-1.5 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
