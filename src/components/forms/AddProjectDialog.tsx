@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import EngineerSelect from '@/components/forms/EngineerSelect';
 import type { Project, ProjectType, ProjectStatus, Priority, WorkType } from '@/data/mockData';
 
 const workTypes: WorkType[] = ['Material Delivery', 'Pipe Installation', 'Kitchen Installation', 'Detection System', 'Testing', 'Snag Work', 'DCD Inspection', 'Handing Over'];
