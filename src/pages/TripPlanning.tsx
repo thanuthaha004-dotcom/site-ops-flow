@@ -4,13 +4,14 @@ import {
   optimizeTrips, TIME_SLOTS, MIN_UTILIZATION,
   snapToTimeSlot, getAreaCluster,
 } from '@/lib/tripPlanning';
-import { fetchProjects, fetchWorkers, fetchTripsByDate, saveTripAssignments, getRecentTripDates } from '@/lib/supabaseData';
+import { fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates } from '@/lib/supabaseData';
 import type { Project, Worker } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
 import {
   Bus, Users, MapPin, Clock, Zap, AlertTriangle, CheckCircle2,
   BarChart3, TrendingUp, Merge, Shield, UserCog, ShieldCheck,
   Plus, Trash2, Edit3, FolderKanban, ArrowRight, CalendarIcon, Copy, Save,
+  RefreshCw,
 } from 'lucide-react';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { toast } from '@/hooks/use-toast';
@@ -21,10 +22,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 
 type ViewRole = 'engineer' | 'admin';
-type PlanningStep = 'assign' | 'review' | 'optimize' | 'dispatch';
+type PlanningStep = 'review' | 'optimize' | 'dispatch';
 
-const STEPS: { key: PlanningStep; label: string; engineerOnly?: boolean; adminOnly?: boolean }[] = [
-  { key: 'assign', label: 'Assign Workers' },
+const STEPS: { key: PlanningStep; label: string; adminOnly?: boolean }[] = [
   { key: 'review', label: 'Review Assignments' },
   { key: 'optimize', label: 'Optimize Trips', adminOnly: true },
   { key: 'dispatch', label: 'Dispatch', adminOnly: true },
@@ -34,18 +34,11 @@ function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
 
 export default function TripPlanning() {
   const [role, setRole] = useState<ViewRole>('engineer');
-  const [step, setStep] = useState<PlanningStep>('assign');
+  const [step, setStep] = useState<PlanningStep>('review');
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
   const [stats, setStats] = useState<TripStats | null>(null);
   const [activeSlot, setActiveSlot] = useState<string>('All');
-
-  const [selectedProject, setSelectedProject] = useState('');
-  const [selectedWorkers, setSelectedWorkers] = useState<Set<string>>(new Set());
-  const [assignTimeSlot, setAssignTimeSlot] = useState(TIME_SLOTS[0]);
-  const [assignStartTime, setAssignStartTime] = useState('');
-  const [assignEndTime, setAssignEndTime] = useState('');
-  const [assignUrgent, setAssignUrgent] = useState(false);
 
   const [projectList, setProjectList] = useState<Project[]>([]);
   const [workerList, setWorkerList] = useState<Worker[]>([]);
@@ -55,6 +48,10 @@ export default function TripPlanning() {
   const [recentDates, setRecentDates] = useState<string[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  // Default time slot for auto-generation
+  const [defaultTimeSlot, setDefaultTimeSlot] = useState(TIME_SLOTS[0]);
 
   useEffect(() => {
     fetchProjects().then(setProjectList).catch(() => {});
@@ -67,21 +64,28 @@ export default function TripPlanning() {
     setLoadingTrips(true);
     try {
       const rows = await fetchTripsByDate(toDateStr(date));
-      const loaded: TripWorker[] = rows.map((r, i) => ({
-        id: `TW-DB-${r.id}`,
-        name: r.worker_name,
-        site: r.site,
-        department: r.department,
-        timeSlot: r.time_slot,
-        startTime: r.start_time || '',
-        endTime: r.end_time || '',
-        urgent: r.urgent,
-      }));
-      setWorkers(loaded);
+      if (rows.length > 0) {
+        const loaded: TripWorker[] = rows.map((r) => ({
+          id: `TW-DB-${r.id}`,
+          name: r.worker_name,
+          site: r.site,
+          department: r.department,
+          timeSlot: r.time_slot,
+          startTime: r.start_time || '',
+          endTime: r.end_time || '',
+          urgent: r.urgent,
+        }));
+        setWorkers(loaded);
+        setSaved(true);
+        setGenerated(true);
+      } else {
+        setWorkers([]);
+        setSaved(false);
+        setGenerated(false);
+      }
       setTripGroups([]);
       setStats(null);
-      setStep('assign');
-      setSaved(rows.length > 0);
+      setStep('review');
     } catch {
       toast({ title: 'Failed to load trips for this date', variant: 'destructive' });
     } finally {
@@ -93,6 +97,52 @@ export default function TripPlanning() {
 
   const handleDateChange = (date: Date | undefined) => {
     if (date) setSelectedDate(date);
+  };
+
+  // Auto-generate trips from active projects
+  const handleAutoGenerate = () => {
+    const activeProjects = projectList.filter(p => p.status === 'Active' || p.status === 'Scheduled');
+    if (activeProjects.length === 0) {
+      toast({ title: 'No active projects found', variant: 'destructive' });
+      return;
+    }
+
+    const generated: TripWorker[] = [];
+    const seen = new Set<string>();
+
+    activeProjects.forEach(project => {
+      const workerNames = project.workerNames || [];
+      workerNames.forEach((name, idx) => {
+        if (!name.trim()) return;
+        const key = `${name.trim().toUpperCase()}-${project.site}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        // Try to find matching worker from worker master for department info
+        const masterWorker = workerList.find(w => w.name.toLowerCase() === name.trim().toLowerCase());
+
+        generated.push({
+          id: `TW-AUTO-${project.id}-${idx}`,
+          name: name.trim(),
+          site: project.site || 'Unassigned',
+          department: masterWorker?.department || project.type || 'General',
+          timeSlot: defaultTimeSlot,
+          startTime: '',
+          endTime: '',
+          urgent: project.priority === 'High',
+        });
+      });
+    });
+
+    if (generated.length === 0) {
+      toast({ title: 'No workers found in active projects. Add workers to your projects first.', variant: 'destructive' });
+      return;
+    }
+
+    setWorkers(generated);
+    setGenerated(true);
+    setSaved(false);
+    toast({ title: `Auto-generated ${generated.length} worker trips from ${activeProjects.length} active projects` });
   };
 
   const handleCopyFromDate = async (fromDateStr: string) => {
@@ -114,6 +164,7 @@ export default function TripPlanning() {
       }));
       setWorkers(copied);
       setSaved(false);
+      setGenerated(true);
       toast({ title: `Copied ${copied.length} assignments from ${fromDateStr}` });
     } catch {
       toast({ title: 'Failed to copy trips', variant: 'destructive' });
@@ -145,37 +196,12 @@ export default function TripPlanning() {
     }
   };
 
-  const selectedProjectData = projectList.find(p => p.id === selectedProject);
-
-  const handleAssignWorkers = () => {
-    if (!selectedProjectData || selectedWorkers.size === 0) {
-      toast({ title: 'Select a project and at least one worker', variant: 'destructive' });
-      return;
-    }
-    const newAssignments: TripWorker[] = [];
-    selectedWorkers.forEach(wId => {
-      const w = workerList.find(x => x.id === wId);
-      if (!w) return;
-      if (workers.some(tw => tw.name === w.name && tw.site === selectedProjectData.site && tw.timeSlot === assignTimeSlot)) return;
-      newAssignments.push({
-        id: `TW-${Date.now()}-${wId}`,
-        name: w.name,
-        site: selectedProjectData.site,
-        department: w.department,
-        timeSlot: assignTimeSlot,
-        startTime: assignStartTime,
-        endTime: assignEndTime,
-        urgent: assignUrgent,
-      });
-    });
-    setWorkers(prev => [...prev, ...newAssignments]);
-    setSelectedWorkers(new Set());
-    setAssignUrgent(false);
-    setSaved(false);
-    toast({ title: `${newAssignments.length} workers assigned to ${selectedProjectData.name}` });
-  };
-
   const handleRemoveWorker = (id: string) => { setWorkers(prev => prev.filter(w => w.id !== id)); setSaved(false); };
+
+  const handleUpdateWorker = (id: string, field: keyof TripWorker, value: string | boolean) => {
+    setWorkers(prev => prev.map(w => w.id === id ? { ...w, [field]: value } : w));
+    setSaved(false);
+  };
 
   const handleOptimize = () => {
     if (workers.length === 0) { toast({ title: 'No workers assigned yet', variant: 'destructive' }); return; }
@@ -234,6 +260,7 @@ export default function TripPlanning() {
       imported.forEach(w => { const key = `${w.name.toUpperCase()}-${getAreaCluster(w.site)}-${w.timeSlot}`; if (!unique.has(key)) unique.set(key, w); });
       setWorkers(Array.from(unique.values()));
       setSaved(false);
+      setGenerated(true);
       toast({ title: `Imported ${unique.size} worker assignments` });
     } catch { toast({ title: 'Failed to parse Excel file', variant: 'destructive' }); }
   };
@@ -257,6 +284,9 @@ export default function TripPlanning() {
   // Previous dates for copy
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
 
+  // Count active projects with workers
+  const activeProjectsWithWorkers = projectList.filter(p => (p.status === 'Active' || p.status === 'Scheduled') && (p.workerNames || []).length > 0);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -266,11 +296,11 @@ export default function TripPlanning() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-input overflow-hidden">
-            <button onClick={() => { setRole('engineer'); setStep('assign'); }}
+            <button onClick={() => { setRole('engineer'); setStep('review'); }}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${role === 'engineer' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
               <UserCog className="h-4 w-4" /> Engineer
             </button>
-            <button onClick={() => { setRole('admin'); setStep('assign'); }}
+            <button onClick={() => { setRole('admin'); setStep('review'); }}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-input ${role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
               <ShieldCheck className="h-4 w-4" /> Admin
             </button>
@@ -339,6 +369,7 @@ export default function TripPlanning() {
         </div>
       </div>
 
+      {/* Steps */}
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {visibleSteps.map((s, i) => (
           <div key={s.key} className="flex items-center">
@@ -352,165 +383,133 @@ export default function TripPlanning() {
         ))}
       </div>
 
-      {step === 'assign' && (
+      {step === 'review' && (
         <div className="space-y-4">
-          <div className="kpi-card space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold flex items-center gap-2"><FolderKanban className="h-4 w-4 text-accent" /> Select Project & Assign Workers</h2>
-              <ExcelUploadButton label="Import from Excel" onFileSelect={handleExcelImport} />
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {/* Auto-generate panel */}
+          {!generated && workers.length === 0 && (
+            <div className="kpi-card text-center py-8 space-y-4">
+              <FolderKanban className="h-12 w-12 text-accent mx-auto" />
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Project</label>
-                <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="">Select project...</option>
-                  {projectList.filter(p => p.status === 'Active' || p.status === 'Scheduled').map(p => (
-                    <option key={p.id} value={p.id}>{p.name} — {p.site}</option>
-                  ))}
-                </select>
+                <h2 className="text-lg font-semibold">Auto-Generate from Active Projects</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Pull all workers from {activeProjectsWithWorkers.length} active project{activeProjectsWithWorkers.length !== 1 ? 's' : ''} and create trip assignments automatically.
+                </p>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Trip Time Slot</label>
-                <select value={assignTimeSlot} onChange={e => setAssignTimeSlot(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                  {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Start Time</label>
-                <input type="time" value={assignStartTime} onChange={e => setAssignStartTime(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">End Time</label>
-                <input type="time" value={assignEndTime} onChange={e => setAssignEndTime(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <div className="flex items-end gap-2 pb-0.5">
-                <input type="checkbox" id="urgent-assign" checked={assignUrgent} onChange={e => setAssignUrgent(e.target.checked)} className="rounded border-input" />
-                <label htmlFor="urgent-assign" className="text-sm text-muted-foreground">Urgent</label>
-              </div>
-              <div className="flex items-end">
-                <button onClick={handleAssignWorkers} disabled={!selectedProject || selectedWorkers.size === 0}
-                  className="w-full px-4 py-2 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  <Plus className="h-4 w-4" /> Assign ({selectedWorkers.size})
-                </button>
-              </div>
-            </div>
-            {selectedProjectData && (
-              <div className="flex items-center gap-2 text-sm bg-muted/50 px-3 py-2 rounded-md">
-                <MapPin className="h-4 w-4 text-accent" />
-                <span className="font-medium">{selectedProjectData.name}</span>
-                <span className="text-muted-foreground">→ {selectedProjectData.site}</span>
-                <span className="text-xs text-muted-foreground ml-auto">{selectedProjectData.workersAssigned}/{selectedProjectData.workersRequired} workers needed</span>
-              </div>
-            )}
-            {selectedProject && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Select workers to assign (click to toggle):</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
-                  {workerList.map(w => {
-                    const isSelected = selectedWorkers.has(w.id);
-                    const isAlreadyAssigned = workers.some(tw => tw.name === w.name);
-                    return (
-                      <button key={w.id} disabled={isAlreadyAssigned}
-                        onClick={() => { setSelectedWorkers(prev => { const next = new Set(prev); if (next.has(w.id)) next.delete(w.id); else next.add(w.id); return next; }); }}
-                        className={`text-left p-2 rounded-md border text-sm transition-colors ${isAlreadyAssigned ? 'border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed' : isSelected ? 'border-accent bg-accent/10 text-foreground' : 'border-input bg-background hover:bg-muted/50'}`}>
-                        <p className="font-medium text-xs">{w.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{w.role} • {w.department}</p>
-                        {isAlreadyAssigned && <p className="text-[10px] text-accent">Already assigned</p>}
-                      </button>
-                    );
-                  })}
+              <div className="flex items-center justify-center gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Default Time Slot</label>
+                  <select value={defaultTimeSlot} onChange={e => setDefaultTimeSlot(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                    {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="pt-4">
+                  <button onClick={handleAutoGenerate}
+                    className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
+                    <Zap className="h-4 w-4" /> Generate Trips
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
-
-          {workers.length > 0 && (
-            <div className="kpi-card">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-accent" /> Assignments for {format(selectedDate, 'MMM d')} ({workers.length})</h2>
-                <button onClick={() => setStep('review')} className="text-sm text-accent hover:underline flex items-center gap-1">Review All <ArrowRight className="h-3 w-3" /></button>
-              </div>
-              <div className="space-y-3">
-                {Object.entries(workersBySite).map(([area, ws]) => (
-                  <div key={area} className="bg-muted/30 rounded-md p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium flex items-center gap-1.5"><MapPin className="h-3 w-3 text-accent" /> {area}</span>
-                      <span className="text-xs text-muted-foreground">{ws.length} workers</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ws.map(w => (
-                        <span key={w.id} className="inline-flex items-center gap-1 text-xs bg-background px-2 py-1 rounded border border-border">
-                          {w.name} <span className="text-muted-foreground">{w.timeSlot}</span>
-                          {w.urgent && <Shield className="h-2.5 w-2.5 text-warning" />}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <ExcelUploadButton label="Or Import from Excel" onFileSelect={handleExcelImport} />
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {step === 'review' && (
-        <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {['All', ...TIME_SLOTS].map(slot => (
-              <button key={slot} onClick={() => setActiveSlot(slot)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeSlot === slot ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
-                <Clock className="h-3 w-3" /> {slot}
-                {slot !== 'All' && <span className="bg-background/20 text-xs px-1.5 py-0.5 rounded">{workersBySlot[slot] || 0}</span>}
-              </button>
-            ))}
-          </div>
-          <div className="kpi-card overflow-x-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">All Assignments — {format(selectedDate, 'MMM d, yyyy')}</h2>
-              <div className="flex gap-2">
-                <button onClick={() => setStep('assign')} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors flex items-center gap-1">
-                  <Plus className="h-3 w-3" /> Add More
-                </button>
-                {role === 'admin' && (
-                  <button onClick={handleOptimize} className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">
-                    <Zap className="h-3 w-3" /> Optimize Trips
+          {/* Review table */}
+          {(generated || workers.length > 0) && (
+            <>
+              <div className="flex gap-2 flex-wrap">
+                {['All', ...TIME_SLOTS].map(slot => (
+                  <button key={slot} onClick={() => setActiveSlot(slot)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeSlot === slot ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>
+                    <Clock className="h-3 w-3" /> {slot}
+                    {slot !== 'All' && <span className="bg-background/20 text-xs px-1.5 py-0.5 rounded">{workersBySlot[slot] || 0}</span>}
                   </button>
+                ))}
+              </div>
+
+              {/* Summary by site */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {Object.entries(workersBySite).map(([area, ws]) => (
+                  <div key={area} className="kpi-card py-3">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <MapPin className="h-3 w-3 text-accent" />
+                      <span className="text-xs font-medium truncate">{area}</span>
+                    </div>
+                    <p className="text-xl font-bold">{ws.length}</p>
+                    <p className="text-[10px] text-muted-foreground">workers</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="kpi-card overflow-x-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold">Assignments — {format(selectedDate, 'MMM d, yyyy')} ({workers.length})</h2>
+                  <div className="flex gap-2">
+                    <button onClick={handleAutoGenerate}
+                      className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" /> Re-generate
+                    </button>
+                    <ExcelUploadButton label="Import Excel" onFileSelect={handleExcelImport} />
+                    {role === 'admin' && (
+                      <button onClick={handleOptimize} className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">
+                        <Zap className="h-3 w-3" /> Optimize Trips
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="pb-3 font-medium">Worker</th>
+                      <th className="pb-3 font-medium">Site</th>
+                      <th className="pb-3 font-medium">Dept</th>
+                      <th className="pb-3 font-medium">Slot</th>
+                      <th className="pb-3 font-medium">Start</th>
+                      <th className="pb-3 font-medium">End</th>
+                      <th className="pb-3 font-medium">Flags</th>
+                      <th className="pb-3 font-medium w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {(activeSlot === 'All' ? workers : workers.filter(w => w.timeSlot === activeSlot)).map(w => (
+                      <tr key={w.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 font-medium">{w.name}</td>
+                        <td className="py-2.5 text-muted-foreground">{w.site}</td>
+                        <td className="py-2.5 text-muted-foreground">{w.department}</td>
+                        <td className="py-2.5">
+                          <select value={w.timeSlot} onChange={e => handleUpdateWorker(w.id, 'timeSlot', e.target.value)}
+                            className="px-2 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
+                            {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                        <td className="py-2.5">
+                          <input type="time" value={w.startTime || ''} onChange={e => handleUpdateWorker(w.id, 'startTime', e.target.value)}
+                            className="px-1 py-0.5 rounded border border-input bg-background text-xs w-24 focus:outline-none focus:ring-1 focus:ring-ring" />
+                        </td>
+                        <td className="py-2.5">
+                          <input type="time" value={w.endTime || ''} onChange={e => handleUpdateWorker(w.id, 'endTime', e.target.value)}
+                            className="px-1 py-0.5 rounded border border-input bg-background text-xs w-24 focus:outline-none focus:ring-1 focus:ring-ring" />
+                        </td>
+                        <td className="py-2.5">
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <input type="checkbox" checked={w.urgent || false} onChange={e => handleUpdateWorker(w.id, 'urgent', e.target.checked)}
+                              className="rounded border-input" />
+                            <span className="text-xs text-muted-foreground">Urgent</span>
+                          </label>
+                        </td>
+                        <td className="py-2.5"><button onClick={() => handleRemoveWorker(w.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {workers.length === 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-8">No assignments yet. Generate from projects or import an Excel file.</p>
                 )}
               </div>
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="pb-3 font-medium">Worker</th>
-                  <th className="pb-3 font-medium">Site</th>
-                  <th className="pb-3 font-medium">Dept</th>
-                  <th className="pb-3 font-medium">Slot</th>
-                  <th className="pb-3 font-medium">Start</th>
-                  <th className="pb-3 font-medium">End</th>
-                  <th className="pb-3 font-medium">Flags</th>
-                  <th className="pb-3 font-medium w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {(activeSlot === 'All' ? workers : workers.filter(w => w.timeSlot === activeSlot)).map(w => (
-                  <tr key={w.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-2.5 font-medium">{w.name}</td>
-                    <td className="py-2.5 text-muted-foreground">{w.site}</td>
-                    <td className="py-2.5 text-muted-foreground">{w.department}</td>
-                    <td className="py-2.5"><span className="bg-secondary px-2 py-0.5 rounded text-xs">{w.timeSlot}</span></td>
-                    <td className="py-2.5 text-muted-foreground text-xs">{w.startTime || '—'}</td>
-                    <td className="py-2.5 text-muted-foreground text-xs">{w.endTime || '—'}</td>
-                    <td className="py-2.5">{w.urgent && <span className="inline-flex items-center gap-1 text-xs text-warning"><Shield className="h-3 w-3" />Urgent</span>}</td>
-                    <td className="py-2.5"><button onClick={() => handleRemoveWorker(w.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            </>
+          )}
         </div>
       )}
 
