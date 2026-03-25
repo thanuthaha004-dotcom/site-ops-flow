@@ -370,7 +370,55 @@ export default function TripPlanning() {
     return map;
   }, [workers]);
 
-  const visibleSteps = STEPS.filter(s => role === 'admin' ? true : !s.adminOnly);
+  const visibleSteps = STEPS;
+
+  // Load engineer requests for selected date
+  const loadRequests = useCallback(async () => {
+    try {
+      const reqs = await fetchTripRequestsByDate(toDateStr(selectedDate));
+      setTripRequests(reqs);
+    } catch { /* ignore */ }
+  }, [selectedDate]);
+
+  useEffect(() => { loadRequests(); }, [loadRequests]);
+
+  // Generate workers from engineer requests
+  const handleGenerateFromRequests = () => {
+    if (tripRequests.length === 0) {
+      toast({ title: 'No engineer submissions for this date', variant: 'destructive' });
+      return;
+    }
+    const gen: TripWorker[] = [];
+    const seen = new Set<string>();
+    tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
+      (req.worker_names || []).forEach((name, idx) => {
+        if (!name.trim()) return;
+        const key = `${name.trim().toUpperCase()}-${req.site}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const masterWorker = workerList.find(w => w.name.toLowerCase() === name.trim().toLowerCase());
+        gen.push({
+          id: `TW-REQ-${req.id}-${idx}`,
+          name: name.trim(),
+          site: req.site || 'Unassigned',
+          department: masterWorker?.department || req.work_type || 'General',
+          timeSlot: defaultTimeSlot,
+          startTime: '',
+          endTime: '',
+          urgent: req.priority === 'High',
+        });
+      });
+    });
+    if (gen.length === 0) {
+      toast({ title: 'No workers found in submissions', variant: 'destructive' });
+      return;
+    }
+    setWorkers(gen);
+    setGenerated(true);
+    setSaved(false);
+    setStep('review');
+    toast({ title: `Generated ${gen.length} trips from ${tripRequests.length} engineer submissions` });
+  };
 
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
 
