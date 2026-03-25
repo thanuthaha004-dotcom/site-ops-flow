@@ -180,3 +180,80 @@ export async function deleteWorkerDb(id: string) {
   const { error } = await supabase.from('workers').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ── Trip Schedules ──
+
+export interface TripScheduleRow {
+  id: string;
+  trip_date: string;
+  worker_name: string;
+  site: string;
+  department: string;
+  time_slot: string;
+  urgent: boolean;
+  project_id: string | null;
+  project_name: string;
+  vehicle_type: string | null;
+  vehicle_number: string | null;
+  status: string;
+}
+
+export async function fetchTripsByDate(date: string): Promise<TripScheduleRow[]> {
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .select('*')
+    .eq('trip_date', date)
+    .order('time_slot');
+  if (error) throw error;
+  return (data || []) as TripScheduleRow[];
+}
+
+export async function saveTripAssignments(
+  date: string,
+  assignments: Omit<TripScheduleRow, 'id' | 'status'>[]
+): Promise<TripScheduleRow[]> {
+  // Delete existing for this date first
+  await supabase.from('trip_schedules').delete().eq('trip_date', date);
+
+  if (assignments.length === 0) return [];
+
+  const rows = assignments.map(a => ({
+    trip_date: date,
+    worker_name: a.worker_name,
+    site: a.site,
+    department: a.department,
+    time_slot: a.time_slot,
+    urgent: a.urgent || false,
+    project_id: a.project_id,
+    project_name: a.project_name,
+    vehicle_type: a.vehicle_type,
+    vehicle_number: a.vehicle_number,
+    status: 'assigned',
+  }));
+
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .insert(rows)
+    .select();
+  if (error) throw error;
+  return (data || []) as TripScheduleRow[];
+}
+
+export async function updateTripStatus(id: string, status: string) {
+  const { error } = await supabase
+    .from('trip_schedules')
+    .update({ status })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function getRecentTripDates(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .select('trip_date')
+    .order('trip_date', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  const unique = [...new Set((data || []).map((r: any) => r.trip_date))];
+  return unique.slice(0, 30);
+}
