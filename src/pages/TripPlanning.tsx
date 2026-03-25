@@ -572,7 +572,78 @@ export default function TripPlanning() {
         ))}
       </div>
 
-      {step === 'review' && (
+      {/* Step: Engineer Requests */}
+      {step === 'requests' && (
+        <div className="space-y-4">
+          <div className="kpi-card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold flex items-center gap-2">
+                <Inbox className="h-5 w-5 text-accent" /> Engineer Submissions for {format(selectedDate, 'MMM d, yyyy')}
+              </h2>
+              <button onClick={loadRequests} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 flex items-center gap-1">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+            {tripRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <Inbox className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-lg font-semibold">No Submissions Yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">Engineers haven't submitted trip requests for this date yet.</p>
+                <p className="text-xs text-muted-foreground mt-2">You can also generate trips directly from projects using the Review step.</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {tripRequests.map(req => (
+                    <div key={req.id} className={`p-4 rounded-md border transition-colors ${req.status === 'pending' ? 'border-accent/40 bg-accent/5' : 'border-border'}`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium">{req.project_name}</span>
+                            {req.priority === 'High' && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">High</span>}
+                            <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{req.work_type || 'General'}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${req.status === 'pending' ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'}`}>
+                              {req.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {req.site}</span>
+                            <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(req.worker_names || []).length} workers</span>
+                            <span className="flex items-center gap-1"><UserCog className="h-3 w-3" /> {req.engineer_name}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {(req.worker_names || []).map((n, i) => (
+                              <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {tripRequests.length} submissions • {tripRequests.reduce((s, r) => s + (r.worker_names || []).length, 0)} total workers
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <div>
+                      <select value={defaultTimeSlot} onChange={e => setDefaultTimeSlot(e.target.value)}
+                        className="px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                        {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <button onClick={handleGenerateFromRequests}
+                      className="px-5 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
+                      <Zap className="h-4 w-4" /> Generate Trips from Submissions
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
         <div className="space-y-4">
           {/* Auto-generate panel with project selection */}
           {!generated && workers.length === 0 && !showProjectSelector && (
