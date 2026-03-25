@@ -126,6 +126,8 @@ export default function TripPlanning() {
         site: w.site,
         department: w.department,
         time_slot: w.timeSlot,
+        start_time: w.startTime || null,
+        end_time: w.endTime || null,
         urgent: w.urgent || false,
         project_id: null,
         project_name: '',
