@@ -130,7 +130,7 @@ export default function TripPlanning() {
       }));
       await saveTripAssignments(toDateStr(selectedDate), assignments);
       setSaved(true);
-      getRecentDates().then(setRecentDates).catch(() => {});
+      getRecentTripDates().then(setRecentDates).catch(() => {});
       toast({ title: `Saved ${workers.length} assignments for ${format(selectedDate, 'MMM d, yyyy')}` });
     } catch {
       toast({ title: 'Failed to save trips', variant: 'destructive' });
