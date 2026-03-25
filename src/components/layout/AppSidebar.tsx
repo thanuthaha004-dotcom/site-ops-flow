@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame, ClipboardCheck, Route, UserCog
+  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
-const navItems = [
+const adminNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projects', icon: FolderKanban },
   { path: '/schedule', label: 'Schedule', icon: CalendarDays },
@@ -16,9 +17,18 @@ const navItems = [
   { path: '/engineers', label: 'Engineers', icon: UserCog },
 ];
 
+const engineerNavItems = [
+  { path: '/', label: 'Submit Trips', icon: Send },
+  { path: '/projects', label: 'My Projects', icon: FolderKanban },
+];
+
 export default function AppSidebar() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const { role, profileName, signOut } = useAuth();
+
+  const navItems = role === 'admin' ? adminNavItems : engineerNavItems;
+  const initials = profileName ? profileName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U';
 
   return (
     <>
@@ -48,7 +58,9 @@ export default function AppSidebar() {
           <Flame className="h-7 w-7 text-accent" />
           <div>
             <h1 className="font-bold text-lg text-primary-foreground tracking-tight">OpsCenter</h1>
-            <p className="text-[11px] text-sidebar-muted leading-none">Operations Management</p>
+            <p className="text-[11px] text-sidebar-muted leading-none">
+              {role === 'admin' ? 'Admin Panel' : 'Engineer Panel'}
+            </p>
           </div>
         </div>
 
@@ -79,12 +91,15 @@ export default function AppSidebar() {
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-sm">
-              OM
+              {initials}
             </div>
-            <div>
-              <p className="text-sm font-medium text-primary-foreground">Ops Manager</p>
-              <p className="text-xs text-sidebar-muted">Admin Access</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-primary-foreground truncate">{profileName || 'User'}</p>
+              <p className="text-xs text-sidebar-muted capitalize">{role || 'Loading...'}</p>
             </div>
+            <button onClick={signOut} className="p-1.5 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-primary-foreground transition-colors" title="Sign out">
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
