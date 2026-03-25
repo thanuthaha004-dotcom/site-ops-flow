@@ -432,7 +432,7 @@ export default function TripPlanning() {
           <p className="text-muted-foreground text-sm">{workers.length} workers assigned • {tripGroups.length} trips planned</p>
         </div>
         <div className="flex items-center gap-2">
-          {role === 'admin' && (
+          {(
             <Dialog open={showDriverSettings} onOpenChange={setShowDriverSettings}>
               <DialogTrigger asChild>
                 <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors">
