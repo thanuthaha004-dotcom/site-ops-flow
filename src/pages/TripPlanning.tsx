@@ -688,11 +688,9 @@ export default function TripPlanning() {
                       <RefreshCw className="h-3 w-3" /> Re-select Projects
                     </button>
                     <ExcelUploadButton label="Import Excel" onFileSelect={handleExcelImport} />
-                    {role === 'admin' && (
-                      <button onClick={handleOptimize} className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">
-                        <Zap className="h-3 w-3" /> Optimize Trips
-                      </button>
-                    )}
+                    <button onClick={handleOptimize} className="px-3 py-1.5 rounded-md bg-accent text-accent-foreground text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">
+                      <Zap className="h-3 w-3" /> Optimize Trips
+                    </button>
                   </div>
                 </div>
                 <table className="w-full text-sm">
