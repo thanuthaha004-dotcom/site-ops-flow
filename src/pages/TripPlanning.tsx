@@ -43,6 +43,8 @@ export default function TripPlanning() {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedWorkers, setSelectedWorkers] = useState<Set<string>>(new Set());
   const [assignTimeSlot, setAssignTimeSlot] = useState(TIME_SLOTS[0]);
+  const [assignStartTime, setAssignStartTime] = useState('');
+  const [assignEndTime, setAssignEndTime] = useState('');
   const [assignUrgent, setAssignUrgent] = useState(false);
 
   const [projectList, setProjectList] = useState<Project[]>([]);
@@ -71,6 +73,8 @@ export default function TripPlanning() {
         site: r.site,
         department: r.department,
         timeSlot: r.time_slot,
+        startTime: r.start_time || '',
+        endTime: r.end_time || '',
         urgent: r.urgent,
       }));
       setWorkers(loaded);
@@ -104,6 +108,8 @@ export default function TripPlanning() {
         site: r.site,
         department: r.department,
         timeSlot: r.time_slot,
+        startTime: r.start_time || '',
+        endTime: r.end_time || '',
         urgent: r.urgent,
       }));
       setWorkers(copied);
@@ -122,6 +128,8 @@ export default function TripPlanning() {
         site: w.site,
         department: w.department,
         time_slot: w.timeSlot,
+        start_time: w.startTime || null,
+        end_time: w.endTime || null,
         urgent: w.urgent || false,
         project_id: null,
         project_name: '',
@@ -155,6 +163,8 @@ export default function TripPlanning() {
         site: selectedProjectData.site,
         department: w.department,
         timeSlot: assignTimeSlot,
+        startTime: assignStartTime,
+        endTime: assignEndTime,
         urgent: assignUrgent,
       });
     });
@@ -349,7 +359,7 @@ export default function TripPlanning() {
               <h2 className="font-semibold flex items-center gap-2"><FolderKanban className="h-4 w-4 text-accent" /> Select Project & Assign Workers</h2>
               <ExcelUploadButton label="Import from Excel" onFileSelect={handleExcelImport} />
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Project</label>
                 <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
@@ -361,15 +371,25 @@ export default function TripPlanning() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Trip Time</label>
+                <label className="text-xs font-medium text-muted-foreground">Trip Time Slot</label>
                 <select value={assignTimeSlot} onChange={e => setAssignTimeSlot(e.target.value)}
                   className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                   {TIME_SLOTS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Start Time</label>
+                <input type="time" value={assignStartTime} onChange={e => setAssignStartTime(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">End Time</label>
+                <input type="time" value={assignEndTime} onChange={e => setAssignEndTime(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
               <div className="flex items-end gap-2 pb-0.5">
                 <input type="checkbox" id="urgent-assign" checked={assignUrgent} onChange={e => setAssignUrgent(e.target.checked)} className="rounded border-input" />
-                <label htmlFor="urgent-assign" className="text-sm text-muted-foreground">Mark as Urgent</label>
+                <label htmlFor="urgent-assign" className="text-sm text-muted-foreground">Urgent</label>
               </div>
               <div className="flex items-end">
                 <button onClick={handleAssignWorkers} disabled={!selectedProject || selectedWorkers.size === 0}
@@ -468,7 +488,9 @@ export default function TripPlanning() {
                   <th className="pb-3 font-medium">Worker</th>
                   <th className="pb-3 font-medium">Site</th>
                   <th className="pb-3 font-medium">Dept</th>
-                  <th className="pb-3 font-medium">Time</th>
+                  <th className="pb-3 font-medium">Slot</th>
+                  <th className="pb-3 font-medium">Start</th>
+                  <th className="pb-3 font-medium">End</th>
                   <th className="pb-3 font-medium">Flags</th>
                   <th className="pb-3 font-medium w-10"></th>
                 </tr>
@@ -480,6 +502,8 @@ export default function TripPlanning() {
                     <td className="py-2.5 text-muted-foreground">{w.site}</td>
                     <td className="py-2.5 text-muted-foreground">{w.department}</td>
                     <td className="py-2.5"><span className="bg-secondary px-2 py-0.5 rounded text-xs">{w.timeSlot}</span></td>
+                    <td className="py-2.5 text-muted-foreground text-xs">{w.startTime || '—'}</td>
+                    <td className="py-2.5 text-muted-foreground text-xs">{w.endTime || '—'}</td>
                     <td className="py-2.5">{w.urgent && <span className="inline-flex items-center gap-1 text-xs text-warning"><Shield className="h-3 w-3" />Urgent</span>}</td>
                     <td className="py-2.5"><button onClick={() => handleRemoveWorker(w.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></td>
                   </tr>

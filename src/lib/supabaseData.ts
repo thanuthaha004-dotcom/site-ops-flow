@@ -190,6 +190,8 @@ export interface TripScheduleRow {
   site: string;
   department: string;
   time_slot: string;
+  start_time: string | null;
+  end_time: string | null;
   urgent: boolean;
   project_id: string | null;
   project_name: string;
@@ -223,6 +225,8 @@ export async function saveTripAssignments(
     site: a.site,
     department: a.department,
     time_slot: a.time_slot,
+    start_time: a.start_time,
+    end_time: a.end_time,
     urgent: a.urgent || false,
     project_id: a.project_id,
     project_name: a.project_name,
