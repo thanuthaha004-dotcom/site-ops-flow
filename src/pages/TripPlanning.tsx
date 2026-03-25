@@ -644,6 +644,7 @@ export default function TripPlanning() {
         </div>
       )}
 
+      {step === 'review' && (
         <div className="space-y-4">
           {/* Auto-generate panel with project selection */}
           {!generated && workers.length === 0 && !showProjectSelector && (
