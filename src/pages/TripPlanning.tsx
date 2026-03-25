@@ -486,7 +486,9 @@ export default function TripPlanning() {
                   <th className="pb-3 font-medium">Worker</th>
                   <th className="pb-3 font-medium">Site</th>
                   <th className="pb-3 font-medium">Dept</th>
-                  <th className="pb-3 font-medium">Time</th>
+                  <th className="pb-3 font-medium">Slot</th>
+                  <th className="pb-3 font-medium">Start</th>
+                  <th className="pb-3 font-medium">End</th>
                   <th className="pb-3 font-medium">Flags</th>
                   <th className="pb-3 font-medium w-10"></th>
                 </tr>
@@ -498,6 +500,8 @@ export default function TripPlanning() {
                     <td className="py-2.5 text-muted-foreground">{w.site}</td>
                     <td className="py-2.5 text-muted-foreground">{w.department}</td>
                     <td className="py-2.5"><span className="bg-secondary px-2 py-0.5 rounded text-xs">{w.timeSlot}</span></td>
+                    <td className="py-2.5 text-muted-foreground text-xs">{w.startTime || '—'}</td>
+                    <td className="py-2.5 text-muted-foreground text-xs">{w.endTime || '—'}</td>
                     <td className="py-2.5">{w.urgent && <span className="inline-flex items-center gap-1 text-xs text-warning"><Shield className="h-3 w-3" />Urgent</span>}</td>
                     <td className="py-2.5"><button onClick={() => handleRemoveWorker(w.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></td>
                   </tr>
