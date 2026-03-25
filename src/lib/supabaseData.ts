@@ -181,6 +181,44 @@ export async function deleteWorkerDb(id: string) {
   if (error) throw error;
 }
 
+// ── Engineers ──
+
+export async function fetchEngineers(): Promise<Engineer[]> {
+  const { data, error } = await supabase.from('engineers').select('*').order('name');
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    department: r.department || '',
+    phone: r.phone || '',
+  }));
+}
+
+export async function insertEngineer(e: Omit<Engineer, 'id'>): Promise<Engineer> {
+  const { data, error } = await supabase.from('engineers').insert({
+    name: e.name,
+    department: e.department,
+    phone: e.phone || '',
+  }).select().single();
+  if (error) throw error;
+  return { id: data.id, name: data.name, department: data.department, phone: data.phone || '' };
+}
+
+export async function updateEngineerDb(id: string, updates: Partial<Engineer>): Promise<Engineer> {
+  const dbUpdates: any = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.department !== undefined) dbUpdates.department = updates.department;
+  if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+  const { data, error } = await supabase.from('engineers').update(dbUpdates).eq('id', id).select().single();
+  if (error) throw error;
+  return { id: data.id, name: data.name, department: data.department, phone: data.phone || '' };
+}
+
+export async function deleteEngineerDb(id: string) {
+  const { error } = await supabase.from('engineers').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ── Trip Schedules ──
 
 export interface TripScheduleRow {
