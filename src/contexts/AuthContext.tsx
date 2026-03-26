@@ -25,56 +25,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchRole = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .maybeSingle();
+
+    if (error) {
+      console.error('Failed to fetch user role:', error);
+      return null;
+    }
+
     return (data?.role as AppRole) || null;
   };
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('full_name')
       .eq('id', userId)
       .maybeSingle();
+
+    if (error) {
+      console.error('Failed to fetch user profile:', error);
+      return '';
+    }
+
     return data?.full_name || '';
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const [r, name] = await Promise.all([
-          fetchRole(session.user.id),
-          fetchProfile(session.user.id),
-        ]);
-        setRole(r);
-        setProfileName(name);
-      } else {
+    let mounted = true;
+
+    const applySession = async (nextSession: Session | null) => {
+      if (!mounted) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      if (!nextSession?.user) {
         setRole(null);
         setProfileName('');
+        setLoading(false);
+        return;
       }
+
+      const [nextRole, nextProfileName] = await Promise.all([
+        fetchRole(nextSession.user.id),
+        fetchProfile(nextSession.user.id),
+      ]);
+
+      if (!mounted) return;
+
+      setRole(nextRole);
+      setProfileName(nextProfileName);
       setLoading(false);
+    };
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => applySession(session))
+      .catch((error) => {
+        console.error('Failed to restore session:', error);
+        if (!mounted) return;
+        setSession(null);
+        setUser(null);
+        setRole(null);
+        setProfileName('');
+        setLoading(false);
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void applySession(nextSession);
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const [r, name] = await Promise.all([
-          fetchRole(session.user.id),
-          fetchProfile(session.user.id),
-        ]);
-        setRole(r);
-        setProfileName(name);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -90,9 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) return { error: error.message };
     if (data.user) {
-      // Insert role
       await supabase.from('user_roles').insert({ user_id: data.user.id, role: selectedRole });
-      // Update profile name
       await supabase.from('profiles').update({ full_name: fullName }).eq('id', data.user.id);
     }
     return { error: null };
