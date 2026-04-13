@@ -3,6 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
 export type AppRole = 'admin' | 'engineer';
+export const PASSWORD_RECOVERY_STORAGE_KEY = 'opscenter-password-recovery';
+
+const saveRecoveryState = (userId: string) => {
+  sessionStorage.setItem(
+    PASSWORD_RECOVERY_STORAGE_KEY,
+    JSON.stringify({ userId, createdAt: Date.now() }),
+  );
+};
+
+const clearRecoveryState = () => {
+  sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
+};
 
 interface AuthState {
   user: User | null;
@@ -96,7 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'PASSWORD_RECOVERY' && nextSession?.user?.id) {
+        saveRecoveryState(nextSession.user.id);
+      }
+
+      if (event === 'SIGNED_OUT') {
+        clearRecoveryState();
+      }
+
       void applySession(nextSession);
     });
 
