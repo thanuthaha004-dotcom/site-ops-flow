@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth, type AppRole } from '@/contexts/AuthContext';
 import { Flame } from 'lucide-react';
 
@@ -17,7 +18,19 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
+
+    if (forgotMode) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) setError(error.message);
+      else setInfo('Password reset link sent! Check your email.');
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'login') {
       const res = await signIn(email, password);
       if (res.error) setError(res.error);
