@@ -10,7 +10,9 @@ export default function Login() {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<AppRole>('engineer');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
