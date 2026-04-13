@@ -15,6 +15,7 @@ import TripPlanning from "./pages/TripPlanning";
 import Engineers from "./pages/Engineers";
 import EngineerTripSubmit from "./pages/EngineerTripSubmit";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -69,6 +70,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginGuard />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/*" element={<ProtectedRoutes />} />
           </Routes>
         </AuthProvider>
