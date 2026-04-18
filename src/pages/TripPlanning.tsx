@@ -296,15 +296,53 @@ export default function TripPlanning() {
     toast({ title: `Optimized into ${result.groups.length} trips`, description: `${result.stats.tripsSaved} trips saved, ${result.stats.avgUtilization}% avg utilization` });
   };
 
-  const handleDispatch = (groupId: string) => {
-    setTripGroups(prev => prev.map(g => g.id === groupId ? { ...g, status: 'dispatched' } : g));
-    toast({ title: 'Trip dispatched!' });
+  const persistDispatchedTrips = async (groups: TripGroup[]) => {
+    // Build assignments with vehicle + driver baked in, one row per worker
+    const assignments = groups.flatMap(g =>
+      g.workers.map(w => ({
+        trip_date: toDateStr(selectedDate),
+        worker_name: w.name,
+        site: w.site,
+        department: w.department,
+        time_slot: w.timeSlot,
+        start_time: w.startTime || null,
+        end_time: w.endTime || null,
+        urgent: w.urgent || false,
+        project_id: null,
+        project_name: g.area,
+        vehicle_type: g.suggestedVehicle?.type || null,
+        vehicle_number: g.suggestedVehicle
+          ? `${g.suggestedVehicle.number}${g.suggestedVehicle.driver ? ` / ${g.suggestedVehicle.driver}` : ''}`
+          : null,
+      }))
+    );
+    await saveTripAssignments(toDateStr(selectedDate), assignments);
+    setSaved(true);
+    getRecentTripDates().then(setRecentDates).catch(() => {});
   };
 
-  const handleDispatchAll = () => {
-    setTripGroups(prev => prev.map(g => ({ ...g, status: 'dispatched' })));
-    setStep('dispatch');
-    toast({ title: 'All trips dispatched!' });
+  const handleDispatch = async (groupId: string) => {
+    const updated = tripGroups.map(g => g.id === groupId ? { ...g, status: 'dispatched' as const } : g);
+    setTripGroups(updated);
+    try {
+      await persistDispatchedTrips(updated);
+      toast({ title: 'Trip dispatched & saved!' });
+    } catch {
+      toast({ title: 'Dispatched locally but failed to save to database', variant: 'destructive' });
+    }
+  };
+
+  const handleDispatchAll = async () => {
+    const updated = tripGroups.map(g => ({ ...g, status: 'dispatched' as const }));
+    setTripGroups(updated);
+    try {
+      await persistDispatchedTrips(updated);
+      setStep('dispatch');
+      toast({ title: `All ${updated.length} trips dispatched & saved!` });
+    } catch {
+      setStep('dispatch');
+      toast({ title: 'Dispatched locally but failed to save to database', variant: 'destructive' });
+    }
   };
 
   const handleOverrideVehicle = (groupId: string) => {
