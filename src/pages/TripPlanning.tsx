@@ -323,8 +323,16 @@ export default function TripPlanning() {
 
   const handleOverrideDriver = (groupId: string, driver: string) => {
     setTripGroups(prev => prev.map(g => {
-      if (g.id !== groupId || !g.suggestedVehicle) return g;
-      return { ...g, suggestedVehicle: { ...g.suggestedVehicle, driver } };
+      if (g.id !== groupId) return g;
+      // If no vehicle was suggested yet, create a minimal placeholder so the driver sticks
+      const baseVehicle = g.suggestedVehicle ?? {
+        id: `manual-${g.id}`,
+        number: '—',
+        type: g.workers.length <= 3 ? '5-seater' : '13-seater',
+        capacity: g.workers.length <= 3 ? 5 : 13,
+        driver: '',
+      };
+      return { ...g, suggestedVehicle: { ...baseVehicle, driver } };
     }));
   };
 
