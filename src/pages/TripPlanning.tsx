@@ -959,7 +959,9 @@ export default function TripPlanning() {
         <div className="kpi-card text-center py-12">
           <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">All Trips Dispatched!</h2>
-          <p className="text-muted-foreground mb-4">{tripGroups.length} trips dispatched for {format(selectedDate, 'MMM d, yyyy')}.</p>
+          <p className="text-muted-foreground mb-4">
+            {tripGroups.filter(g => g.status === 'dispatched').length} trips dispatched for {format(selectedDate, 'MMM d, yyyy')} • {workers.length} workers assigned.
+          </p>
           {stats && (
             <div className="flex justify-center gap-6 text-sm">
               <div><span className="text-muted-foreground">Trips saved:</span> <strong className="text-success">{stats.tripsSaved}</strong></div>
@@ -967,6 +969,12 @@ export default function TripPlanning() {
               <div><span className="text-muted-foreground">Workers grouped:</span> <strong>{workers.length}</strong></div>
             </div>
           )}
+          <button
+            onClick={() => setStep('optimize')}
+            className="mt-6 px-4 py-2 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80"
+          >
+            ← Back to Trip Cards
+          </button>
         </div>
       )}
     </div>
