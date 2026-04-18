@@ -42,7 +42,7 @@ export interface TripStats {
   inefficientTrips: number;
 }
 
-export const TIME_SLOTS = ['5:30 AM', '6:30 AM', '7:30 AM', '9:30 AM'];
+export const TIME_SLOTS = ['5:30 AM', '6:00 AM', '6:30 AM', '7:00 AM', '7:30 AM', '9:30 AM'];
 export const MIN_UTILIZATION = 0.7;
 
 // Dubai area clusters
@@ -218,8 +218,10 @@ export function excelTimeToString(val: number): string {
 export function snapToTimeSlot(timeVal: number): string {
   const totalMinutes = Math.round((timeVal >= 1 ? timeVal - Math.floor(timeVal) : timeVal) * 24 * 60);
   const hours = totalMinutes / 60;
-  if (hours < 6) return '5:30 AM';
-  if (hours < 7) return '6:30 AM';
+  if (hours < 5.75) return '5:30 AM';
+  if (hours < 6.25) return '6:00 AM';
+  if (hours < 6.75) return '6:30 AM';
+  if (hours < 7.25) return '7:00 AM';
   if (hours < 8.5) return '7:30 AM';
   return '9:30 AM';
 }
