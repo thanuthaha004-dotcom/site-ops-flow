@@ -25,9 +25,10 @@ export default function EngineerTripSubmit() {
   // Fetch projects assigned to this engineer
   useEffect(() => {
     fetchProjects().then(all => {
+      const me = (profileName || '').trim().toLowerCase();
       const mine = all.filter(p =>
         (p.status === 'Active' || p.status === 'Scheduled') &&
-        p.engineer.toLowerCase() === (profileName || '').toLowerCase() &&
+        (p.engineer || '').trim().toLowerCase() === me &&
         (p.workerNames || []).length > 0
       );
       setProjects(mine);
