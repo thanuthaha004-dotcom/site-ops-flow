@@ -3,7 +3,44 @@ import { fetchProjects, insertProject, updateProject, deleteProjectDb } from '@/
 import type { Project, ProjectType, ProjectStatus, Priority } from '@/data/mockData';
 import { StatusBadge, PriorityBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { Progress } from '@/components/ui/progress';
-import { MapPin, Users, Calendar, Search, Download, Trash2, Edit3 } from 'lucide-react';
+import { MapPin, Users, Calendar, Search, Download, Trash2, Edit3, AlertTriangle } from 'lucide-react';
+import { getAreaCluster } from '@/lib/tripPlanning';
+
+const KNOWN_ZONES = new Set([
+  'Zone 1', 'Zone 2', 'Zone 3', 'Zone 4',
+  'Hub - Al Quoz Camp', 'Sharjah', 'Ajman', 'Al Ain', 'Abu Dhabi',
+]);
+
+const ZONE_STYLES: Record<string, string> = {
+  'Zone 1': 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30',
+  'Zone 2': 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+  'Zone 3': 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
+  'Zone 4': 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30',
+  'Hub - Al Quoz Camp': 'bg-primary/15 text-primary border-primary/30',
+  'Sharjah': 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+  'Ajman': 'bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/30',
+  'Al Ain': 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30',
+  'Abu Dhabi': 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+};
+
+function ZoneBadge({ site }: { site: string }) {
+  if (!site) return null;
+  const zone = getAreaCluster(site);
+  const matched = KNOWN_ZONES.has(zone);
+  if (matched) {
+    const label = zone === 'Hub - Al Quoz Camp' ? 'Hub' : zone;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium ${ZONE_STYLES[zone]}`} title={zone}>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" title="No zone matched ≥70% similarity. Review site name.">
+      <AlertTriangle className="h-2.5 w-2.5" /> Unzoned
+    </span>
+  );
+}
 import AddProjectDialog from '@/components/forms/AddProjectDialog';
 import EditProjectDialog from '@/components/forms/EditProjectDialog';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
