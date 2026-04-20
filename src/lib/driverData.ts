@@ -7,6 +7,7 @@ export interface TripSegment {
   site: string;
   project_id: string | null;
   project_name: string;
+  engineer_name?: string;
   status: 'pending' | 'in_progress' | 'paused' | 'completed';
   started_at: string | null;
   paused_at: string | null;
@@ -21,6 +22,8 @@ export interface DriverTrip {
   site: string;
   project_id: string | null;
   project_name: string;
+  engineer_name: string;
+  pickup_location: string;
   worker_name: string;
   vehicle_number: string | null;
   vehicle_type: string | null;

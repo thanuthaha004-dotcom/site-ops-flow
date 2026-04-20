@@ -10,6 +10,13 @@ export interface TripWorker {
   startTime?: string;
   endTime?: string;
   urgent?: boolean;
+  /** Origin project for this worker (used to display project on driver portal). */
+  projectId?: string | null;
+  projectName?: string;
+  /** Engineer who requested this worker for the trip. */
+  engineerName?: string;
+  /** Where the worker is picked up. Defaults to Al Quoz Labour Camp. */
+  pickupLocation?: string;
 }
 
 export interface TripGroup {
