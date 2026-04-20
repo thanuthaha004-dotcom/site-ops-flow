@@ -279,8 +279,10 @@ export default function TripPlanning() {
         start_time: w.startTime || null,
         end_time: w.endTime || null,
         urgent: w.urgent || false,
-        project_id: null,
-        project_name: '',
+        project_id: w.projectId || null,
+        project_name: w.projectName || '',
+        engineer_name: w.engineerName || '',
+        pickup_location: w.pickupLocation || 'Al Quoz Labour Camp',
         vehicle_type: null,
         vehicle_number: null,
       }));
@@ -310,25 +312,80 @@ export default function TripPlanning() {
   };
 
   const persistDispatchedTrips = async (groups: TripGroup[]) => {
-    // Build assignments with vehicle + driver baked in, one row per worker.
-    // IMPORTANT: vehicle_number is stored AS-IS (e.g. "DXB-12345") so the driver
-    // portal RLS filter current_user_drives_vehicle(vehicle_number) matches.
-    const assignments = groups.flatMap(g =>
-      g.workers.map(w => ({
-        trip_date: toDateStr(selectedDate),
-        worker_name: w.name,
-        site: w.site,
-        department: w.department,
-        time_slot: w.timeSlot,
-        start_time: w.startTime || null,
-        end_time: w.endTime || null,
-        urgent: w.urgent || false,
-        project_id: null,
-        project_name: g.area,
-        vehicle_type: g.suggestedVehicle?.type || null,
-        vehicle_number: g.suggestedVehicle?.number || null,
-      }))
-    );
+    // Group workers within each trip by (project, site, slot, vehicle, pickup) so
+    // multiple passengers sharing pickup + drop-off + slot become ONE driver task.
+    // Each saved row carries: passenger CSV, real project, engineer name, and pickup.
+    type Bucket = {
+      site: string;
+      department: string;
+      time_slot: string;
+      project_id: string | null;
+      project_name: string;
+      engineer_name: string;
+      pickup_location: string;
+      vehicle_type: string | null;
+      vehicle_number: string | null;
+      start_time: string | null;
+      end_time: string | null;
+      urgent: boolean;
+      names: string[];
+    };
+    const buckets = new Map<string, Bucket>();
+
+    groups.forEach(g => {
+      const veh = g.suggestedVehicle;
+      g.workers.forEach(w => {
+        // Fall back to the trip's area only when the worker has no project at all.
+        const projectName = w.projectName || g.area;
+        const projectId = w.projectId || null;
+        const engineerName = w.engineerName || '';
+        const pickup = w.pickupLocation || 'Al Quoz Labour Camp';
+        const key = [
+          pickup, w.site, w.timeSlot, projectId || projectName,
+          veh?.number || '', engineerName,
+        ].join('||');
+
+        const bucket = buckets.get(key);
+        if (bucket) {
+          if (!bucket.names.includes(w.name)) bucket.names.push(w.name);
+          if (w.urgent) bucket.urgent = true;
+        } else {
+          buckets.set(key, {
+            site: w.site,
+            department: w.department,
+            time_slot: w.timeSlot,
+            project_id: projectId,
+            project_name: projectName,
+            engineer_name: engineerName,
+            pickup_location: pickup,
+            vehicle_type: veh?.type || null,
+            vehicle_number: veh?.number || null,
+            start_time: w.startTime || null,
+            end_time: w.endTime || null,
+            urgent: !!w.urgent,
+            names: [w.name],
+          });
+        }
+      });
+    });
+
+    const assignments = Array.from(buckets.values()).map(b => ({
+      trip_date: toDateStr(selectedDate),
+      worker_name: b.names.join(', '),
+      site: b.site,
+      department: b.department,
+      time_slot: b.time_slot,
+      start_time: b.start_time,
+      end_time: b.end_time,
+      urgent: b.urgent,
+      project_id: b.project_id,
+      project_name: b.project_name,
+      engineer_name: b.engineer_name,
+      pickup_location: b.pickup_location,
+      vehicle_type: b.vehicle_type,
+      vehicle_number: b.vehicle_number,
+    }));
+
     await saveTripAssignments(toDateStr(selectedDate), assignments);
     setSaved(true);
     getRecentTripDates().then(setRecentDates).catch(() => {});
