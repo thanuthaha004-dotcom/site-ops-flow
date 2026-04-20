@@ -75,10 +75,48 @@ const AREA_CLUSTERS: Record<string, string[]> = {
   'Abu Dhabi': ['ABU DHABI', 'ABUDHABI'],
 };
 
+// Normalize a site string: uppercase, strip punctuation, collapse common suffixes
+function normalizeSite(s: string): string {
+  return s
+    .toUpperCase()
+    .replace(/[.,_\-/\\()]/g, ' ')
+    .replace(/\b(STORE|BRANCH|BR|ST|SITE|CAMP SITE|LOCATION|LOC)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Levenshtein-based similarity ratio (1 = identical, 0 = nothing in common).
+// Better than Dice for short location names with 1–2 character typos.
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function similarity(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const d = levenshtein(a, b);
+  return 1 - d / Math.max(a.length, b.length);
+}
+
+const FUZZY_THRESHOLD = 0.7;
+
 export function getAreaCluster(site: string): string {
-  const upper = site.toUpperCase().trim();
+  const upper = normalizeSite(site);
   if (!upper) return 'Other';
-  // Check Al Quoz Camp first (most specific) so "Al Quoz" doesn't get caught by other rules
+
+  // 1. Exact substring match (fast path) — Hub first so "Al Quoz" doesn't match other rules
   for (const keyword of AREA_CLUSTERS['Hub - Al Quoz Camp']) {
     if (upper.includes(keyword)) return 'Hub - Al Quoz Camp';
   }
@@ -86,6 +124,26 @@ export function getAreaCluster(site: string): string {
     if (area === 'Hub - Al Quoz Camp') continue;
     if (keywords.some(k => upper.includes(k))) return area;
   }
+
+  // 2. Fuzzy fallback — score every keyword against full input AND each token, pick best ≥ threshold.
+  // This handles typos ("Jumeriah", "Jabel Ali") and noise around a known name ("Marina Walk" → MARINA).
+  const tokens = upper.split(' ').filter(t => t.length >= 3);
+  const candidates = [upper, ...tokens];
+  let bestZone = '';
+  let bestScore = 0;
+  for (const [area, keywords] of Object.entries(AREA_CLUSTERS)) {
+    for (const keyword of keywords) {
+      for (const c of candidates) {
+        const score = similarity(c, keyword);
+        if (score > bestScore) {
+          bestScore = score;
+          bestZone = area;
+        }
+      }
+    }
+  }
+  if (bestScore >= FUZZY_THRESHOLD) return bestZone;
+
   return site.trim() || 'Other';
 }
 
