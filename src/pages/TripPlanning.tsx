@@ -884,15 +884,31 @@ export default function TripPlanning() {
             ))}
           </div>
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredGroups.map(g => {
-              const defaultDriver = getDefaultDriverForArea(g.area);
-              const currentDriver = g.suggestedVehicle?.driver || defaultDriver;
-              return (
+            {(() => {
+              // Compute first trip of the day per driver — that one starts from Al Quoz Camp.
+              const slotIndex = (s: string) => TIME_SLOTS.indexOf(s);
+              const firstTripIdByDriver = new Map<string, string>();
+              const sortedAll = [...tripGroups].sort((a, b) => slotIndex(a.timeSlot) - slotIndex(b.timeSlot));
+              sortedAll.forEach(t => {
+                const drv = t.suggestedVehicle?.driver || getDefaultDriverForArea(t.area);
+                if (!drv) return;
+                if (!firstTripIdByDriver.has(drv)) firstTripIdByDriver.set(drv, t.id);
+              });
+              return filteredGroups.map(g => {
+                const defaultDriver = getDefaultDriverForArea(g.area);
+                const currentDriver = g.suggestedVehicle?.driver || defaultDriver;
+                const startsFromCamp = !!currentDriver && firstTripIdByDriver.get(currentDriver) === g.id;
+                return (
                 <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'dispatched' ? 'opacity-60' : ''}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold flex items-center gap-1.5"><Bus className="h-4 w-4 text-accent" /> {g.area}</h3>
                       <p className="text-xs text-muted-foreground">{g.timeSlot} • {g.workers.length} workers</p>
+                      {startsFromCamp && (
+                        <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[10px] font-medium border border-accent/20">
+                          <MapPin className="h-2.5 w-2.5" /> Starts from Al Quoz Camp
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {g.isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
@@ -943,7 +959,8 @@ export default function TripPlanning() {
                   </div>
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
           {tripGroups.some(g => g.status !== 'dispatched') && (
             <div className="flex justify-end">
