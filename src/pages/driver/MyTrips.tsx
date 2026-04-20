@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar } from 'lucide-react';
+import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation } from 'lucide-react';
 import { fetchDriverTrips, type DriverTrip } from '@/lib/driverData';
 
 function statusPill(status: string) {
@@ -72,9 +72,12 @@ export default function MyTrips() {
           <div className="space-y-2">
             {grouped[date].map(trip => {
               const passengers = (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
-              const sites = trip.segments.length > 0
+              const dropoff = trip.segments.length > 0
                 ? trip.segments.map(s => s.site).join(' → ')
                 : trip.site;
+              const projectLabel = trip.segments.length > 1
+                ? [...new Set(trip.segments.map(s => s.project_name).filter(Boolean))].join(' · ')
+                : (trip.project_name || '—');
               return (
                 <Link key={trip.id} to={`/trip/${trip.id}`}
                   className="kpi-card flex items-start gap-3 hover:border-accent transition-colors group">
@@ -90,9 +93,25 @@ export default function MyTrips() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-accent shrink-0 mt-0.5" />
-                      <span className="font-medium">{sites}</span>
+                    {/* Pickup → Drop-off */}
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-start gap-2 text-muted-foreground">
+                        <Navigation className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                        <span className="text-xs uppercase tracking-wide font-semibold">Pickup:</span>
+                        <span className="font-medium text-foreground">{trip.pickup_location || 'Al Quoz Labour Camp'}</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                        <span className="text-xs uppercase tracking-wide font-semibold text-muted-foreground">Drop:</span>
+                        <span className="font-medium">{dropoff}</span>
+                      </div>
+                    </div>
+                    {/* Project + Engineer */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><FolderKanban className="h-3.5 w-3.5" /> {projectLabel}</span>
+                      {trip.engineer_name && (
+                        <span className="flex items-center gap-1"><UserCog className="h-3.5 w-3.5" /> {trip.engineer_name}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}</span>

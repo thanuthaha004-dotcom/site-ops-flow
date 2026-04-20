@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, MapPin, Users, Truck, Play, Pause, CheckCircle2, AlertCircle, Clock,
+  Navigation, FolderKanban, UserCog,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -92,7 +93,42 @@ export default function TripDetail() {
           )}
         </div>
 
+        {/* Pickup → Drop-off */}
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-3 space-y-2 text-sm">
+          <div className="flex items-start gap-2">
+            <Navigation className="h-4 w-4 text-accent mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Pickup point</p>
+              <p className="font-medium">{trip.pickup_location || 'Al Quoz Labour Camp'}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Drop-off</p>
+              <p className="font-medium">
+                {segments.length > 0 ? segments.map(s => s.site).join(' → ') : trip.site}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Project + Engineer */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div className="flex items-start gap-2 text-muted-foreground">
+            <FolderKanban className="h-4 w-4 mt-0.5" />
+            <div>
+              <p className="text-[10px] uppercase tracking-wide font-semibold">Project</p>
+              <p className="font-medium text-foreground">{trip.project_name || '—'}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2 text-muted-foreground">
+            <UserCog className="h-4 w-4 mt-0.5" />
+            <div>
+              <p className="text-[10px] uppercase tracking-wide font-semibold">Engineer</p>
+              <p className="font-medium text-foreground">{trip.engineer_name || '—'}</p>
+            </div>
+          </div>
           {trip.vehicle_number && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Truck className="h-4 w-4" /> {trip.vehicle_number}{trip.vehicle_type ? ` · ${trip.vehicle_type}` : ''}

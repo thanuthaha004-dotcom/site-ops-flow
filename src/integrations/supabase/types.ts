@@ -211,7 +211,9 @@ export type Database = {
           created_at: string
           department: string
           end_time: string | null
+          engineer_name: string
           id: string
+          pickup_location: string
           project_id: string | null
           project_name: string
           site: string
@@ -230,7 +232,9 @@ export type Database = {
           created_at?: string
           department?: string
           end_time?: string | null
+          engineer_name?: string
           id?: string
+          pickup_location?: string
           project_id?: string | null
           project_name?: string
           site: string
@@ -249,7 +253,9 @@ export type Database = {
           created_at?: string
           department?: string
           end_time?: string | null
+          engineer_name?: string
           id?: string
+          pickup_location?: string
           project_id?: string | null
           project_name?: string
           site?: string
@@ -277,6 +283,7 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          engineer_name: string
           id: string
           paused_at: string | null
           project_id: string | null
@@ -292,6 +299,7 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           created_at?: string
+          engineer_name?: string
           id?: string
           paused_at?: string | null
           project_id?: string | null
@@ -307,6 +315,7 @@ export type Database = {
         Update: {
           completed_at?: string | null
           created_at?: string
+          engineer_name?: string
           id?: string
           paused_at?: string | null
           project_id?: string | null
