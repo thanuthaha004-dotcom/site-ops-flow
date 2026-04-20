@@ -75,10 +75,46 @@ const AREA_CLUSTERS: Record<string, string[]> = {
   'Abu Dhabi': ['ABU DHABI', 'ABUDHABI'],
 };
 
+// Normalize a site string: uppercase, strip punctuation, collapse common suffixes
+function normalizeSite(s: string): string {
+  return s
+    .toUpperCase()
+    .replace(/[.,_\-/\\()]/g, ' ')
+    .replace(/\b(STORE|BRANCH|BR|ST|SITE|CAMP SITE|LOCATION|LOC)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Dice coefficient using character bigrams — returns 0..1 similarity
+function diceSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+  const bigrams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const bg = s.slice(i, i + 2);
+      m.set(bg, (m.get(bg) || 0) + 1);
+    }
+    return m;
+  };
+  const aBg = bigrams(a);
+  const bBg = bigrams(b);
+  let intersection = 0;
+  aBg.forEach((cnt, bg) => {
+    const bCnt = bBg.get(bg);
+    if (bCnt) intersection += Math.min(cnt, bCnt);
+  });
+  const total = (a.length - 1) + (b.length - 1);
+  return total === 0 ? 0 : (2 * intersection) / total;
+}
+
+const FUZZY_THRESHOLD = 0.8;
+
 export function getAreaCluster(site: string): string {
-  const upper = site.toUpperCase().trim();
+  const upper = normalizeSite(site);
   if (!upper) return 'Other';
-  // Check Al Quoz Camp first (most specific) so "Al Quoz" doesn't get caught by other rules
+
+  // 1. Exact substring match (fast path)
   for (const keyword of AREA_CLUSTERS['Hub - Al Quoz Camp']) {
     if (upper.includes(keyword)) return 'Hub - Al Quoz Camp';
   }
@@ -86,6 +122,27 @@ export function getAreaCluster(site: string): string {
     if (area === 'Hub - Al Quoz Camp') continue;
     if (keywords.some(k => upper.includes(k))) return area;
   }
+
+  // 2. Fuzzy fallback — score every keyword in every zone, pick best ≥ 0.80
+  // Compare against each token in the input (handles "JUMEIRA TOWERS" → "JUMEIRAH")
+  const tokens = upper.split(' ').filter(t => t.length >= 3);
+  let bestZone = '';
+  let bestScore = 0;
+  for (const [area, keywords] of Object.entries(AREA_CLUSTERS)) {
+    for (const keyword of keywords) {
+      // compare against full input AND each token
+      const candidates = [upper, ...tokens];
+      for (const c of candidates) {
+        const score = diceSimilarity(c, keyword);
+        if (score > bestScore) {
+          bestScore = score;
+          bestZone = area;
+        }
+      }
+    }
+  }
+  if (bestScore >= FUZZY_THRESHOLD) return bestZone;
+
   return site.trim() || 'Other';
 }
 
