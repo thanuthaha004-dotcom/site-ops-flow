@@ -32,7 +32,7 @@ export interface Vehicle {
   capacity: number;
   status: VehicleStatus;
   driver: string;
-  driverUserId: string | null;
+  driverUserId?: string | null;
   utilization: number;
   fuelLevel: number;
   currentRoute: string;

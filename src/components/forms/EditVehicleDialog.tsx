@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fetchDriverUsers } from '@/lib/driverData';
 import type { Vehicle, VehicleStatus } from '@/data/mockData';
 
 interface Props {
@@ -15,8 +16,12 @@ interface Props {
 export default function EditVehicleDialog({ vehicle, open, onOpenChange, onSave }: Props) {
   const [form, setForm] = useState<Vehicle | null>(vehicle);
   const [saving, setSaving] = useState(false);
+  const [drivers, setDrivers] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
 
   useEffect(() => { setForm(vehicle); }, [vehicle]);
+  useEffect(() => {
+    if (open) fetchDriverUsers().then(setDrivers).catch(() => setDrivers([]));
+  }, [open]);
 
   if (!form) return null;
 
@@ -32,6 +37,7 @@ export default function EditVehicleDialog({ vehicle, open, onOpenChange, onSave 
         capacity: form.capacity,
         status: form.status,
         driver: form.driver,
+        driverUserId: form.driverUserId ?? null,
         utilization: form.utilization,
         fuelLevel: form.fuelLevel,
         currentRoute: form.currentRoute,
@@ -108,6 +114,22 @@ export default function EditVehicleDialog({ vehicle, open, onOpenChange, onSave 
           <div className="space-y-2">
             <Label>Current Route / Location</Label>
             <Input value={form.currentRoute} onChange={e => setForm(f => f && ({ ...f, currentRoute: e.target.value }))} placeholder="e.g. Al Quoz → Jebel Ali" />
+          </div>
+          <div className="space-y-2">
+            <Label>Driver Login Account (for driver portal)</Label>
+            <Select
+              value={form.driverUserId ?? '__none__'}
+              onValueChange={v => setForm(f => f && ({ ...f, driverUserId: v === '__none__' ? null : v }))}
+            >
+              <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Unassigned</SelectItem>
+                {drivers.map(d => (
+                  <SelectItem key={d.user_id} value={d.user_id}>{d.full_name || d.email}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Links this vehicle to a driver login. Driver will see all trips assigned to this vehicle.</p>
           </div>
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={() => onOpenChange(false)} className="flex-1 py-2 rounded-md bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 transition-colors">
