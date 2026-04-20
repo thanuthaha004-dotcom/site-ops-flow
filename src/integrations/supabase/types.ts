@@ -207,6 +207,7 @@ export type Database = {
       }
       trip_schedules: {
         Row: {
+          completed_at: string | null
           created_at: string
           department: string
           end_time: string | null
@@ -215,6 +216,7 @@ export type Database = {
           project_name: string
           site: string
           start_time: string | null
+          started_at: string | null
           status: string
           time_slot: string
           trip_date: string
@@ -224,6 +226,7 @@ export type Database = {
           worker_name: string
         }
         Insert: {
+          completed_at?: string | null
           created_at?: string
           department?: string
           end_time?: string | null
@@ -232,6 +235,7 @@ export type Database = {
           project_name?: string
           site: string
           start_time?: string | null
+          started_at?: string | null
           status?: string
           time_slot: string
           trip_date: string
@@ -241,6 +245,7 @@ export type Database = {
           worker_name: string
         }
         Update: {
+          completed_at?: string | null
           created_at?: string
           department?: string
           end_time?: string | null
@@ -249,6 +254,7 @@ export type Database = {
           project_name?: string
           site?: string
           start_time?: string | null
+          started_at?: string | null
           status?: string
           time_slot?: string
           trip_date?: string
@@ -267,19 +273,85 @@ export type Database = {
           },
         ]
       }
+      trip_segments: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          paused_at: string | null
+          project_id: string | null
+          project_name: string
+          sequence: number
+          site: string
+          started_at: string | null
+          status: string
+          total_paused_seconds: number
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          paused_at?: string | null
+          project_id?: string | null
+          project_name?: string
+          sequence?: number
+          site: string
+          started_at?: string | null
+          status?: string
+          total_paused_seconds?: number
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          paused_at?: string | null
+          project_id?: string | null
+          project_name?: string
+          sequence?: number
+          site?: string
+          started_at?: string | null
+          status?: string
+          total_paused_seconds?: number
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_segments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_segments_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
+          pending: boolean
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           id?: string
+          pending?: boolean
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           id?: string
+          pending?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -293,6 +365,7 @@ export type Database = {
           current_route: string
           department: string
           driver: string
+          driver_user_id: string | null
           fuel_level: number
           id: string
           number: string
@@ -308,6 +381,7 @@ export type Database = {
           current_route?: string
           department?: string
           driver?: string
+          driver_user_id?: string | null
           fuel_level?: number
           id?: string
           number: string
@@ -323,6 +397,7 @@ export type Database = {
           current_route?: string
           department?: string
           driver?: string
+          driver_user_id?: string | null
           fuel_level?: number
           id?: string
           number?: string
@@ -380,6 +455,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_user_drives_vehicle: {
+        Args: { _vehicle_number: string }
+        Returns: boolean
+      }
+      driver_can_see_project: {
+        Args: { _project_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
