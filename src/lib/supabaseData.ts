@@ -118,6 +118,24 @@ export async function insertVehicle(v: Omit<Vehicle, 'id'>): Promise<Vehicle> {
   return rowToVehicle(data);
 }
 
+export async function updateVehicleDb(id: string, updates: Partial<Vehicle>): Promise<Vehicle> {
+  const dbUpdates: any = {};
+  if (updates.number !== undefined) dbUpdates.number = updates.number;
+  if (updates.type !== undefined) dbUpdates.type = updates.type;
+  if (updates.brand !== undefined) dbUpdates.brand = updates.brand;
+  if (updates.department !== undefined) dbUpdates.department = updates.department;
+  if (updates.capacity !== undefined) dbUpdates.capacity = updates.capacity;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.driver !== undefined) dbUpdates.driver = updates.driver;
+  if (updates.utilization !== undefined) dbUpdates.utilization = updates.utilization;
+  if (updates.fuelLevel !== undefined) dbUpdates.fuel_level = updates.fuelLevel;
+  if (updates.currentRoute !== undefined) dbUpdates.current_route = updates.currentRoute;
+
+  const { data, error } = await supabase.from('vehicles').update(dbUpdates).eq('id', id).select().single();
+  if (error) throw error;
+  return rowToVehicle(data);
+}
+
 export async function deleteVehicleDb(id: string) {
   const { error } = await supabase.from('vehicles').delete().eq('id', id);
   if (error) throw error;

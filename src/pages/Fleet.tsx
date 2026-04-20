@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { fetchVehicles, insertVehicle, deleteVehicleDb } from '@/lib/supabaseData';
+import { fetchVehicles, insertVehicle, updateVehicleDb, deleteVehicleDb } from '@/lib/supabaseData';
 import type { Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
-import { Fuel, Route, Gauge, Trash2, Download } from 'lucide-react';
+import { Fuel, Route, Gauge, Trash2, Download, Pencil } from 'lucide-react';
 import AddVehicleDialog from '@/components/forms/AddVehicleDialog';
+import EditVehicleDialog from '@/components/forms/EditVehicleDialog';
 import ExcelUploadButton from '@/components/forms/ExcelUploadButton';
 import { parseVehiclesExcel } from '@/lib/excelImport';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -14,8 +16,22 @@ import {
 import * as XLSX from 'xlsx';
 
 export default function Fleet() {
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [vehicleList, setVehicleList] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Vehicle | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const handleEditSave = async (id: string, updates: Partial<Vehicle>) => {
+    try {
+      const updated = await updateVehicleDb(id, updates);
+      setVehicleList(prev => prev.map(v => v.id === id ? updated : v));
+      toast({ title: 'Vehicle updated' });
+    } catch {
+      toast({ title: 'Failed to update vehicle', variant: 'destructive' });
+    }
+  };
 
   const loadVehicles = async () => {
     try {
@@ -113,6 +129,15 @@ export default function Fleet() {
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                   v.status === 'Active' ? 'status-active' : v.status === 'Maintenance' ? 'status-warning' : 'status-idle'
                 }`}>{v.status}</span>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setEditing(v); setEditOpen(true); }}
+                    title="Edit vehicle"
+                    className="p-1 rounded hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -152,6 +177,15 @@ export default function Fleet() {
       </div>
       {vehicleList.length === 0 && !loading && (
         <div className="text-center py-12 text-muted-foreground">No vehicles found. Add your first vehicle above.</div>
+      )}
+
+      {isAdmin && (
+        <EditVehicleDialog
+          vehicle={editing}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          onSave={handleEditSave}
+        />
       )}
     </div>
   );
