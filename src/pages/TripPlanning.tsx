@@ -297,7 +297,9 @@ export default function TripPlanning() {
   };
 
   const persistDispatchedTrips = async (groups: TripGroup[]) => {
-    // Build assignments with vehicle + driver baked in, one row per worker
+    // Build assignments with vehicle + driver baked in, one row per worker.
+    // IMPORTANT: vehicle_number is stored AS-IS (e.g. "DXB-12345") so the driver
+    // portal RLS filter current_user_drives_vehicle(vehicle_number) matches.
     const assignments = groups.flatMap(g =>
       g.workers.map(w => ({
         trip_date: toDateStr(selectedDate),
@@ -311,9 +313,7 @@ export default function TripPlanning() {
         project_id: null,
         project_name: g.area,
         vehicle_type: g.suggestedVehicle?.type || null,
-        vehicle_number: g.suggestedVehicle
-          ? `${g.suggestedVehicle.number}${g.suggestedVehicle.driver ? ` / ${g.suggestedVehicle.driver}` : ''}`
-          : null,
+        vehicle_number: g.suggestedVehicle?.number || null,
       }))
     );
     await saveTripAssignments(toDateStr(selectedDate), assignments);
@@ -322,6 +322,11 @@ export default function TripPlanning() {
   };
 
   const handleDispatch = async (groupId: string) => {
+    const target = tripGroups.find(g => g.id === groupId);
+    if (!target?.suggestedVehicle || !target.suggestedVehicle.number || target.suggestedVehicle.number === '—') {
+      toast({ title: 'Select a vehicle first', description: 'Pick a vehicle from the dropdown before dispatching.', variant: 'destructive' });
+      return;
+    }
     const updated = tripGroups.map(g => g.id === groupId ? { ...g, status: 'dispatched' as const } : g);
     setTripGroups(updated);
     try {
@@ -333,6 +338,15 @@ export default function TripPlanning() {
   };
 
   const handleDispatchAll = async () => {
+    const missing = tripGroups.filter(g => g.status !== 'dispatched' && (!g.suggestedVehicle || !g.suggestedVehicle.number || g.suggestedVehicle.number === '—'));
+    if (missing.length > 0) {
+      toast({
+        title: `Assign vehicles to all trips first`,
+        description: `${missing.length} trip(s) have no vehicle selected.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     const updated = tripGroups.map(g => ({ ...g, status: 'dispatched' as const }));
     setTripGroups(updated);
     try {
@@ -345,32 +359,28 @@ export default function TripPlanning() {
     }
   };
 
-  const handleOverrideVehicle = (groupId: string) => {
-    setTripGroups(prev => prev.map(g => {
-      if (g.id !== groupId || !g.suggestedVehicle) return g;
-      const newCapacity = g.suggestedVehicle.capacity === 5 ? 13 : 5;
-      return {
-        ...g,
-        suggestedVehicle: { ...g.suggestedVehicle, type: `${newCapacity}-seater`, capacity: newCapacity },
-        utilization: g.workers.length / newCapacity,
-        isInefficient: (g.workers.length / newCapacity) < MIN_UTILIZATION && !g.isUrgent,
-      };
-    }));
-    toast({ title: 'Vehicle overridden' });
-  };
-
-  const handleOverrideDriver = (groupId: string, driver: string) => {
+  // Admin picks a real vehicle from the fleet → applies real capacity, driver, type.
+  const handleSelectVehicle = (groupId: string, vehicleId: string) => {
     setTripGroups(prev => prev.map(g => {
       if (g.id !== groupId) return g;
-      // If no vehicle was suggested yet, create a minimal placeholder so the driver sticks
-      const baseVehicle = g.suggestedVehicle ?? {
-        id: `manual-${g.id}`,
-        number: '—',
-        type: g.workers.length <= 3 ? '5-seater' : '13-seater',
-        capacity: g.workers.length <= 3 ? 5 : 13,
-        driver: '',
+      if (!vehicleId) {
+        return { ...g, suggestedVehicle: null, utilization: 0, isInefficient: false };
+      }
+      const v = vehicleList.find(x => x.id === vehicleId);
+      if (!v) return g;
+      const utilization = v.capacity > 0 ? g.workers.length / v.capacity : 0;
+      return {
+        ...g,
+        suggestedVehicle: {
+          id: v.id,
+          number: v.number,
+          type: v.type,
+          capacity: v.capacity,
+          driver: v.driver || '',
+        },
+        utilization,
+        isInefficient: utilization < MIN_UTILIZATION && !g.isUrgent,
       };
-      return { ...g, suggestedVehicle: { ...baseVehicle, driver } };
     }));
   };
 
@@ -919,39 +929,63 @@ export default function TripPlanning() {
                     <div className="flex flex-wrap gap-1">
                       {g.workers.map(w => <span key={w.id} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{w.name}</span>)}
                     </div>
-                    {g.suggestedVehicle && (
-                      <div className="flex items-center justify-between bg-muted/30 px-2 py-1.5 rounded text-xs">
-                        <span>{g.suggestedVehicle.type} (cap: {g.suggestedVehicle.capacity})</span>
-                        <div className="flex items-center gap-2">
-                          <Progress value={g.utilization * 100} className="h-1.5 w-12" />
-                          <span>{Math.round(g.utilization * 100)}%</span>
-                        </div>
+
+                    {/* Vehicle assignment from real fleet */}
+                    <div className="space-y-1.5 bg-muted/20 px-2 py-2 rounded">
+                      <div className="flex items-center gap-2 text-xs">
+                        <Bus className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">Vehicle:</span>
+                        {g.status !== 'dispatched' ? (
+                          <select
+                            value={g.suggestedVehicle?.id && !g.suggestedVehicle.id.startsWith('manual-') ? g.suggestedVehicle.id : ''}
+                            onChange={e => handleSelectVehicle(g.id, e.target.value)}
+                            className="flex-1 min-w-0 px-1.5 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
+                            <option value="">— Select vehicle —</option>
+                            {vehicleList
+                              .filter(v => v.status !== 'Maintenance')
+                              .map(v => (
+                                <option key={v.id} value={v.id}>
+                                  {v.number} · {v.type} (cap {v.capacity}){v.driver ? ` · ${v.driver}` : ''}
+                                </option>
+                              ))}
+                          </select>
+                        ) : (
+                          <span className="font-medium">
+                            {g.suggestedVehicle ? `${g.suggestedVehicle.number} · ${g.suggestedVehicle.type}` : 'Unassigned'}
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {/* Driver assignment */}
-                    <div className="flex items-center gap-2 bg-muted/20 px-2 py-1.5 rounded text-xs">
-                      <UserCog className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">Driver:</span>
-                      {g.status !== 'dispatched' ? (
-                        <select value={currentDriver}
-                          onChange={e => handleOverrideDriver(g.id, e.target.value)}
-                          className="flex-1 px-1.5 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
-                          <option value="">— Select —</option>
-                          {allDrivers.map(d => (
-                            <option key={d} value={d}>{d} {driversByArea[g.area]?.includes(d) ? '(default)' : ''}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="font-medium">{currentDriver || 'Unassigned'}</span>
+                      {g.suggestedVehicle && g.suggestedVehicle.number !== '—' && (
+                        <>
+                          <div className="flex items-center gap-2 text-xs">
+                            <UserCog className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">Driver:</span>
+                            <span className="font-medium">{g.suggestedVehicle.driver || 'No driver linked to vehicle'}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Capacity {g.workers.length}/{g.suggestedVehicle.capacity}</span>
+                            <div className="flex items-center gap-2">
+                              <Progress value={Math.min(g.utilization * 100, 100)} className="h-1.5 w-12" />
+                              <span>{Math.round(g.utilization * 100)}%</span>
+                            </div>
+                          </div>
+                          {g.workers.length > g.suggestedVehicle.capacity && (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" /> Overbooked by {g.workers.length - g.suggestedVehicle.capacity} — pick a larger vehicle.
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
+
                     {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
                     {g.status !== 'dispatched' && (
                       <div className="flex gap-2 pt-2 border-t border-border">
-                        <button onClick={() => handleOverrideVehicle(g.id)} className="flex-1 px-2 py-1.5 rounded bg-secondary text-secondary-foreground text-xs hover:bg-secondary/80 transition-colors flex items-center justify-center gap-1">
-                          <Edit3 className="h-3 w-3" /> Override Vehicle
-                        </button>
-                        <button onClick={() => handleDispatch(g.id)} className="flex-1 px-2 py-1.5 rounded bg-accent text-accent-foreground text-xs hover:bg-accent/90 transition-colors flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleDispatch(g.id)}
+                          disabled={!g.suggestedVehicle || g.suggestedVehicle.number === '—'}
+                          title={!g.suggestedVehicle || g.suggestedVehicle.number === '—' ? 'Select a vehicle first' : ''}
+                          className="flex-1 px-2 py-1.5 rounded bg-accent text-accent-foreground text-xs hover:bg-accent/90 transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                           <CheckCircle2 className="h-3 w-3" /> Dispatch
                         </button>
                       </div>
