@@ -146,8 +146,6 @@ export function getAreaCluster(site: string): string {
 
   return site.trim() || 'Other';
 }
-  return site.trim() || 'Other';
-}
 
 export function suggestVehicleType(workerCount: number): { type: string; capacity: number } {
   if (workerCount <= 3) return { type: '5-seater', capacity: 5 };
