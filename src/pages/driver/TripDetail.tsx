@@ -15,7 +15,7 @@ function segStatusPill(s: TripSegment['status']) {
   const map = {
     pending: 'bg-muted text-muted-foreground',
     in_progress: 'bg-accent/15 text-accent',
-    paused: 'bg-amber-500/15 text-amber-600',
+    paused: 'bg-warning/15 text-warning',
     completed: 'bg-primary/15 text-primary',
   };
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${map[s]}`}>{s.replace('_',' ')}</span>;
@@ -139,7 +139,7 @@ export default function TripDetail() {
             </button>
           )}
           {segments.length > 0 && !allSegmentsCompleted && tripStarted && (
-            <p className="w-full text-xs text-amber-600 flex items-center gap-1">
+            <p className="w-full text-xs text-warning flex items-center gap-1">
               <AlertCircle className="h-3.5 w-3.5" /> Complete every site below before completing the trip.
             </p>
           )}
@@ -201,7 +201,7 @@ export default function TripDetail() {
                       <>
                         <button disabled={busy === 'seg-' + seg.id}
                           onClick={() => handle('seg-' + seg.id, () => pauseSegment(seg.id), 'Segment paused')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-amber-500/15 text-amber-700 text-xs font-semibold hover:bg-amber-500/25 disabled:opacity-50">
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-warning/15 text-warning text-xs font-semibold hover:bg-warning/25 disabled:opacity-50">
                           <Pause className="h-3.5 w-3.5" /> Pause
                         </button>
                         <button disabled={busy === 'seg-' + seg.id}

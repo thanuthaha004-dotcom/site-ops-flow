@@ -7,7 +7,7 @@ function statusPill(status: string) {
   const map: Record<string, string> = {
     assigned: 'bg-muted text-muted-foreground',
     in_progress: 'bg-accent/15 text-accent',
-    paused: 'bg-amber-500/15 text-amber-600',
+    paused: 'bg-warning/15 text-warning',
     completed: 'bg-primary/15 text-primary',
   };
   const label = status.replace('_', ' ');

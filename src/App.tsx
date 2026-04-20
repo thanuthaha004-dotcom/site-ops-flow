@@ -14,6 +14,10 @@ import Attendance from "./pages/Attendance";
 import TripPlanning from "./pages/TripPlanning";
 import Engineers from "./pages/Engineers";
 import EngineerTripSubmit from "./pages/EngineerTripSubmit";
+import MyTrips from "./pages/driver/MyTrips";
+import TripDetail from "./pages/driver/TripDetail";
+import DriverApprovals from "./pages/admin/DriverApprovals";
+import PendingApproval from "./pages/PendingApproval";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -24,7 +28,7 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoutes() {
-  const { user, role, loading } = useAuth();
+  const { user, role, pending, loading } = useAuth();
 
   if (loading) {
     return (
@@ -35,6 +39,7 @@ function ProtectedRoutes() {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+  if (pending) return <PendingApproval />;
 
   return (
     <Routes>
@@ -49,6 +54,12 @@ function ProtectedRoutes() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/trips" element={<TripPlanning />} />
             <Route path="/engineers" element={<Engineers />} />
+            <Route path="/driver-approvals" element={<DriverApprovals />} />
+          </>
+        ) : role === 'driver' ? (
+          <>
+            <Route path="/" element={<MyTrips />} />
+            <Route path="/trip/:id" element={<TripDetail />} />
           </>
         ) : (
           <>
