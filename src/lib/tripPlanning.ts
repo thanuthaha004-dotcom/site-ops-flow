@@ -175,6 +175,8 @@ export function mergeNearbyTrips(groups: TripGroup[]): TripGroup[] {
     for (let j = i + 1; j < groups.length; j++) {
       if (merged.has(j)) continue;
       if (groups[j].timeSlot !== current.timeSlot) continue;
+      // Hub (Al Quoz Camp) stays its own trip — never auto-merge with zones
+      if (current.area.startsWith('Hub') || groups[j].area.startsWith('Hub')) continue;
 
       // Merge if combined workers still fit in a 13-seater
       const combined = current.workers.length + groups[j].workers.length;
