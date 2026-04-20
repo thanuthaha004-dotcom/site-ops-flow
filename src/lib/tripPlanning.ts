@@ -45,25 +45,45 @@ export interface TripStats {
 export const TIME_SLOTS = ['5:30 AM', '6:00 AM', '6:30 AM', '7:00 AM', '7:30 AM', '9:30 AM'];
 export const MIN_UTILIZATION = 0.7;
 
-// Dubai area clusters
+// Dubai zone clusters — workers in the same zone + same time slot get grouped onto one trip.
+// Al Quoz Labour Camp = its own "Hub" (central, never auto-merged).
+// Outlying emirates kept as separate zones for dispatcher visibility.
 const AREA_CLUSTERS: Record<string, string[]> = {
-  'Al Quoz': ['AL QUOZ', 'AL QOUZ', 'AL QOZ'],
-  'DIP': ['DIP', 'SHAJRAT DIP', 'DUBAI INVESTMENT PARK'],
-  'Jebel Ali': ['JABEL ALI', 'JEBEL ALI'],
-  'Bur Dubai': ['BUR DUBAI'],
-  'Deira': ['DEIRA', 'GARHOUD', 'AL HALLAB GARHOUD'],
-  'DAFZA': ['DAFZA'],
-  'Al Quasis': ['AL QUASIS', 'QUSAIS', 'QUASIS'],
-  'Khawaneej': ['KHAWANEEJ'],
-  'International City': ['INTERNATIONAL CITY', 'INT CITY'],
-  'Silicon Oasis': ['DSO', 'SILICON OASIS'],
-  'Other': [],
+  'Zone 1': [
+    'JAFZA', 'DIP', 'DUBAI INVESTMENT PARK', 'SHAJRAT DIP', 'DIC', 'DUBAI INTERNET CITY',
+    'DUBAI SOUTH', 'JUMEIRAH VILLAGE', 'JVC', 'JVT', 'PRODUCTION CITY', 'IMPZ',
+    'SPORTS CITY', 'BARSHA SOUTH', 'ARJAN', 'FURJAN', 'MOTOR CITY',
+  ],
+  'Zone 2': [
+    'JEBEL ALI', 'JABEL ALI', 'DUBAI MARINA', 'MARINA', 'EMIRATES HILLS',
+    'DISCOVERY GARDENS', 'AL KHAIL', 'JLT', 'JUMEIRAH LAKE', 'INTERNET CITY',
+    'PALM JUMEIRAH', 'PALM', 'JUMEIRAH', 'SAQEIM', 'UMM SUQEIM', 'AL BARSHA',
+  ],
+  'Zone 3': [
+    'RAS AL KHOR', 'MAJAN', 'NAD AL SHAEBA', 'NAD AL SHEBA', 'NAD AL HAMAR',
+    'MUHAISNAH', 'KHAWANEEJ', 'QUSAIS', 'QUASIS', 'AL QUSAIS', 'HEAD OFFICE',
+    'WARQA', 'AL WARQA', 'WARSAN', 'SILICON OASIS', 'DSO',
+  ],
+  'Zone 4': [
+    'AL SAFA', 'BUR DUBAI', 'KARAMA', 'DEIRA', 'GARHOUD', 'AL HALLAB GARHOUD',
+    'MAMZAR', 'AL NAHDA', 'DAFZA', 'INTERNATIONAL CITY', 'INT CITY',
+  ],
+  'Hub - Al Quoz Camp': ['AL QUOZ', 'AL QOUZ', 'AL QOZ', 'LABOUR CAMP'],
+  'Sharjah': ['SHARJAH'],
+  'Ajman': ['AJMAN'],
+  'Al Ain': ['AL AIN'],
+  'Abu Dhabi': ['ABU DHABI', 'ABUDHABI'],
 };
 
 export function getAreaCluster(site: string): string {
   const upper = site.toUpperCase().trim();
+  if (!upper) return 'Other';
+  // Check Al Quoz Camp first (most specific) so "Al Quoz" doesn't get caught by other rules
+  for (const keyword of AREA_CLUSTERS['Hub - Al Quoz Camp']) {
+    if (upper.includes(keyword)) return 'Hub - Al Quoz Camp';
+  }
   for (const [area, keywords] of Object.entries(AREA_CLUSTERS)) {
-    if (area === 'Other') continue;
+    if (area === 'Hub - Al Quoz Camp') continue;
     if (keywords.some(k => upper.includes(k))) return area;
   }
   return site.trim() || 'Other';
