@@ -95,16 +95,25 @@ export default function TripPlanning() {
     try {
       const rows = await fetchTripsByDate(toDateStr(date));
       if (rows.length > 0) {
-        const loaded: TripWorker[] = rows.map((r) => ({
-          id: `TW-DB-${r.id}`,
-          name: r.worker_name,
-          site: r.site,
-          department: r.department,
-          timeSlot: r.time_slot,
-          startTime: r.start_time || '',
-          endTime: r.end_time || '',
-          urgent: r.urgent,
-        }));
+        const loaded: TripWorker[] = rows.flatMap((r) => {
+          // A persisted row may already group multiple workers (CSV in worker_name).
+          // Split back so the planner can re-edit per worker.
+          const names = (r.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+          return names.map((name, idx) => ({
+            id: `TW-DB-${r.id}-${idx}`,
+            name,
+            site: r.site,
+            department: r.department,
+            timeSlot: r.time_slot,
+            startTime: r.start_time || '',
+            endTime: r.end_time || '',
+            urgent: r.urgent,
+            projectId: r.project_id,
+            projectName: r.project_name,
+            engineerName: r.engineer_name || '',
+            pickupLocation: r.pickup_location || 'Al Quoz Labour Camp',
+          }));
+        });
         setWorkers(loaded);
         setSaved(true);
         setGenerated(true);
@@ -174,6 +183,10 @@ export default function TripPlanning() {
           startTime: '',
           endTime: '',
           urgent: project.priority === 'High',
+          projectId: project.id,
+          projectName: project.name,
+          engineerName: project.engineer || '',
+          pickupLocation: 'Al Quoz Labour Camp',
         });
       });
     });
@@ -462,6 +475,10 @@ export default function TripPlanning() {
           startTime: '',
           endTime: '',
           urgent: req.priority === 'High',
+          projectId: req.project_id,
+          projectName: req.project_name,
+          engineerName: req.engineer_name || '',
+          pickupLocation: 'Al Quoz Labour Camp',
         });
       });
     });
