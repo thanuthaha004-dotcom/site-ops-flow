@@ -68,6 +68,8 @@ export async function fetchDriverTrips(): Promise<DriverTrip[]> {
 
   return trips.map((t: any) => ({
     ...t,
+    engineer_name: t.engineer_name || '',
+    pickup_location: t.pickup_location || 'Al Quoz Labour Camp',
     segments: bySegTrip.get(t.id) || [],
   })) as DriverTrip[];
 }
@@ -81,7 +83,12 @@ export async function fetchDriverTrip(tripId: string): Promise<DriverTrip | null
     .from('trip_segments').select('*').eq('trip_id', tripId)
     .order('sequence', { ascending: true });
   if (segErr) throw segErr;
-  return { ...(data as any), segments: (segs || []) as TripSegment[] };
+  return {
+    ...(data as any),
+    engineer_name: (data as any).engineer_name || '',
+    pickup_location: (data as any).pickup_location || 'Al Quoz Labour Camp',
+    segments: (segs || []) as TripSegment[],
+  };
 }
 
 // ── Trip lifecycle ──

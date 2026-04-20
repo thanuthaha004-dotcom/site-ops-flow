@@ -253,6 +253,8 @@ export interface TripScheduleRow {
   urgent: boolean;
   project_id: string | null;
   project_name: string;
+  engineer_name: string;
+  pickup_location: string;
   vehicle_type: string | null;
   vehicle_number: string | null;
   status: string;
@@ -288,6 +290,8 @@ export async function saveTripAssignments(
     urgent: a.urgent || false,
     project_id: a.project_id,
     project_name: a.project_name,
+    engineer_name: a.engineer_name || '',
+    pickup_location: a.pickup_location || 'Al Quoz Labour Camp',
     vehicle_type: a.vehicle_type,
     vehicle_number: a.vehicle_number,
     status: 'assigned',
