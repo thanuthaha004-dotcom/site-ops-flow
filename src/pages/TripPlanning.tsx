@@ -297,7 +297,9 @@ export default function TripPlanning() {
   };
 
   const persistDispatchedTrips = async (groups: TripGroup[]) => {
-    // Build assignments with vehicle + driver baked in, one row per worker
+    // Build assignments with vehicle + driver baked in, one row per worker.
+    // IMPORTANT: vehicle_number is stored AS-IS (e.g. "DXB-12345") so the driver
+    // portal RLS filter current_user_drives_vehicle(vehicle_number) matches.
     const assignments = groups.flatMap(g =>
       g.workers.map(w => ({
         trip_date: toDateStr(selectedDate),
@@ -311,9 +313,7 @@ export default function TripPlanning() {
         project_id: null,
         project_name: g.area,
         vehicle_type: g.suggestedVehicle?.type || null,
-        vehicle_number: g.suggestedVehicle
-          ? `${g.suggestedVehicle.number}${g.suggestedVehicle.driver ? ` / ${g.suggestedVehicle.driver}` : ''}`
-          : null,
+        vehicle_number: g.suggestedVehicle?.number || null,
       }))
     );
     await saveTripAssignments(toDateStr(selectedDate), assignments);
@@ -322,6 +322,11 @@ export default function TripPlanning() {
   };
 
   const handleDispatch = async (groupId: string) => {
+    const target = tripGroups.find(g => g.id === groupId);
+    if (!target?.suggestedVehicle || !target.suggestedVehicle.number || target.suggestedVehicle.number === '—') {
+      toast({ title: 'Select a vehicle first', description: 'Pick a vehicle from the dropdown before dispatching.', variant: 'destructive' });
+      return;
+    }
     const updated = tripGroups.map(g => g.id === groupId ? { ...g, status: 'dispatched' as const } : g);
     setTripGroups(updated);
     try {
@@ -333,6 +338,15 @@ export default function TripPlanning() {
   };
 
   const handleDispatchAll = async () => {
+    const missing = tripGroups.filter(g => g.status !== 'dispatched' && (!g.suggestedVehicle || !g.suggestedVehicle.number || g.suggestedVehicle.number === '—'));
+    if (missing.length > 0) {
+      toast({
+        title: `Assign vehicles to all trips first`,
+        description: `${missing.length} trip(s) have no vehicle selected.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     const updated = tripGroups.map(g => ({ ...g, status: 'dispatched' as const }));
     setTripGroups(updated);
     try {
@@ -345,32 +359,28 @@ export default function TripPlanning() {
     }
   };
 
-  const handleOverrideVehicle = (groupId: string) => {
-    setTripGroups(prev => prev.map(g => {
-      if (g.id !== groupId || !g.suggestedVehicle) return g;
-      const newCapacity = g.suggestedVehicle.capacity === 5 ? 13 : 5;
-      return {
-        ...g,
-        suggestedVehicle: { ...g.suggestedVehicle, type: `${newCapacity}-seater`, capacity: newCapacity },
-        utilization: g.workers.length / newCapacity,
-        isInefficient: (g.workers.length / newCapacity) < MIN_UTILIZATION && !g.isUrgent,
-      };
-    }));
-    toast({ title: 'Vehicle overridden' });
-  };
-
-  const handleOverrideDriver = (groupId: string, driver: string) => {
+  // Admin picks a real vehicle from the fleet → applies real capacity, driver, type.
+  const handleSelectVehicle = (groupId: string, vehicleId: string) => {
     setTripGroups(prev => prev.map(g => {
       if (g.id !== groupId) return g;
-      // If no vehicle was suggested yet, create a minimal placeholder so the driver sticks
-      const baseVehicle = g.suggestedVehicle ?? {
-        id: `manual-${g.id}`,
-        number: '—',
-        type: g.workers.length <= 3 ? '5-seater' : '13-seater',
-        capacity: g.workers.length <= 3 ? 5 : 13,
-        driver: '',
+      if (!vehicleId) {
+        return { ...g, suggestedVehicle: null, utilization: 0, isInefficient: false };
+      }
+      const v = vehicleList.find(x => x.id === vehicleId);
+      if (!v) return g;
+      const utilization = v.capacity > 0 ? g.workers.length / v.capacity : 0;
+      return {
+        ...g,
+        suggestedVehicle: {
+          id: v.id,
+          number: v.number,
+          type: v.type,
+          capacity: v.capacity,
+          driver: v.driver || '',
+        },
+        utilization,
+        isInefficient: utilization < MIN_UTILIZATION && !g.isUrgent,
       };
-      return { ...g, suggestedVehicle: { ...baseVehicle, driver } };
     }));
   };
 
