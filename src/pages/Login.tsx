@@ -85,14 +85,21 @@ export default function Login() {
               <label className="text-sm font-medium">Role</label>
               <div className="flex rounded-md border border-input overflow-hidden">
                 <button type="button" onClick={() => setRole('engineer')}
-                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${role === 'engineer' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${role === 'engineer' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
                   Engineer
                 </button>
+                <button type="button" onClick={() => setRole('driver')}
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors border-l border-input ${role === 'driver' ? 'bg-accent text-accent-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
+                  Driver
+                </button>
                 <button type="button" onClick={() => setRole('admin')}
-                  className={`flex-1 px-3 py-2 text-sm font-medium transition-colors border-l border-input ${role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors border-l border-input ${role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
                   Admin
                 </button>
               </div>
+              {role === 'driver' && (
+                <p className="text-xs text-muted-foreground">Driver accounts require admin approval before sign-in is granted.</p>
+              )}
             </div>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}

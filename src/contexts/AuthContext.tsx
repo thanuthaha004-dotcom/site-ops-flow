@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
-export type AppRole = 'admin' | 'engineer';
+export type AppRole = 'admin' | 'engineer' | 'driver';
 export const PASSWORD_RECOVERY_STORAGE_KEY = 'opscenter-password-recovery';
 
 const saveRecoveryState = (userId: string) => {
@@ -20,6 +20,7 @@ interface AuthState {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  pending: boolean;
   profileName: string;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -33,22 +34,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [pending, setPending] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = async (userId: string) => {
+  const fetchRole = async (userId: string): Promise<{ role: AppRole | null; pending: boolean }> => {
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role')
+      .select('role, pending')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (error) {
       console.error('Failed to fetch user role:', error);
-      return null;
+      return { role: null, pending: false };
     }
 
-    return (data?.role as AppRole) || null;
+    return { role: (data?.role as AppRole) || null, pending: !!data?.pending };
   };
 
   const fetchProfile = async (userId: string) => {
@@ -77,19 +79,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!nextSession?.user) {
         setRole(null);
+        setPending(false);
         setProfileName('');
         setLoading(false);
         return;
       }
 
-      const [nextRole, nextProfileName] = await Promise.all([
+      const [roleResult, nextProfileName] = await Promise.all([
         fetchRole(nextSession.user.id),
         fetchProfile(nextSession.user.id),
       ]);
 
       if (!mounted) return;
 
-      setRole(nextRole);
+      // pending roles act as "no role" — user lands on awaiting-approval screen
+      setRole(roleResult.pending ? null : roleResult.role);
+      setPending(roleResult.pending);
       setProfileName(nextProfileName);
       setLoading(false);
     };
@@ -135,11 +140,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/` },
     });
     if (error) return { error: error.message };
     if (data.user) {
-      await supabase.from('user_roles').insert({ user_id: data.user.id, role: selectedRole });
+      // Drivers self-signup as pending; admin must approve.
+      const isPending = selectedRole === 'driver';
+      await supabase.from('user_roles').insert({
+        user_id: data.user.id,
+        role: selectedRole,
+        pending: isPending,
+      });
       await supabase.from('profiles').update({ full_name: fullName }).eq('id', data.user.id);
     }
     return { error: null };
@@ -150,11 +161,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setRole(null);
+    setPending(false);
     setProfileName('');
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, profileName, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, pending, profileName, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

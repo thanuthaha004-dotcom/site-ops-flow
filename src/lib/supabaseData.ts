@@ -89,6 +89,7 @@ function rowToVehicle(r: any): Vehicle {
     capacity: r.capacity,
     status: r.status as VehicleStatus,
     driver: r.driver,
+    driverUserId: r.driver_user_id ?? null,
     utilization: r.utilization,
     fuelLevel: r.fuel_level,
     currentRoute: r.current_route,
@@ -127,6 +128,7 @@ export async function updateVehicleDb(id: string, updates: Partial<Vehicle>): Pr
   if (updates.capacity !== undefined) dbUpdates.capacity = updates.capacity;
   if (updates.status !== undefined) dbUpdates.status = updates.status;
   if (updates.driver !== undefined) dbUpdates.driver = updates.driver;
+  if (updates.driverUserId !== undefined) dbUpdates.driver_user_id = updates.driverUserId;
   if (updates.utilization !== undefined) dbUpdates.utilization = updates.utilization;
   if (updates.fuelLevel !== undefined) dbUpdates.fuel_level = updates.fuelLevel;
   if (updates.currentRoute !== undefined) dbUpdates.current_route = updates.currentRoute;

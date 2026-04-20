@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut
+  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,6 +15,7 @@ const adminNavItems = [
   { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
   { path: '/trips', label: 'Trip Planning', icon: Route },
   { path: '/engineers', label: 'Engineers', icon: UserCog },
+  { path: '/driver-approvals', label: 'Driver Approvals', icon: ShieldCheck },
 ];
 
 const engineerNavItems = [
@@ -22,13 +23,18 @@ const engineerNavItems = [
   { path: '/projects', label: 'My Projects', icon: FolderKanban },
 ];
 
+const driverNavItems = [
+  { path: '/', label: 'My Trips', icon: Route },
+];
+
 export default function AppSidebar() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const { role, profileName, signOut } = useAuth();
 
-  const navItems = role === 'admin' ? adminNavItems : engineerNavItems;
+  const navItems = role === 'admin' ? adminNavItems : role === 'driver' ? driverNavItems : engineerNavItems;
   const initials = profileName ? profileName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U';
+  const panelLabel = role === 'admin' ? 'Admin Panel' : role === 'driver' ? 'Driver Panel' : 'Engineer Panel';
 
   return (
     <>
@@ -59,7 +65,7 @@ export default function AppSidebar() {
           <div>
             <h1 className="font-bold text-lg text-primary-foreground tracking-tight">OpsCenter</h1>
             <p className="text-[11px] text-sidebar-muted leading-none">
-              {role === 'admin' ? 'Admin Panel' : 'Engineer Panel'}
+              {panelLabel}
             </p>
           </div>
         </div>
