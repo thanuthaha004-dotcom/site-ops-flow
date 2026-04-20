@@ -959,7 +959,8 @@ export default function TripPlanning() {
                   </div>
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
           {tripGroups.some(g => g.status !== 'dispatched') && (
             <div className="flex justify-end">
