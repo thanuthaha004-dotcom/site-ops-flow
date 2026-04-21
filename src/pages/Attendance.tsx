@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { fetchWorkers } from '@/lib/supabaseData';
+import { fetchDriverAttendance, type DriverAttendanceRecord } from '@/lib/driverData';
 import type { Worker } from '@/data/mockData';
-import { Clock, Download, LogIn, LogOut, Search } from 'lucide-react';
+import { Clock, Download, LogIn, LogOut, Search, Truck, HardHat } from 'lucide-react';
 
 interface AttendanceRecord {
   workerId: string;
