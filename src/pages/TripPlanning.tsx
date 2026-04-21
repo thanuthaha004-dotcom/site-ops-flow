@@ -1021,7 +1021,7 @@ export default function TripPlanning() {
                 const currentDriver = g.suggestedVehicle?.driver || defaultDriver;
                 const startsFromCamp = !!currentDriver && firstTripIdByDriver.get(currentDriver) === g.id;
                 return (
-                <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'dispatched' ? 'opacity-60' : ''}`}>
+                <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'completed' ? 'border-success/40 bg-success/5' : g.status === 'in_progress' ? 'border-accent/40' : g.status === 'dispatched' ? 'opacity-80' : ''}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold flex items-center gap-1.5"><Bus className="h-4 w-4 text-accent" /> {g.area}</h3>
@@ -1034,6 +1034,16 @@ export default function TripPlanning() {
                     </div>
                     <div className="flex items-center gap-1">
                       {g.isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
+                      {g.status === 'completed' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/15 text-success text-[10px] font-bold uppercase tracking-wide">
+                          <CheckCircle2 className="h-3 w-3" /> Completed
+                        </span>
+                      )}
+                      {g.status === 'in_progress' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/15 text-accent text-[10px] font-bold uppercase tracking-wide animate-pulse">
+                          <Clock className="h-3 w-3" /> In Progress
+                        </span>
+                      )}
                       {g.status === 'dispatched' && <CheckCircle2 className="h-4 w-4 text-success" />}
                     </div>
                   </div>
