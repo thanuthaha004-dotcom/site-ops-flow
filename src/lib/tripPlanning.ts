@@ -26,11 +26,15 @@ export interface TripGroup {
   workers: TripWorker[];
   timeSlot: string;
   suggestedVehicle: SuggestedVehicle | null;
-  status: 'pending' | 'optimized' | 'dispatched';
+  status: 'pending' | 'optimized' | 'dispatched' | 'in_progress' | 'completed';
   utilization: number;
   isInefficient: boolean;
   isUrgent: boolean;
   merged?: boolean;
+  /** Live tracking — populated from trip_schedules after dispatch. */
+  startedAt?: string | null;
+  completedAt?: string | null;
+  liveTripId?: string | null;
 }
 
 export interface SuggestedVehicle {
