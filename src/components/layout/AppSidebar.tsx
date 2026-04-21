@@ -24,7 +24,8 @@ const engineerNavItems = [
 ];
 
 const driverNavItems = [
-  { path: '/', label: 'My Trips', icon: Route },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/my-trips', label: 'All Trips', icon: Route },
 ];
 
 export default function AppSidebar() {
