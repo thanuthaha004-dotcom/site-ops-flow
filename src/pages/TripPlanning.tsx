@@ -134,6 +134,44 @@ export default function TripPlanning() {
 
   useEffect(() => { loadTripsForDate(selectedDate); }, [selectedDate, loadTripsForDate]);
 
+  // ── Live status sync ──
+  // Pull current status / started_at / completed_at from trip_schedules and
+  // overlay it onto local tripGroups so the admin board shows real progress.
+  const hydrateGroupsWithLiveStatus = useCallback(async () => {
+    try {
+      const rows = await fetchTripsByDate(toDateStr(selectedDate));
+      if (rows.length === 0) return;
+      setTripGroups(prev => {
+        if (prev.length === 0) return prev;
+        return prev.map(g => {
+          const veh = g.suggestedVehicle?.number || null;
+          const match = rows.find(r =>
+            r.time_slot === g.timeSlot &&
+            ((veh && r.vehicle_number === veh) || g.sites.includes(r.site))
+          );
+          if (!match) return g;
+          let status: TripGroup['status'] = g.status;
+          if (match.status === 'completed') status = 'completed';
+          else if (match.status === 'in_progress') status = 'in_progress';
+          else if (match.status === 'assigned' && g.status !== 'pending' && g.status !== 'optimized') status = 'dispatched';
+          return {
+            ...g,
+            status,
+            startedAt: (match as any).started_at || null,
+            completedAt: (match as any).completed_at || null,
+            liveTripId: match.id,
+          };
+        });
+      });
+    } catch {/* silent */}
+  }, [selectedDate]);
+
+  useEffect(() => {
+    hydrateGroupsWithLiveStatus();
+    const t = setInterval(hydrateGroupsWithLiveStatus, 30000);
+    return () => clearInterval(t);
+  }, [hydrateGroupsWithLiveStatus, tripGroups.length]);
+
   const handleDateChange = (date: Date | undefined) => {
     if (date) setSelectedDate(date);
   };
