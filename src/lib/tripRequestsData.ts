@@ -125,6 +125,42 @@ export async function fetchRequestLiveStatuses(
   return result;
 }
 
+/**
+ * Build a Set of keys identifying workers whose trip on the given date is
+ * already completed. Key format: `${projectKey}::${siteUpper}::${nameUpper}`
+ * where projectKey is project_id when present, else uppercased project_name.
+ * Use {@link buildCompletedWorkerKey} to form a matching lookup key.
+ */
+export async function fetchCompletedWorkerKeys(date: string): Promise<Set<string>> {
+  const keys = new Set<string>();
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .select('project_id, project_name, site, worker_name, status')
+    .eq('trip_date', date)
+    .eq('status', 'completed');
+  if (error) throw error;
+  const norm = (s: string) => (s || '').trim().toUpperCase();
+  (data || []).forEach(r => {
+    const projectKey = r.project_id || norm(r.project_name);
+    const siteKey = norm(r.site);
+    (r.worker_name || '').split(',').map(n => norm(n)).filter(Boolean).forEach(n => {
+      keys.add(`${projectKey}::${siteKey}::${n}`);
+    });
+  });
+  return keys;
+}
+
+export function buildCompletedWorkerKey(
+  projectId: string | null | undefined,
+  projectName: string | null | undefined,
+  site: string,
+  workerName: string,
+): string {
+  const norm = (s: string) => (s || '').trim().toUpperCase();
+  const projectKey = projectId || norm(projectName || '');
+  return `${projectKey}::${norm(site)}::${norm(workerName)}`;
+}
+
 export async function updateRequestStatus(id: string, status: string): Promise<void> {
   const { error } = await supabase
     .from('daily_trip_requests')
