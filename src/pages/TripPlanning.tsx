@@ -1001,7 +1001,12 @@ export default function TripPlanning() {
 
               <div className="kpi-card overflow-x-auto">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold">Assignments — {format(selectedDate, 'MMM d, yyyy')} ({workers.length})</h2>
+                  <h2 className="font-semibold">
+                    Assignments — {format(selectedDate, 'MMM d, yyyy')} ({visibleWorkers.length}
+                    {hiddenCompletedCount > 0 && (
+                      <span className="text-success font-normal"> · {hiddenCompletedCount} completed hidden</span>
+                    )})
+                  </h2>
                   <div className="flex gap-2">
                     <button onClick={() => { setGenerated(false); setShowProjectSelector(true); }}
                       className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors flex items-center gap-1">
@@ -1027,7 +1032,7 @@ export default function TripPlanning() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {(activeSlot === 'All' ? workers : workers.filter(w => w.timeSlot === activeSlot)).map(w => (
+                    {(activeSlot === 'All' ? visibleWorkers : visibleWorkers.filter(w => w.timeSlot === activeSlot)).map(w => (
                       <tr key={w.id} className="hover:bg-muted/30 transition-colors">
                         <td className="py-2.5 font-medium">{w.name}</td>
                         <td className="py-2.5 text-muted-foreground">{w.site}</td>
