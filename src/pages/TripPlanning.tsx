@@ -8,7 +8,7 @@ import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
   fetchDriverAreaDefaults, upsertDriverAreaDefaults,
 } from '@/lib/supabaseData';
-import { fetchTripRequestsByDate, fetchRequestLiveStatuses, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
+import { fetchTripRequestsByDate, fetchRequestLiveStatuses, fetchCompletedWorkerKeys, buildCompletedWorkerKey, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
 import type { Project, Worker, Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -47,6 +47,7 @@ export default function TripPlanning() {
   const [step, setStep] = useState<PlanningStep>('requests');
   const [tripRequests, setTripRequests] = useState<DailyTripRequest[]>([]);
   const [requestLiveStatus, setRequestLiveStatus] = useState<Map<string, RequestLiveStatus>>(new Map());
+  const [completedWorkerKeys, setCompletedWorkerKeys] = useState<Set<string>>(new Set());
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
   const [stats, setStats] = useState<TripStats | null>(null);
@@ -529,19 +530,37 @@ export default function TripPlanning() {
     } catch { toast({ title: 'Failed to parse Excel file', variant: 'destructive' }); }
   };
 
-  const filteredGroups = activeSlot === 'All' ? tripGroups : tripGroups.filter(g => g.timeSlot === activeSlot);
+  // Workers whose trip is already completed should disappear from the
+  // Review/Optimize/Dispatch views so dispatchers only act on pending work.
+  const keyForWorker = (w: TripWorker) =>
+    buildCompletedWorkerKey(w.projectId || null, w.projectName || '', w.site, w.name);
+
+  const visibleWorkers = useMemo(
+    () => workers.filter(w => !completedWorkerKeys.has(keyForWorker(w))),
+    [workers, completedWorkerKeys]
+  );
+  const hiddenCompletedCount = workers.length - visibleWorkers.length;
+
+  const visibleTripGroups = useMemo(() => {
+    if (completedWorkerKeys.size === 0) return tripGroups;
+    return tripGroups
+      .map(g => ({ ...g, workers: g.workers.filter(w => !completedWorkerKeys.has(keyForWorker(w))) }))
+      .filter(g => g.workers.length > 0);
+  }, [tripGroups, completedWorkerKeys]);
+
+  const filteredGroups = activeSlot === 'All' ? visibleTripGroups : visibleTripGroups.filter(g => g.timeSlot === activeSlot);
 
   const workersBySlot = useMemo(() => {
     const map: Record<string, number> = {};
-    TIME_SLOTS.forEach(s => { map[s] = workers.filter(w => w.timeSlot === s).length; });
+    TIME_SLOTS.forEach(s => { map[s] = visibleWorkers.filter(w => w.timeSlot === s).length; });
     return map;
-  }, [workers]);
+  }, [visibleWorkers]);
 
   const workersBySite = useMemo(() => {
     const map: Record<string, TripWorker[]> = {};
-    workers.forEach(w => { const area = getAreaCluster(w.site); if (!map[area]) map[area] = []; map[area].push(w); });
+    visibleWorkers.forEach(w => { const area = getAreaCluster(w.site); if (!map[area]) map[area] = []; map[area].push(w); });
     return map;
-  }, [workers]);
+  }, [visibleWorkers]);
 
   const visibleSteps = STEPS;
 
