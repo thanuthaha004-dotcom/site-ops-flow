@@ -1101,7 +1101,32 @@ export default function TripPlanning() {
                     </div>
 
                     {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
-                    {g.status !== 'dispatched' && (
+
+                    {(g.startedAt || g.completedAt) && (
+                      <div className="space-y-1 pt-2 border-t border-border text-xs">
+                        {g.startedAt && (
+                          <div className="flex items-center gap-2 text-accent">
+                            <Clock className="h-3 w-3" />
+                            <span className="font-medium">Started:</span>
+                            <span>{new Date(g.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )}
+                        {g.completedAt && (
+                          <div className="flex items-center gap-2 text-success">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span className="font-medium">Completed:</span>
+                            <span>{new Date(g.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {g.startedAt && (
+                              <span className="text-muted-foreground">
+                                ({Math.round((new Date(g.completedAt).getTime() - new Date(g.startedAt).getTime()) / 60000)} min)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {g.status !== 'dispatched' && g.status !== 'in_progress' && g.status !== 'completed' && (
                       <div className="flex gap-2 pt-2 border-t border-border">
                         <button
                           onClick={() => handleDispatch(g.id)}
