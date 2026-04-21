@@ -70,6 +70,61 @@ export async function submitTripRequests(
   if (error) throw error;
 }
 
+export interface RequestLiveStatus {
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed';
+  started_at: string | null;
+  completed_at: string | null;
+  vehicle_number: string | null;
+  time_slot: string | null;
+}
+
+/**
+ * Match each engineer request to its dispatched trip(s) on the same date and
+ * derive a live status. Match key: project_id (or project_name) + site + at
+ * least one overlapping worker name. If multiple trip rows match, the
+ * "furthest along" status wins (completed > in_progress > assigned).
+ */
+export async function fetchRequestLiveStatuses(
+  date: string,
+  requests: DailyTripRequest[]
+): Promise<Map<string, RequestLiveStatus>> {
+  const result = new Map<string, RequestLiveStatus>();
+  if (requests.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .select('project_id, project_name, site, worker_name, status, started_at, completed_at, vehicle_number, time_slot')
+    .eq('trip_date', date);
+  if (error) throw error;
+
+  const norm = (s: string) => (s || '').trim().toUpperCase();
+  const rank = (s: string) =>
+    s === 'completed' ? 3 : s === 'in_progress' ? 2 : s === 'assigned' ? 1 : 0;
+
+  requests.forEach(req => {
+    const reqWorkers = new Set((req.worker_names || []).map(norm));
+    const matches = (data || []).filter(r => {
+      if (norm(r.site) !== norm(req.site)) return false;
+      const projMatches = req.project_id
+        ? r.project_id === req.project_id
+        : norm(r.project_name) === norm(req.project_name);
+      if (!projMatches) return false;
+      const tripWorkers = (r.worker_name || '').split(',').map(n => norm(n)).filter(Boolean);
+      return tripWorkers.some(n => reqWorkers.has(n));
+    });
+    if (matches.length === 0) return;
+    const best = matches.reduce((acc, r) => (rank(r.status) > rank(acc.status) ? r : acc));
+    result.set(req.id, {
+      status: best.status as RequestLiveStatus['status'],
+      started_at: best.started_at,
+      completed_at: best.completed_at,
+      vehicle_number: best.vehicle_number,
+      time_slot: best.time_slot,
+    });
+  });
+  return result;
+}
+
 export async function updateRequestStatus(id: string, status: string): Promise<void> {
   const { error } = await supabase
     .from('daily_trip_requests')
