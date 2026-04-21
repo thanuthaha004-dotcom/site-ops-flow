@@ -95,7 +95,12 @@ export default function TripPlanning() {
   const loadTripsForDate = useCallback(async (date: Date) => {
     setLoadingTrips(true);
     try {
-      const rows = await fetchTripsByDate(toDateStr(date));
+      const dateStr = toDateStr(date);
+      const [rows, completed] = await Promise.all([
+        fetchTripsByDate(dateStr),
+        fetchCompletedWorkerKeys(dateStr).catch(() => new Set<string>()),
+      ]);
+      setCompletedWorkerKeys(completed);
       if (rows.length > 0) {
         const loaded: TripWorker[] = rows.flatMap((r) => {
           // A persisted row may already group multiple workers (CSV in worker_name).
@@ -141,7 +146,12 @@ export default function TripPlanning() {
   // overlay it onto local tripGroups so the admin board shows real progress.
   const hydrateGroupsWithLiveStatus = useCallback(async () => {
     try {
-      const rows = await fetchTripsByDate(toDateStr(selectedDate));
+      const dateStr = toDateStr(selectedDate);
+      const [rows, completed] = await Promise.all([
+        fetchTripsByDate(dateStr),
+        fetchCompletedWorkerKeys(dateStr).catch(() => new Set<string>()),
+      ]);
+      setCompletedWorkerKeys(completed);
       if (rows.length === 0) return;
       setTripGroups(prev => {
         if (prev.length === 0) return prev;
