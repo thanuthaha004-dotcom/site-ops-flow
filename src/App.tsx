@@ -14,6 +14,7 @@ import Attendance from "./pages/Attendance";
 import TripPlanning from "./pages/TripPlanning";
 import Engineers from "./pages/Engineers";
 import EngineerTripSubmit from "./pages/EngineerTripSubmit";
+import DriverDashboard from "./pages/driver/Dashboard";
 import MyTrips from "./pages/driver/MyTrips";
 import TripDetail from "./pages/driver/TripDetail";
 import DriverApprovals from "./pages/admin/DriverApprovals";
@@ -58,7 +59,8 @@ function ProtectedRoutes() {
           </>
         ) : role === 'driver' ? (
           <>
-            <Route path="/" element={<MyTrips />} />
+            <Route path="/" element={<DriverDashboard />} />
+            <Route path="/my-trips" element={<MyTrips />} />
             <Route path="/trip/:id" element={<TripDetail />} />
           </>
         ) : (
