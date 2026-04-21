@@ -35,17 +35,17 @@ export interface DriverTrip {
   segments: TripSegment[];
 }
 
-/** Fetch trips assigned to the current driver for today + next 7 days. */
+/** Fetch trips assigned to the current driver for the past 7 days + next 7 days. */
 export async function fetchDriverTrips(): Promise<DriverTrip[]> {
-  const today = new Date().toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
   const end = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
   const { data: trips, error } = await supabase
     .from('trip_schedules')
     .select('*')
-    .gte('trip_date', today)
+    .gte('trip_date', start)
     .lte('trip_date', end)
-    .order('trip_date', { ascending: true })
+    .order('trip_date', { ascending: false })
     .order('time_slot', { ascending: true });
 
   if (error) throw error;
