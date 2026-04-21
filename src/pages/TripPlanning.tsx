@@ -143,12 +143,20 @@ export default function TripPlanning() {
       if (rows.length === 0) return;
       setTripGroups(prev => {
         if (prev.length === 0) return prev;
+        const norm = (s: string) => (s || '').trim().toUpperCase();
+        const sitesNorm = (arr: string[]) => arr.map(norm);
         return prev.map(g => {
           const veh = g.suggestedVehicle?.number || null;
-          const match = rows.find(r =>
-            r.time_slot === g.timeSlot &&
-            ((veh && r.vehicle_number === veh) || g.sites.includes(r.site))
-          );
+          const gSites = sitesNorm(g.sites);
+          const gWorkerNames = new Set(g.workers.map(w => norm(w.name)));
+          const match = rows.find(r => {
+            if (r.time_slot !== g.timeSlot) return false;
+            if (veh && r.vehicle_number === veh) return true;
+            if (gSites.includes(norm(r.site))) return true;
+            // Fallback: any passenger name overlap (handles site typos / casing)
+            const rNames = (r.worker_name || '').split(',').map(n => norm(n)).filter(Boolean);
+            return rNames.some(n => gWorkerNames.has(n));
+          });
           if (!match) return g;
           let status: TripGroup['status'] = g.status;
           if (match.status === 'completed') status = 'completed';
