@@ -52,7 +52,10 @@ function calcOvertime(hours: number, standardHours = 8): number {
 }
 
 export default function Attendance() {
+  const [tab, setTab] = useState<'workers' | 'drivers'>('workers');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [drivers, setDrivers] = useState<DriverAttendanceRecord[]>([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -61,6 +64,15 @@ export default function Attendance() {
       setRecords(generateMockAttendance(data));
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'drivers') return;
+    setLoadingDrivers(true);
+    fetchDriverAttendance(7)
+      .then(setDrivers)
+      .catch(() => setDrivers([]))
+      .finally(() => setLoadingDrivers(false));
+  }, [tab]);
 
   const dates = useMemo(() => [...new Set(records.map(r => r.date))].sort(), [records]);
 
