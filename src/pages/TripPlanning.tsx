@@ -8,7 +8,7 @@ import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
   fetchDriverAreaDefaults, upsertDriverAreaDefaults,
 } from '@/lib/supabaseData';
-import { fetchTripRequestsByDate, type DailyTripRequest } from '@/lib/tripRequestsData';
+import { fetchTripRequestsByDate, fetchRequestLiveStatuses, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
 import type { Project, Worker, Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -46,6 +46,7 @@ function toDateStr(d: Date) { return format(d, 'yyyy-MM-dd'); }
 export default function TripPlanning() {
   const [step, setStep] = useState<PlanningStep>('requests');
   const [tripRequests, setTripRequests] = useState<DailyTripRequest[]>([]);
+  const [requestLiveStatus, setRequestLiveStatus] = useState<Map<string, RequestLiveStatus>>(new Map());
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
   const [stats, setStats] = useState<TripStats | null>(null);
@@ -549,10 +550,26 @@ export default function TripPlanning() {
     try {
       const reqs = await fetchTripRequestsByDate(toDateStr(selectedDate));
       setTripRequests(reqs);
+      try {
+        const live = await fetchRequestLiveStatuses(toDateStr(selectedDate), reqs);
+        setRequestLiveStatus(live);
+      } catch { /* ignore */ }
     } catch { /* ignore */ }
   }, [selectedDate]);
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
+
+  // Auto-refresh request live statuses every 30s so admin sees driver progress
+  useEffect(() => {
+    if (tripRequests.length === 0) return;
+    const t = setInterval(async () => {
+      try {
+        const live = await fetchRequestLiveStatuses(toDateStr(selectedDate), tripRequests);
+        setRequestLiveStatus(live);
+      } catch { /* ignore */ }
+    }, 30000);
+    return () => clearInterval(t);
+  }, [tripRequests, selectedDate]);
 
   // Generate workers from engineer requests
   const handleGenerateFromRequests = () => {
