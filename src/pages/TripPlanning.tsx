@@ -787,22 +787,45 @@ export default function TripPlanning() {
             ) : (
               <>
                 <div className="space-y-3">
-                  {tripRequests.map(req => (
-                    <div key={req.id} className={`p-4 rounded-md border transition-colors ${req.status === 'pending' ? 'border-accent/40 bg-accent/5' : 'border-border'}`}>
+                  {tripRequests.map(req => {
+                    const live = requestLiveStatus.get(req.id);
+                    const liveStatus = live?.status;
+                    const chipLabel = liveStatus === 'completed' ? 'Completed'
+                      : liveStatus === 'in_progress' ? 'In Progress'
+                      : liveStatus === 'assigned' ? 'Dispatched'
+                      : req.status;
+                    const chipClass = liveStatus === 'completed' ? 'bg-success/10 text-success'
+                      : liveStatus === 'in_progress' ? 'bg-accent/15 text-accent-foreground'
+                      : liveStatus === 'assigned' ? 'bg-primary/10 text-primary'
+                      : req.status === 'pending' ? 'bg-warning/10 text-warning'
+                      : 'bg-success/10 text-success';
+                    const fmtTime = (iso: string | null) =>
+                      iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+                    return (
+                    <div key={req.id} className={`p-4 rounded-md border transition-colors ${req.status === 'pending' && !liveStatus ? 'border-accent/40 bg-accent/5' : 'border-border'}`}>
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium">{req.project_name}</span>
                             {req.priority === 'High' && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">High</span>}
                             <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{req.work_type || 'General'}</span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded ${req.status === 'pending' ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'}`}>
-                              {req.status}
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${chipClass}`}>
+                              {chipLabel}
                             </span>
+                            {live?.vehicle_number && (
+                              <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">🚐 {live.vehicle_number}</span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {req.site}</span>
                             <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(req.worker_names || []).length} workers</span>
                             <span className="flex items-center gap-1"><UserCog className="h-3 w-3" /> {req.engineer_name}</span>
+                            {live?.started_at && (
+                              <span className="flex items-center gap-1 text-accent"><Clock className="h-3 w-3" /> Started {fmtTime(live.started_at)}</span>
+                            )}
+                            {live?.completed_at && (
+                              <span className="flex items-center gap-1 text-success"><CheckCircle2 className="h-3 w-3" /> Completed {fmtTime(live.completed_at)}</span>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-1 mt-2">
                             {(req.worker_names || []).map((n, i) => (
@@ -812,7 +835,8 @@ export default function TripPlanning() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
                   <p className="text-sm text-muted-foreground">
