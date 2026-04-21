@@ -361,8 +361,10 @@ export default function TripPlanning() {
   };
 
   const handleOptimize = () => {
-    if (workers.length === 0) { toast({ title: 'No workers assigned yet', variant: 'destructive' }); return; }
-    const result = optimizeTrips(workers);
+    // Only re-group workers whose trips aren't already completed.
+    const pool = workers.filter(w => !completedWorkerKeys.has(keyForWorker(w)));
+    if (pool.length === 0) { toast({ title: 'No pending workers to optimize', variant: 'destructive' }); return; }
+    const result = optimizeTrips(pool);
     setTripGroups(result.groups);
     setStats(result.stats);
     setStep('optimize');
