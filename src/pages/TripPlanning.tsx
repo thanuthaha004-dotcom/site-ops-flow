@@ -8,7 +8,7 @@ import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
   fetchDriverAreaDefaults, upsertDriverAreaDefaults,
 } from '@/lib/supabaseData';
-import { fetchTripRequestsByDate, fetchRequestLiveStatuses, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
+import { fetchTripRequestsByDate, fetchRequestLiveStatuses, fetchCompletedWorkerKeys, buildCompletedWorkerKey, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
 import type { Project, Worker, Vehicle } from '@/data/mockData';
 import { Progress } from '@/components/ui/progress';
@@ -47,6 +47,7 @@ export default function TripPlanning() {
   const [step, setStep] = useState<PlanningStep>('requests');
   const [tripRequests, setTripRequests] = useState<DailyTripRequest[]>([]);
   const [requestLiveStatus, setRequestLiveStatus] = useState<Map<string, RequestLiveStatus>>(new Map());
+  const [completedWorkerKeys, setCompletedWorkerKeys] = useState<Set<string>>(new Set());
   const [workers, setWorkers] = useState<TripWorker[]>([]);
   const [tripGroups, setTripGroups] = useState<TripGroup[]>([]);
   const [stats, setStats] = useState<TripStats | null>(null);
@@ -94,7 +95,12 @@ export default function TripPlanning() {
   const loadTripsForDate = useCallback(async (date: Date) => {
     setLoadingTrips(true);
     try {
-      const rows = await fetchTripsByDate(toDateStr(date));
+      const dateStr = toDateStr(date);
+      const [rows, completed] = await Promise.all([
+        fetchTripsByDate(dateStr),
+        fetchCompletedWorkerKeys(dateStr).catch(() => new Set<string>()),
+      ]);
+      setCompletedWorkerKeys(completed);
       if (rows.length > 0) {
         const loaded: TripWorker[] = rows.flatMap((r) => {
           // A persisted row may already group multiple workers (CSV in worker_name).
@@ -140,7 +146,12 @@ export default function TripPlanning() {
   // overlay it onto local tripGroups so the admin board shows real progress.
   const hydrateGroupsWithLiveStatus = useCallback(async () => {
     try {
-      const rows = await fetchTripsByDate(toDateStr(selectedDate));
+      const dateStr = toDateStr(selectedDate);
+      const [rows, completed] = await Promise.all([
+        fetchTripsByDate(dateStr),
+        fetchCompletedWorkerKeys(dateStr).catch(() => new Set<string>()),
+      ]);
+      setCompletedWorkerKeys(completed);
       if (rows.length === 0) return;
       setTripGroups(prev => {
         if (prev.length === 0) return prev;
@@ -350,8 +361,10 @@ export default function TripPlanning() {
   };
 
   const handleOptimize = () => {
-    if (workers.length === 0) { toast({ title: 'No workers assigned yet', variant: 'destructive' }); return; }
-    const result = optimizeTrips(workers);
+    // Only re-group workers whose trips aren't already completed.
+    const pool = workers.filter(w => !completedWorkerKeys.has(keyForWorker(w)));
+    if (pool.length === 0) { toast({ title: 'No pending workers to optimize', variant: 'destructive' }); return; }
+    const result = optimizeTrips(pool);
     setTripGroups(result.groups);
     setStats(result.stats);
     setStep('optimize');
@@ -529,19 +542,37 @@ export default function TripPlanning() {
     } catch { toast({ title: 'Failed to parse Excel file', variant: 'destructive' }); }
   };
 
-  const filteredGroups = activeSlot === 'All' ? tripGroups : tripGroups.filter(g => g.timeSlot === activeSlot);
+  // Workers whose trip is already completed should disappear from the
+  // Review/Optimize/Dispatch views so dispatchers only act on pending work.
+  const keyForWorker = (w: TripWorker) =>
+    buildCompletedWorkerKey(w.projectId || null, w.projectName || '', w.site, w.name);
+
+  const visibleWorkers = useMemo(
+    () => workers.filter(w => !completedWorkerKeys.has(keyForWorker(w))),
+    [workers, completedWorkerKeys]
+  );
+  const hiddenCompletedCount = workers.length - visibleWorkers.length;
+
+  const visibleTripGroups = useMemo(() => {
+    if (completedWorkerKeys.size === 0) return tripGroups;
+    return tripGroups
+      .map(g => ({ ...g, workers: g.workers.filter(w => !completedWorkerKeys.has(keyForWorker(w))) }))
+      .filter(g => g.workers.length > 0);
+  }, [tripGroups, completedWorkerKeys]);
+
+  const filteredGroups = activeSlot === 'All' ? visibleTripGroups : visibleTripGroups.filter(g => g.timeSlot === activeSlot);
 
   const workersBySlot = useMemo(() => {
     const map: Record<string, number> = {};
-    TIME_SLOTS.forEach(s => { map[s] = workers.filter(w => w.timeSlot === s).length; });
+    TIME_SLOTS.forEach(s => { map[s] = visibleWorkers.filter(w => w.timeSlot === s).length; });
     return map;
-  }, [workers]);
+  }, [visibleWorkers]);
 
   const workersBySite = useMemo(() => {
     const map: Record<string, TripWorker[]> = {};
-    workers.forEach(w => { const area = getAreaCluster(w.site); if (!map[area]) map[area] = []; map[area].push(w); });
+    visibleWorkers.forEach(w => { const area = getAreaCluster(w.site); if (!map[area]) map[area] = []; map[area].push(w); });
     return map;
-  }, [workers]);
+  }, [visibleWorkers]);
 
   const visibleSteps = STEPS;
 
@@ -970,7 +1001,12 @@ export default function TripPlanning() {
 
               <div className="kpi-card overflow-x-auto">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold">Assignments — {format(selectedDate, 'MMM d, yyyy')} ({workers.length})</h2>
+                  <h2 className="font-semibold">
+                    Assignments — {format(selectedDate, 'MMM d, yyyy')} ({visibleWorkers.length}
+                    {hiddenCompletedCount > 0 && (
+                      <span className="text-success font-normal"> · {hiddenCompletedCount} completed hidden</span>
+                    )})
+                  </h2>
                   <div className="flex gap-2">
                     <button onClick={() => { setGenerated(false); setShowProjectSelector(true); }}
                       className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 transition-colors flex items-center gap-1">
@@ -996,7 +1032,7 @@ export default function TripPlanning() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {(activeSlot === 'All' ? workers : workers.filter(w => w.timeSlot === activeSlot)).map(w => (
+                    {(activeSlot === 'All' ? visibleWorkers : visibleWorkers.filter(w => w.timeSlot === activeSlot)).map(w => (
                       <tr key={w.id} className="hover:bg-muted/30 transition-colors">
                         <td className="py-2.5 font-medium">{w.name}</td>
                         <td className="py-2.5 text-muted-foreground">{w.site}</td>
