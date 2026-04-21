@@ -134,6 +134,44 @@ export default function TripPlanning() {
 
   useEffect(() => { loadTripsForDate(selectedDate); }, [selectedDate, loadTripsForDate]);
 
+  // ── Live status sync ──
+  // Pull current status / started_at / completed_at from trip_schedules and
+  // overlay it onto local tripGroups so the admin board shows real progress.
+  const hydrateGroupsWithLiveStatus = useCallback(async () => {
+    try {
+      const rows = await fetchTripsByDate(toDateStr(selectedDate));
+      if (rows.length === 0) return;
+      setTripGroups(prev => {
+        if (prev.length === 0) return prev;
+        return prev.map(g => {
+          const veh = g.suggestedVehicle?.number || null;
+          const match = rows.find(r =>
+            r.time_slot === g.timeSlot &&
+            ((veh && r.vehicle_number === veh) || g.sites.includes(r.site))
+          );
+          if (!match) return g;
+          let status: TripGroup['status'] = g.status;
+          if (match.status === 'completed') status = 'completed';
+          else if (match.status === 'in_progress') status = 'in_progress';
+          else if (match.status === 'assigned' && g.status !== 'pending' && g.status !== 'optimized') status = 'dispatched';
+          return {
+            ...g,
+            status,
+            startedAt: (match as any).started_at || null,
+            completedAt: (match as any).completed_at || null,
+            liveTripId: match.id,
+          };
+        });
+      });
+    } catch {/* silent */}
+  }, [selectedDate]);
+
+  useEffect(() => {
+    hydrateGroupsWithLiveStatus();
+    const t = setInterval(hydrateGroupsWithLiveStatus, 30000);
+    return () => clearInterval(t);
+  }, [hydrateGroupsWithLiveStatus, tripGroups.length]);
+
   const handleDateChange = (date: Date | undefined) => {
     if (date) setSelectedDate(date);
   };
@@ -983,7 +1021,7 @@ export default function TripPlanning() {
                 const currentDriver = g.suggestedVehicle?.driver || defaultDriver;
                 const startsFromCamp = !!currentDriver && firstTripIdByDriver.get(currentDriver) === g.id;
                 return (
-                <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'dispatched' ? 'opacity-60' : ''}`}>
+                <div key={g.id} className={`kpi-card ${g.isInefficient ? 'border-warning/40' : ''} ${g.status === 'completed' ? 'border-success/40 bg-success/5' : g.status === 'in_progress' ? 'border-accent/40' : g.status === 'dispatched' ? 'opacity-80' : ''}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-semibold flex items-center gap-1.5"><Bus className="h-4 w-4 text-accent" /> {g.area}</h3>
@@ -996,6 +1034,16 @@ export default function TripPlanning() {
                     </div>
                     <div className="flex items-center gap-1">
                       {g.isUrgent && <AlertTriangle className="h-4 w-4 text-warning" />}
+                      {g.status === 'completed' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/15 text-success text-[10px] font-bold uppercase tracking-wide">
+                          <CheckCircle2 className="h-3 w-3" /> Completed
+                        </span>
+                      )}
+                      {g.status === 'in_progress' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/15 text-accent text-[10px] font-bold uppercase tracking-wide animate-pulse">
+                          <Clock className="h-3 w-3" /> In Progress
+                        </span>
+                      )}
                       {g.status === 'dispatched' && <CheckCircle2 className="h-4 w-4 text-success" />}
                     </div>
                   </div>
@@ -1053,7 +1101,32 @@ export default function TripPlanning() {
                     </div>
 
                     {g.isInefficient && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Low utilization — consider merging</p>}
-                    {g.status !== 'dispatched' && (
+
+                    {(g.startedAt || g.completedAt) && (
+                      <div className="space-y-1 pt-2 border-t border-border text-xs">
+                        {g.startedAt && (
+                          <div className="flex items-center gap-2 text-accent">
+                            <Clock className="h-3 w-3" />
+                            <span className="font-medium">Started:</span>
+                            <span>{new Date(g.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        )}
+                        {g.completedAt && (
+                          <div className="flex items-center gap-2 text-success">
+                            <CheckCircle2 className="h-3 w-3" />
+                            <span className="font-medium">Completed:</span>
+                            <span>{new Date(g.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {g.startedAt && (
+                              <span className="text-muted-foreground">
+                                ({Math.round((new Date(g.completedAt).getTime() - new Date(g.startedAt).getTime()) / 60000)} min)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {g.status !== 'dispatched' && g.status !== 'in_progress' && g.status !== 'completed' && (
                       <div className="flex gap-2 pt-2 border-t border-border">
                         <button
                           onClick={() => handleDispatch(g.id)}

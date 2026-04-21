@@ -243,3 +243,96 @@ export async function fetchDriverUsers(): Promise<{ user_id: string; full_name: 
     .from('profiles').select('id, full_name, email').in('id', ids);
   return (profs || []).map((p: any) => ({ user_id: p.id, full_name: p.full_name, email: p.email }));
 }
+
+// ── Driver Attendance (derived from trip_schedules) ──
+
+export interface DriverAttendanceRecord {
+  driverName: string;
+  vehicleNumber: string;
+  date: string;
+  checkIn: string | null;   // HH:MM (earliest started_at)
+  checkOut: string | null;  // HH:MM (latest completed_at)
+  tripsCount: number;
+  hours: number;
+  overtime: number;
+}
+
+/**
+ * Derive driver attendance from completed/in-progress trips over a date range.
+ * Check-in = earliest started_at on that date for the driver.
+ * Check-out = latest completed_at on that date for the driver.
+ */
+export async function fetchDriverAttendance(daysBack: number = 7): Promise<DriverAttendanceRecord[]> {
+  const today = new Date();
+  const start = new Date(today.getTime() - (daysBack - 1) * 86400000);
+  const startStr = start.toISOString().slice(0, 10);
+  const endStr = today.toISOString().slice(0, 10);
+
+  // Get trips with started_at in window (need vehicle_number to map to driver)
+  const { data: trips, error } = await supabase
+    .from('trip_schedules')
+    .select('trip_date, vehicle_number, started_at, completed_at, status')
+    .gte('trip_date', startStr)
+    .lte('trip_date', endStr)
+    .not('started_at', 'is', null);
+  if (error) throw error;
+  if (!trips?.length) return [];
+
+  // Map vehicle_number -> driver name (via vehicles + profiles)
+  const vehNumbers = [...new Set(trips.map((t: any) => t.vehicle_number).filter(Boolean))];
+  if (vehNumbers.length === 0) return [];
+
+  const { data: vehs } = await supabase
+    .from('vehicles')
+    .select('number, driver, driver_user_id')
+    .in('number', vehNumbers);
+
+  const driverUserIds = (vehs || []).map((v: any) => v.driver_user_id).filter(Boolean);
+  const { data: profs } = driverUserIds.length
+    ? await supabase.from('profiles').select('id, full_name').in('id', driverUserIds)
+    : { data: [] };
+  const profMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+
+  const vehMap = new Map<string, string>();
+  (vehs || []).forEach((v: any) => {
+    const name = profMap.get(v.driver_user_id) || v.driver || '';
+    if (name) vehMap.set(v.number, name);
+  });
+
+  // Bucket per (driver, date)
+  type Bucket = { driverName: string; vehicleNumber: string; date: string; starts: number[]; ends: number[]; tripsCount: number };
+  const buckets = new Map<string, Bucket>();
+
+  trips.forEach((t: any) => {
+    const driverName = vehMap.get(t.vehicle_number);
+    if (!driverName) return;
+    const key = `${driverName}||${t.trip_date}`;
+    const startTs = t.started_at ? new Date(t.started_at).getTime() : null;
+    const endTs = t.completed_at ? new Date(t.completed_at).getTime() : null;
+    const b = buckets.get(key) || { driverName, vehicleNumber: t.vehicle_number, date: t.trip_date, starts: [], ends: [], tripsCount: 0 };
+    if (startTs) b.starts.push(startTs);
+    if (endTs) b.ends.push(endTs);
+    b.tripsCount += 1;
+    buckets.set(key, b);
+  });
+
+  const fmt = (ts: number | null) => ts == null ? null
+    : new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  return Array.from(buckets.values()).map(b => {
+    const inTs = b.starts.length ? Math.min(...b.starts) : null;
+    const outTs = b.ends.length ? Math.max(...b.ends) : null;
+    const hours = inTs && outTs ? Math.max(0, (outTs - inTs) / 3600000) : 0;
+    const overtime = Math.max(0, hours - 8);
+    return {
+      driverName: b.driverName,
+      vehicleNumber: b.vehicleNumber,
+      date: b.date,
+      checkIn: fmt(inTs),
+      checkOut: fmt(outTs),
+      tripsCount: b.tripsCount,
+      hours,
+      overtime,
+    };
+  }).sort((a, b) => (a.date === b.date ? a.driverName.localeCompare(b.driverName) : b.date.localeCompare(a.date)));
+}

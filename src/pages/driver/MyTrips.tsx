@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation } from 'lucide-react';
-import { fetchDriverTrips, type DriverTrip } from '@/lib/driverData';
+import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle } from 'lucide-react';
+import { fetchDriverTrips, tripActiveSeconds, formatDuration, type DriverTrip } from '@/lib/driverData';
 
 function statusPill(status: string) {
   const map: Record<string, string> = {
@@ -119,6 +119,28 @@ export default function MyTrips() {
                         <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> {trip.vehicle_number}</span>
                       )}
                     </div>
+                    {/* Live progress: started / completed / duration */}
+                    {(trip.started_at || trip.completed_at) && (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs pt-1.5 border-t border-border/60">
+                        {trip.started_at && (
+                          <span className="flex items-center gap-1 text-accent">
+                            <PlayCircle className="h-3.5 w-3.5" />
+                            Started {new Date(trip.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {trip.completed_at && (
+                          <span className="flex items-center gap-1 text-success font-medium">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Completed {new Date(trip.completed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {trip.started_at && (
+                          <span className="text-muted-foreground">
+                            • {formatDuration(tripActiveSeconds(trip))}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors mt-1" />
                 </Link>
