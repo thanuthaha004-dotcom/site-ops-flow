@@ -432,44 +432,107 @@ export default function EngineerTripSubmit() {
                   </div>
 
                   {/* Workers */}
-                  {project && (
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">
-                        Workers ({d.worker_names.length} of {allWorkers.length} selected)
-                      </label>
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-md border border-input bg-background min-h-[40px]">
-                        {allWorkers.length === 0 && (
-                          <span className="text-xs text-muted-foreground">No workers on this project</span>
-                        )}
-                        {allWorkers.map(name => {
-                          const picked = d.worker_names.includes(name);
-                          return (
-                            <button key={name}
-                              onClick={() => updateDraft(d.tempId, {
-                                worker_names: picked
-                                  ? d.worker_names.filter(n => n !== name)
-                                  : [...d.worker_names, name],
-                              })}
-                              className={`text-xs px-2 py-1 rounded transition-colors ${
-                                picked
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                              }`}>
-                              {name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {allWorkers.length > 0 && (
-                        <div className="flex gap-2 mt-1">
-                          <button onClick={() => updateDraft(d.tempId, { worker_names: allWorkers })}
-                            className="text-xs text-accent hover:underline">Select all</button>
-                          <button onClick={() => updateDraft(d.tempId, { worker_names: [] })}
-                            className="text-xs text-muted-foreground hover:underline">Clear</button>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Workers ({d.worker_names.length} selected{project ? ` • ${allWorkers.length} on project` : ''})
+                    </label>
+
+                    {/* Project worker quick-pick chips */}
+                    {project && allWorkers.length > 0 && (
+                      <>
+                        <div className="flex flex-wrap gap-1.5 p-2 rounded-md border border-input bg-background min-h-[40px]">
+                          {allWorkers.map(name => {
+                            const picked = d.worker_names.includes(name);
+                            return (
+                              <button key={name}
+                                onClick={() => updateDraft(d.tempId, {
+                                  worker_names: picked
+                                    ? d.worker_names.filter(n => n !== name)
+                                    : [...d.worker_names, name],
+                                })}
+                                className={`text-xs px-2 py-1 rounded transition-colors ${
+                                  picked
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                                }`}>
+                                {name}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
+                        <div className="flex gap-2 mt-1">
+                          <button onClick={() => updateDraft(d.tempId, { worker_names: Array.from(new Set([...d.worker_names, ...allWorkers])) })}
+                            className="text-xs text-accent hover:underline">Select all project workers</button>
+                          <button onClick={() => updateDraft(d.tempId, { worker_names: d.worker_names.filter(n => !allWorkers.includes(n)) })}
+                            className="text-xs text-muted-foreground hover:underline">Clear project workers</button>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Custom name input — visitors, subcontractors, swing labor */}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={customNameInputs[d.tempId] || ''}
+                        onChange={e => setCustomNameInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); addCustomWorker(d.tempId); }
+                        }}
+                        placeholder="Add a name not on the project (e.g. visitor, subcontractor)…"
+                        className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                      />
+                      <button
+                        onClick={() => addCustomWorker(d.tempId)}
+                        className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1">
+                        <Plus className="h-3 w-3" /> Add
+                      </button>
                     </div>
-                  )}
+
+                    {/* Selected list with removable chips + duplicate warnings */}
+                    {d.worker_names.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Selected ({d.worker_names.length})</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {d.worker_names.map(name => {
+                            const isDup = (workerOccurrences.get(name.trim().toUpperCase()) || 0) > 1;
+                            const isCustom = !allWorkers.includes(name);
+                            return (
+                              <span key={name}
+                                className={`inline-flex items-center gap-1 text-xs pl-2 pr-1 py-1 rounded-full border ${
+                                  isDup
+                                    ? 'border-warning bg-warning/10 text-warning-foreground'
+                                    : isCustom
+                                      ? 'border-accent bg-accent/10 text-accent-foreground'
+                                      : 'border-border bg-muted text-foreground'
+                                }`}>
+                                {isDup && <AlertTriangle className="h-3 w-3 text-warning" />}
+                                {name}
+                                {isCustom && <span className="text-[10px] opacity-70">(custom)</span>}
+                                <button
+                                  onClick={() => removeWorker(d.tempId, name)}
+                                  title="Remove"
+                                  className="hover:bg-background/60 rounded-full p-0.5">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {d.worker_names.some(n => (workerOccurrences.get(n.trim().toUpperCase()) || 0) > 1) && (
+                          <div className="mt-1.5 text-xs text-warning flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Some workers also appear on other trips today — make sure they can split their day.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {d.worker_names.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        No workers selected — this trip will be treated as a solo visit. <strong>Notes field below is required.</strong>
+                      </p>
+                    )}
+                  </div>
 
                   {/* Time */}
                   <div className="grid grid-cols-2 gap-3">
