@@ -14,6 +14,27 @@ export interface DailyTripRequest {
   status: string;
   notes: string;
   created_at: string;
+  // Engineer suggestions (optional; dispatcher can override)
+  start_time?: string | null;
+  end_time?: string | null;
+  vehicle_number?: string | null;
+  vehicle_type?: string | null;
+  driver_name?: string | null;
+}
+
+export interface TripRequestInput {
+  project_id: string;
+  project_name: string;
+  site: string;
+  worker_names: string[];
+  work_type: string;
+  priority: string;
+  notes?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  vehicle_number?: string | null;
+  vehicle_type?: string | null;
+  driver_name?: string | null;
 }
 
 export async function fetchTripRequestsByDate(date: string): Promise<DailyTripRequest[]> {
@@ -41,9 +62,9 @@ export async function submitTripRequests(
   date: string,
   engineerId: string,
   engineerName: string,
-  requests: { project_id: string; project_name: string; site: string; worker_names: string[]; work_type: string; priority: string; notes?: string }[]
+  requests: TripRequestInput[]
 ): Promise<void> {
-  // Delete existing requests by this engineer for this date
+  // Delete existing requests by this engineer for this date (full replace on resubmit)
   await supabase
     .from('daily_trip_requests')
     .delete()
@@ -64,6 +85,11 @@ export async function submitTripRequests(
     priority: r.priority,
     notes: r.notes || '',
     status: 'pending',
+    start_time: r.start_time || null,
+    end_time: r.end_time || null,
+    vehicle_number: r.vehicle_number || null,
+    vehicle_type: r.vehicle_type || null,
+    driver_name: r.driver_name || null,
   }));
 
   const { error } = await supabase.from('daily_trip_requests').insert(rows);

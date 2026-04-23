@@ -17,6 +17,8 @@ export type Database = {
       daily_trip_requests: {
         Row: {
           created_at: string
+          driver_name: string | null
+          end_time: string | null
           engineer_id: string
           engineer_name: string
           id: string
@@ -25,14 +27,19 @@ export type Database = {
           project_id: string
           project_name: string
           site: string
+          start_time: string | null
           status: string
           trip_date: string
           updated_at: string
+          vehicle_number: string | null
+          vehicle_type: string | null
           work_type: string
           worker_names: string[]
         }
         Insert: {
           created_at?: string
+          driver_name?: string | null
+          end_time?: string | null
           engineer_id: string
           engineer_name?: string
           id?: string
@@ -41,14 +48,19 @@ export type Database = {
           project_id: string
           project_name?: string
           site?: string
+          start_time?: string | null
           status?: string
           trip_date: string
           updated_at?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
           work_type?: string
           worker_names?: string[]
         }
         Update: {
           created_at?: string
+          driver_name?: string | null
+          end_time?: string | null
           engineer_id?: string
           engineer_name?: string
           id?: string
@@ -57,9 +69,12 @@ export type Database = {
           project_id?: string
           project_name?: string
           site?: string
+          start_time?: string | null
           status?: string
           trip_date?: string
           updated_at?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
           work_type?: string
           worker_names?: string[]
         }

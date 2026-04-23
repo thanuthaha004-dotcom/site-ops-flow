@@ -1,28 +1,52 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchProjects } from '@/lib/supabaseData';
-import { fetchMyTripRequests, submitTripRequests } from '@/lib/tripRequestsData';
-import type { Project } from '@/data/mockData';
+import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
+import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
+import type { Project, Vehicle } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
-import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2 } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
+type TripDraft = {
+  tempId: string;
+  project_id: string;
+  worker_names: string[];
+  priority: 'Low' | 'Medium' | 'High';
+  start_time: string;
+  end_time: string;
+  vehicle_number: string;
+  driver_name: string;
+  notes: string;
+};
+
+const newDraft = (): TripDraft => ({
+  tempId: crypto.randomUUID(),
+  project_id: '',
+  worker_names: [],
+  priority: 'Medium',
+  start_time: '',
+  end_time: '',
+  vehicle_number: '',
+  driver_name: '',
+  notes: '',
+});
+
 export default function EngineerTripSubmit() {
   const { user, profileName } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [drafts, setDrafts] = useState<TripDraft[]>([]);
   const [submitted, setSubmitted] = useState(false);
-  const [existingRequests, setExistingRequests] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  // Fetch projects assigned to this engineer
+  // Load assigned projects + fleet
   useEffect(() => {
     fetchProjects().then(all => {
       const me = (profileName || '').trim().toLowerCase();
@@ -33,17 +57,32 @@ export default function EngineerTripSubmit() {
       );
       setProjects(mine);
     }).catch(() => {});
+    fetchVehicles().then(setVehicles).catch(() => {});
   }, [profileName]);
 
-  // Check existing submissions for this date
-  const checkExisting = useCallback(async () => {
+  // Hydrate existing submissions for this date as editable drafts
+  const loadExisting = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
       const existing = await fetchMyTripRequests(dateStr, user.id);
-      setExistingRequests(existing.map(r => r.project_id));
-      setSelectedProjectIds(new Set(existing.map(r => r.project_id)));
-      setSubmitted(existing.length > 0);
+      if (existing.length > 0) {
+        setDrafts(existing.map(r => ({
+          tempId: r.id,
+          project_id: r.project_id,
+          worker_names: r.worker_names || [],
+          priority: (r.priority as TripDraft['priority']) || 'Medium',
+          start_time: r.start_time || '',
+          end_time: r.end_time || '',
+          vehicle_number: r.vehicle_number || '',
+          driver_name: r.driver_name || '',
+          notes: r.notes || '',
+        })));
+        setSubmitted(true);
+      } else {
+        setDrafts([]);
+        setSubmitted(false);
+      }
     } catch {
       // ignore
     } finally {
@@ -51,38 +90,71 @@ export default function EngineerTripSubmit() {
     }
   }, [dateStr, user]);
 
-  useEffect(() => { checkExisting(); }, [checkExisting]);
+  useEffect(() => { loadExisting(); }, [loadExisting]);
 
-  const toggleProject = (id: string) => {
-    setSelectedProjectIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+  const updateDraft = (id: string, patch: Partial<TripDraft>) => {
+    setDrafts(prev => prev.map(d => d.tempId === id ? { ...d, ...patch } : d));
     setSubmitted(false);
   };
 
+  const removeDraft = (id: string) => {
+    setDrafts(prev => prev.filter(d => d.tempId !== id));
+    setSubmitted(false);
+  };
+
+  const addDraft = () => {
+    setDrafts(prev => [...prev, newDraft()]);
+    setSubmitted(false);
+  };
+
+  const onVehicleChange = (id: string, vehicleNumber: string) => {
+    const v = vehicles.find(x => x.number === vehicleNumber);
+    updateDraft(id, {
+      vehicle_number: vehicleNumber,
+      driver_name: v?.driver || '',
+    });
+  };
+
+  const validate = (): string | null => {
+    if (drafts.length === 0) return 'Add at least one trip';
+    for (let i = 0; i < drafts.length; i++) {
+      const d = drafts[i];
+      if (!d.project_id) return `Trip ${i + 1}: select a project`;
+      if (d.worker_names.length === 0) return `Trip ${i + 1}: select at least one worker`;
+      if (d.start_time && d.end_time && d.start_time >= d.end_time) {
+        return `Trip ${i + 1}: end time must be after start time`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
-    if (!user || selectedProjectIds.size === 0) return;
+    if (!user) return;
+    const err = validate();
+    if (err) { toast({ title: err, variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
-      const selected = projects.filter(p => selectedProjectIds.has(p.id));
-      await submitTripRequests(
-        dateStr,
-        user.id,
-        profileName || user.email || '',
-        selected.map(p => ({
-          project_id: p.id,
-          project_name: p.name,
-          site: p.site,
-          worker_names: p.workerNames || [],
-          work_type: p.workType || '',
-          priority: p.priority,
-        }))
-      );
+      const payload: TripRequestInput[] = drafts.map(d => {
+        const p = projects.find(x => x.id === d.project_id)!;
+        const v = vehicles.find(x => x.number === d.vehicle_number);
+        return {
+          project_id: d.project_id,
+          project_name: p?.name || '',
+          site: p?.site || '',
+          worker_names: d.worker_names,
+          work_type: p?.workType || '',
+          priority: d.priority,
+          notes: d.notes,
+          start_time: d.start_time || null,
+          end_time: d.end_time || null,
+          vehicle_number: d.vehicle_number || null,
+          vehicle_type: v?.type || null,
+          driver_name: d.driver_name || null,
+        };
+      });
+      await submitTripRequests(dateStr, user.id, profileName || user.email || '', payload);
       setSubmitted(true);
-      setExistingRequests(selected.map(p => p.id));
-      toast({ title: `Submitted ${selected.length} project requests for ${format(selectedDate, 'MMM d, yyyy')}` });
+      toast({ title: `Submitted ${payload.length} trip${payload.length === 1 ? '' : 's'} for ${format(selectedDate, 'MMM d, yyyy')}` });
     } catch {
       toast({ title: 'Failed to submit', variant: 'destructive' });
     } finally {
@@ -90,13 +162,13 @@ export default function EngineerTripSubmit() {
     }
   };
 
-  const totalWorkers = projects.filter(p => selectedProjectIds.has(p.id)).reduce((sum, p) => sum + (p.workerNames || []).length, 0);
+  const totalWorkers = useMemo(() => drafts.reduce((s, d) => s + d.worker_names.length, 0), [drafts]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Submit Trip Requests</h1>
-        <p className="text-muted-foreground text-sm">Select projects that need worker trips for the chosen date</p>
+        <p className="text-muted-foreground text-sm">Build one or more trips per day. Vehicle, driver and time are suggestions — dispatcher may adjust.</p>
       </div>
 
       {/* Date picker */}
@@ -145,54 +217,195 @@ export default function EngineerTripSubmit() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {selectedProjectIds.size} of {projects.length} projects selected • {totalWorkers} workers
+              {drafts.length} trip{drafts.length === 1 ? '' : 's'} • {totalWorkers} worker{totalWorkers === 1 ? '' : 's'}
             </p>
-            <div className="flex gap-2">
-              <button onClick={() => setSelectedProjectIds(new Set(projects.map(p => p.id)))}
-                className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80">Select All</button>
-              <button onClick={() => { setSelectedProjectIds(new Set()); setSubmitted(false); }}
-                className="text-xs px-2 py-1 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80">Deselect All</button>
-            </div>
+            <button onClick={addDraft}
+              className="text-xs px-3 py-1.5 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-1">
+              <Plus className="h-3 w-3" /> Add Trip
+            </button>
           </div>
 
-          <div className="space-y-2">
-            {projects.map(p => (
-              <label key={p.id}
-                className={`flex items-start gap-3 p-4 rounded-md border cursor-pointer transition-colors ${
-                  selectedProjectIds.has(p.id) ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/30'
-                }`}>
-                <input type="checkbox" checked={selectedProjectIds.has(p.id)} onChange={() => toggleProject(p.id)}
-                  className="rounded border-input mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{p.name}</span>
-                    <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{p.code}</span>
-                    {p.priority === 'High' && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">High Priority</span>}
-                    <span className="text-xs bg-accent/10 text-accent-foreground px-1.5 py-0.5 rounded">{p.workType || p.type}</span>
+          {drafts.length === 0 && (
+            <div className="kpi-card text-center py-10">
+              <p className="text-sm text-muted-foreground mb-3">No trips yet. Click "Add Trip" to begin.</p>
+              <button onClick={addDraft}
+                className="text-xs px-3 py-1.5 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 inline-flex items-center gap-1">
+                <Plus className="h-3 w-3" /> Add Trip
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {drafts.map((d, idx) => {
+              const project = projects.find(p => p.id === d.project_id);
+              const allWorkers = project?.workerNames || [];
+              return (
+                <div key={d.tempId} className="kpi-card space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Trip {idx + 1}</h3>
+                    <button onClick={() => removeDraft(d.tempId)}
+                      className="text-xs text-destructive hover:bg-destructive/10 p-1 rounded">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
-                  <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {p.site || 'No site'}</span>
-                    <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(p.workerNames || []).length} workers</span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Project */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
+                      <select value={d.project_id}
+                        onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                        <option value="">Select project…</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.name} — {p.site || 'No site'}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Priority */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Priority</label>
+                      <div className="flex gap-1">
+                        {(['Low', 'Medium', 'High'] as const).map(p => (
+                          <button key={p} onClick={() => updateDraft(d.tempId, { priority: p })}
+                            className={`flex-1 text-xs px-2 py-2 rounded-md border transition-colors ${
+                              d.priority === p
+                                ? p === 'High' ? 'bg-destructive text-destructive-foreground border-destructive'
+                                  : p === 'Medium' ? 'bg-accent text-accent-foreground border-accent'
+                                  : 'bg-secondary text-secondary-foreground border-secondary'
+                                : 'bg-background text-muted-foreground border-input hover:bg-muted'
+                            }`}>
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  {(p.workerNames || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(p.workerNames || []).map((n, i) => (
-                        <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
-                      ))}
+
+                  {/* Workers */}
+                  {project && (
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">
+                        Workers ({d.worker_names.length} of {allWorkers.length} selected)
+                      </label>
+                      <div className="flex flex-wrap gap-1.5 p-2 rounded-md border border-input bg-background min-h-[40px]">
+                        {allWorkers.length === 0 && (
+                          <span className="text-xs text-muted-foreground">No workers on this project</span>
+                        )}
+                        {allWorkers.map(name => {
+                          const picked = d.worker_names.includes(name);
+                          return (
+                            <button key={name}
+                              onClick={() => updateDraft(d.tempId, {
+                                worker_names: picked
+                                  ? d.worker_names.filter(n => n !== name)
+                                  : [...d.worker_names, name],
+                              })}
+                              className={`text-xs px-2 py-1 rounded transition-colors ${
+                                picked
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                              }`}>
+                              {name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {allWorkers.length > 0 && (
+                        <div className="flex gap-2 mt-1">
+                          <button onClick={() => updateDraft(d.tempId, { worker_names: allWorkers })}
+                            className="text-xs text-accent hover:underline">Select all</button>
+                          <button onClick={() => updateDraft(d.tempId, { worker_names: [] })}
+                            className="text-xs text-muted-foreground hover:underline">Clear</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Time */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                        <Clock className="h-3 w-3" /> Start time
+                      </label>
+                      <input type="time" value={d.start_time}
+                        onChange={e => updateDraft(d.tempId, { start_time: e.target.value })}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                        <Clock className="h-3 w-3" /> End time
+                      </label>
+                      <input type="time" value={d.end_time}
+                        onChange={e => updateDraft(d.tempId, { end_time: e.target.value })}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    </div>
+                  </div>
+
+                  {/* Vehicle + Driver */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                        <Truck className="h-3 w-3" /> Vehicle (optional)
+                      </label>
+                      <select value={d.vehicle_number}
+                        onChange={e => onVehicleChange(d.tempId, e.target.value)}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                        <option value="">— Let dispatcher decide —</option>
+                        {vehicles.map(v => (
+                          <option key={v.id} value={v.number}>
+                            {v.number} • {v.type} • {v.capacity} seats
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                        <UserCog className="h-3 w-3" /> Driver (optional)
+                      </label>
+                      <input type="text" value={d.driver_name}
+                        onChange={e => updateDraft(d.tempId, { driver_name: e.target.value })}
+                        placeholder="Auto-fills from vehicle"
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Notes</label>
+                    <textarea value={d.notes}
+                      onChange={e => updateDraft(d.tempId, { notes: e.target.value })}
+                      rows={2}
+                      placeholder="Special instructions for dispatcher…"
+                      className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 resize-none" />
+                  </div>
+
+                  {project && (
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
+                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {project.site || 'No site'}</span>
+                      <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {allWorkers.length} workers on project</span>
+                      <span>• {project.workType || project.type}</span>
                     </div>
                   )}
                 </div>
-              </label>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="flex justify-end">
-            <button onClick={handleSubmit} disabled={submitting || selectedProjectIds.size === 0}
-              className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {submitted ? 'Update Submission' : 'Submit Trip Requests'}
-            </button>
-          </div>
+          {drafts.length > 0 && (
+            <div className="flex items-center justify-between sticky bottom-4 bg-background/95 backdrop-blur p-3 rounded-md border border-border shadow-sm">
+              <button onClick={addDraft}
+                className="text-xs px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1">
+                <Plus className="h-3 w-3" /> Add Trip
+              </button>
+              <button onClick={handleSubmit} disabled={submitting}
+                className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center gap-2">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {submitted ? 'Update Submission' : `Submit ${drafts.length} Trip${drafts.length === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
