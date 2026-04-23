@@ -44,6 +44,7 @@ export default function EngineerTripSubmit() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [drafts, setDrafts] = useState<TripDraft[]>([]);
+  const [customNameInputs, setCustomNameInputs] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
