@@ -584,12 +584,18 @@ export default function EngineerTripSubmit() {
 
                   {/* Notes */}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Notes</label>
+                    <label className={`text-xs font-medium block mb-1 ${d.worker_names.length === 0 ? 'text-warning' : 'text-muted-foreground'}`}>
+                      Notes {d.worker_names.length === 0 && <span className="font-semibold">— required (reason for solo trip)</span>}
+                    </label>
                     <textarea value={d.notes}
                       onChange={e => updateDraft(d.tempId, { notes: e.target.value })}
                       rows={2}
-                      placeholder="Special instructions for dispatcher…"
-                      className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 resize-none" />
+                      placeholder={d.worker_names.length === 0
+                        ? 'e.g. Site inspection, material drop, supervisor visit…'
+                        : 'Special instructions for dispatcher…'}
+                      className={`w-full text-sm rounded-md border bg-background px-3 py-2 resize-none ${
+                        d.worker_names.length === 0 && !d.notes.trim() ? 'border-warning' : 'border-input'
+                      }`} />
                   </div>
 
                   {project && (
