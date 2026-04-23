@@ -128,12 +128,49 @@ export default function EngineerTripSubmit() {
     });
   };
 
+  const moveDraft = (id: string, dir: -1 | 1) => {
+    setDrafts(prev => {
+      const idx = prev.findIndex(d => d.tempId === id);
+      const target = idx + dir;
+      if (idx < 0 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+    setSubmitted(false);
+  };
+
+  const setOrder = (id: string, raw: string) => {
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    setDrafts(prev => {
+      const fromIdx = prev.findIndex(d => d.tempId === id);
+      if (fromIdx < 0) return prev;
+      const toIdx = Math.min(prev.length - 1, n - 1);
+      if (fromIdx === toIdx) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+    setSubmitted(false);
+  };
+
+  // Pickup dropdown: Al Quoz Camp + unique sites from engineer's projects + "Custom..."
+  const pickupOptions = useMemo(() => {
+    const sites = Array.from(new Set(
+      projects.map(p => (p.site || '').trim()).filter(s => s && s !== DEFAULT_PICKUP)
+    )).sort();
+    return [DEFAULT_PICKUP, ...sites];
+  }, [projects]);
+
   const validate = (): string | null => {
     if (drafts.length === 0) return 'Add at least one trip';
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
       if (!d.project_id) return `Trip ${i + 1}: select a project`;
       if (d.worker_names.length === 0) return `Trip ${i + 1}: select at least one worker`;
+      if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
       if (d.start_time && d.end_time && d.start_time >= d.end_time) {
         return `Trip ${i + 1}: end time must be after start time`;
       }
