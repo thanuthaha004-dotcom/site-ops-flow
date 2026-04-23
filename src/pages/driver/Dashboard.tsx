@@ -47,7 +47,11 @@ export default function DriverDashboard() {
 
   const todayKey = dateKey(new Date());
   const todaysTrips = tripsByDate[todayKey] || [];
-  const completedToday = todaysTrips.filter(t => t.status === 'completed');
+  // Count any trip COMPLETED today, even if its scheduled trip_date was a different day
+  // (e.g. yesterday's trip finished after midnight, or backlog cleared today).
+  const completedToday = trips.filter(
+    t => t.status === 'completed' && t.completed_at && dateKey(new Date(t.completed_at)) === todayKey
+  );
   const pendingToday = todaysTrips.filter(t => t.status !== 'completed');
   const totalSecondsToday = todaysTrips.reduce((sum, t) => sum + tripActiveSeconds(t), 0);
 
