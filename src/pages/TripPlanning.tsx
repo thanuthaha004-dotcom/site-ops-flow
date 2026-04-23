@@ -858,6 +858,25 @@ export default function TripPlanning() {
                               <span className="flex items-center gap-1 text-success"><CheckCircle2 className="h-3 w-3" /> Completed {fmtTime(live.completed_at)}</span>
                             )}
                           </div>
+                          {/* Engineer suggestions (if any) */}
+                          {(req.start_time || req.end_time || req.vehicle_number || req.driver_name) && (
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Engineer suggests:</span>
+                              {(req.start_time || req.end_time) && (
+                                <span className="text-xs bg-accent/10 text-accent-foreground px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> {req.start_time || '—'} → {req.end_time || '—'}
+                                </span>
+                              )}
+                              {req.vehicle_number && (
+                                <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">🚐 {req.vehicle_number}{req.vehicle_type ? ` · ${req.vehicle_type}` : ''}</span>
+                              )}
+                              {req.driver_name && (
+                                <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <UserCog className="h-3 w-3" /> {req.driver_name}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-1 mt-2">
                             {(req.worker_names || []).map((n, i) => (
                               <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
