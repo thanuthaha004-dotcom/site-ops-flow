@@ -4,34 +4,38 @@ import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import type { Project, Vehicle } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
-import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
+const DEFAULT_PICKUP = 'Al Quoz Labour Camp';
+
 type TripDraft = {
   tempId: string;
   project_id: string;
   worker_names: string[];
-  priority: 'Low' | 'Medium' | 'High';
   start_time: string;
   end_time: string;
   vehicle_number: string;
   driver_name: string;
   notes: string;
+  pickup_location: string;
+  pickup_custom: boolean; // when true, pickup_location is free text
 };
 
 const newDraft = (): TripDraft => ({
   tempId: crypto.randomUUID(),
   project_id: '',
   worker_names: [],
-  priority: 'Medium',
   start_time: '',
   end_time: '',
   vehicle_number: '',
   driver_name: '',
   notes: '',
+  pickup_location: DEFAULT_PICKUP,
+  pickup_custom: false,
 });
 
 export default function EngineerTripSubmit() {
@@ -67,17 +71,26 @@ export default function EngineerTripSubmit() {
     try {
       const existing = await fetchMyTripRequests(dateStr, user.id);
       if (existing.length > 0) {
-        setDrafts(existing.map(r => ({
-          tempId: r.id,
-          project_id: r.project_id,
-          worker_names: r.worker_names || [],
-          priority: (r.priority as TripDraft['priority']) || 'Medium',
-          start_time: r.start_time || '',
-          end_time: r.end_time || '',
-          vehicle_number: r.vehicle_number || '',
-          driver_name: r.driver_name || '',
-          notes: r.notes || '',
-        })));
+        // Sort by execution_order so the engineer sees the same sequence they submitted
+        const ordered = [...existing].sort((a, b) =>
+          (a.execution_order ?? 9999) - (b.execution_order ?? 9999),
+        );
+        setDrafts(ordered.map(r => {
+          const pickup = r.pickup_location || DEFAULT_PICKUP;
+          return {
+            tempId: r.id,
+            project_id: r.project_id,
+            worker_names: r.worker_names || [],
+            start_time: r.start_time || '',
+            end_time: r.end_time || '',
+            vehicle_number: r.vehicle_number || '',
+            driver_name: r.driver_name || '',
+            notes: r.notes || '',
+            pickup_location: pickup,
+            // Treat as "custom" if it isn't the default and isn't a known site (sites loaded async; safe to default false here, dropdown will pick it up if it matches)
+            pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
+          };
+        }));
         setSubmitted(true);
       } else {
         setDrafts([]);
@@ -115,12 +128,49 @@ export default function EngineerTripSubmit() {
     });
   };
 
+  const moveDraft = (id: string, dir: -1 | 1) => {
+    setDrafts(prev => {
+      const idx = prev.findIndex(d => d.tempId === id);
+      const target = idx + dir;
+      if (idx < 0 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+    setSubmitted(false);
+  };
+
+  const setOrder = (id: string, raw: string) => {
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    setDrafts(prev => {
+      const fromIdx = prev.findIndex(d => d.tempId === id);
+      if (fromIdx < 0) return prev;
+      const toIdx = Math.min(prev.length - 1, n - 1);
+      if (fromIdx === toIdx) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+    setSubmitted(false);
+  };
+
+  // Pickup dropdown: Al Quoz Camp + unique sites from engineer's projects + "Custom..."
+  const pickupOptions = useMemo(() => {
+    const sites = Array.from(new Set(
+      projects.map(p => (p.site || '').trim()).filter(s => s && s !== DEFAULT_PICKUP)
+    )).sort();
+    return [DEFAULT_PICKUP, ...sites];
+  }, [projects]);
+
   const validate = (): string | null => {
     if (drafts.length === 0) return 'Add at least one trip';
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
       if (!d.project_id) return `Trip ${i + 1}: select a project`;
       if (d.worker_names.length === 0) return `Trip ${i + 1}: select at least one worker`;
+      if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
       if (d.start_time && d.end_time && d.start_time >= d.end_time) {
         return `Trip ${i + 1}: end time must be after start time`;
       }
@@ -134,7 +184,7 @@ export default function EngineerTripSubmit() {
     if (err) { toast({ title: err, variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
-      const payload: TripRequestInput[] = drafts.map(d => {
+      const payload: TripRequestInput[] = drafts.map((d, idx) => {
         const p = projects.find(x => x.id === d.project_id)!;
         const v = vehicles.find(x => x.number === d.vehicle_number);
         return {
@@ -143,13 +193,16 @@ export default function EngineerTripSubmit() {
           site: p?.site || '',
           worker_names: d.worker_names,
           work_type: p?.workType || '',
-          priority: d.priority,
+          // Priority is now derived from execution order (lower # = higher priority)
+          priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
           notes: d.notes,
           start_time: d.start_time || null,
           end_time: d.end_time || null,
           vehicle_number: d.vehicle_number || null,
           vehicle_type: v?.type || null,
           driver_name: d.driver_name || null,
+          pickup_location: d.pickup_location || DEFAULT_PICKUP,
+          execution_order: idx + 1,
         };
       });
       await submitTripRequests(dateStr, user.id, profileName || user.email || '', payload);
@@ -241,17 +294,39 @@ export default function EngineerTripSubmit() {
               const allWorkers = project?.workerNames || [];
               return (
                 <div key={d.tempId} className="kpi-card space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Trip {idx + 1}</h3>
-                    <button onClick={() => removeDraft(d.tempId)}
-                      className="text-xs text-destructive hover:bg-destructive/10 p-1 rounded">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        #{idx + 1}
+                      </span>
+                      <h3 className="text-sm font-semibold">Trip {idx + 1}</h3>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => moveDraft(d.tempId, -1)}
+                        disabled={idx === 0}
+                        title="Move up (run earlier)"
+                        className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => moveDraft(d.tempId, 1)}
+                        disabled={idx === drafts.length - 1}
+                        title="Move down (run later)"
+                        className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ArrowDown className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => removeDraft(d.tempId)}
+                        title="Remove this trip"
+                        className="text-destructive hover:bg-destructive/10 p-1 rounded ml-1">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Project */}
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
                       <select value={d.project_id}
                         onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
@@ -263,24 +338,61 @@ export default function EngineerTripSubmit() {
                       </select>
                     </div>
 
-                    {/* Priority */}
+                    {/* Execution order # */}
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Priority</label>
-                      <div className="flex gap-1">
-                        {(['Low', 'Medium', 'High'] as const).map(p => (
-                          <button key={p} onClick={() => updateDraft(d.tempId, { priority: p })}
-                            className={`flex-1 text-xs px-2 py-2 rounded-md border transition-colors ${
-                              d.priority === p
-                                ? p === 'High' ? 'bg-destructive text-destructive-foreground border-destructive'
-                                  : p === 'Medium' ? 'bg-accent text-accent-foreground border-accent'
-                                  : 'bg-secondary text-secondary-foreground border-secondary'
-                                : 'bg-background text-muted-foreground border-input hover:bg-muted'
-                            }`}>
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">
+                        Execution Order
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={drafts.length}
+                        value={idx + 1}
+                        onChange={e => setOrder(d.tempId, e.target.value)}
+                        title="Lower number runs first. Drivers will follow this sequence."
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2"
+                      />
                     </div>
+                  </div>
+
+                  {/* Pickup location */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                      <MapPin className="h-3 w-3" /> Pickup Point
+                    </label>
+                    {d.pickup_custom ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={d.pickup_location}
+                          onChange={e => updateDraft(d.tempId, { pickup_location: e.target.value })}
+                          placeholder="Type pickup location…"
+                          className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                        />
+                        <button
+                          onClick={() => updateDraft(d.tempId, { pickup_custom: false, pickup_location: DEFAULT_PICKUP })}
+                          className="text-xs px-2 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                          Use list
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={pickupOptions.includes(d.pickup_location) ? d.pickup_location : '__custom__'}
+                        onChange={e => {
+                          const v = e.target.value;
+                          if (v === '__custom__') {
+                            updateDraft(d.tempId, { pickup_custom: true, pickup_location: '' });
+                          } else {
+                            updateDraft(d.tempId, { pickup_location: v });
+                          }
+                        }}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                        {pickupOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                        <option value="__custom__">Custom…</option>
+                      </select>
+                    )}
                   </div>
 
                   {/* Workers */}

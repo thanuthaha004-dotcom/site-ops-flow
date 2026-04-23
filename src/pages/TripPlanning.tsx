@@ -818,7 +818,14 @@ export default function TripPlanning() {
             ) : (
               <>
                 <div className="space-y-3">
-                  {tripRequests.map(req => {
+                  {[...tripRequests]
+                    .sort((a, b) => {
+                      // Group by engineer, then by execution_order within engineer
+                      const eng = (a.engineer_name || '').localeCompare(b.engineer_name || '');
+                      if (eng !== 0) return eng;
+                      return (a.execution_order ?? 9999) - (b.execution_order ?? 9999);
+                    })
+                    .map(req => {
                     const live = requestLiveStatus.get(req.id);
                     const liveStatus = live?.status;
                     const chipLabel = liveStatus === 'completed' ? 'Completed'
@@ -834,11 +841,15 @@ export default function TripPlanning() {
                       iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
                     return (
                     <div key={req.id} className={`p-4 rounded-md border transition-colors ${req.status === 'pending' && !liveStatus ? 'border-accent/40 bg-accent/5' : 'border-border'}`}>
-                      <div className="flex items-start justify-between">
-                        <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
+                            {req.execution_order != null && (
+                              <span className="inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                                #{req.execution_order}
+                              </span>
+                            )}
                             <span className="text-sm font-medium">{req.project_name}</span>
-                            {req.priority === 'High' && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">High</span>}
                             <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{req.work_type || 'General'}</span>
                             <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${chipClass}`}>
                               {chipLabel}
@@ -851,6 +862,11 @@ export default function TripPlanning() {
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {req.site}</span>
                             <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(req.worker_names || []).length} workers</span>
                             <span className="flex items-center gap-1"><UserCog className="h-3 w-3" /> {req.engineer_name}</span>
+                            {req.pickup_location && (
+                              <span className="flex items-center gap-1" title="Pickup point">
+                                <Bus className="h-3 w-3" /> from {req.pickup_location}
+                              </span>
+                            )}
                             {live?.started_at && (
                               <span className="flex items-center gap-1 text-accent"><Clock className="h-3 w-3" /> Started {fmtTime(live.started_at)}</span>
                             )}
