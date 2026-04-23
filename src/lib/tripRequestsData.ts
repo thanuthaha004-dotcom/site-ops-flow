@@ -20,6 +20,8 @@ export interface DailyTripRequest {
   vehicle_number?: string | null;
   vehicle_type?: string | null;
   driver_name?: string | null;
+  pickup_location?: string | null;
+  execution_order?: number | null;
 }
 
 export interface TripRequestInput {
@@ -35,6 +37,8 @@ export interface TripRequestInput {
   vehicle_number?: string | null;
   vehicle_type?: string | null;
   driver_name?: string | null;
+  pickup_location?: string | null;
+  execution_order?: number | null;
 }
 
 export async function fetchTripRequestsByDate(date: string): Promise<DailyTripRequest[]> {
@@ -73,7 +77,7 @@ export async function submitTripRequests(
 
   if (requests.length === 0) return;
 
-  const rows = requests.map(r => ({
+  const rows = requests.map((r, idx) => ({
     trip_date: date,
     engineer_id: engineerId,
     engineer_name: engineerName,
@@ -90,6 +94,8 @@ export async function submitTripRequests(
     vehicle_number: r.vehicle_number || null,
     vehicle_type: r.vehicle_type || null,
     driver_name: r.driver_name || null,
+    pickup_location: r.pickup_location || 'Al Quoz Labour Camp',
+    execution_order: r.execution_order ?? idx + 1,
   }));
 
   const { error } = await supabase.from('daily_trip_requests').insert(rows);
