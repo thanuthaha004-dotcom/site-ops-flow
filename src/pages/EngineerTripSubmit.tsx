@@ -165,18 +165,53 @@ export default function EngineerTripSubmit() {
     return [DEFAULT_PICKUP, ...sites];
   }, [projects]);
 
+  // Map worker name -> count of trips it appears on (for duplicate warnings)
+  const workerOccurrences = useMemo(() => {
+    const map = new Map<string, number>();
+    drafts.forEach(d => {
+      d.worker_names.forEach(n => {
+        const key = n.trim().toUpperCase();
+        if (!key) return;
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+    });
+    return map;
+  }, [drafts]);
+
   const validate = (): string | null => {
     if (drafts.length === 0) return 'Add at least one trip';
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
       if (!d.project_id) return `Trip ${i + 1}: select a project`;
-      if (d.worker_names.length === 0) return `Trip ${i + 1}: select at least one worker`;
+      if (d.worker_names.length === 0 && !d.notes.trim()) {
+        return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
+      }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
       if (d.start_time && d.end_time && d.start_time >= d.end_time) {
         return `Trip ${i + 1}: end time must be after start time`;
       }
     }
     return null;
+  };
+
+  const addCustomWorker = (id: string) => {
+    const raw = (customNameInputs[id] || '').trim();
+    if (!raw) return;
+    setDrafts(prev => prev.map(d => {
+      if (d.tempId !== id) return d;
+      // Avoid exact duplicate within the same trip (case-insensitive)
+      const exists = d.worker_names.some(n => n.trim().toUpperCase() === raw.toUpperCase());
+      return exists ? d : { ...d, worker_names: [...d.worker_names, raw] };
+    }));
+    setCustomNameInputs(prev => ({ ...prev, [id]: '' }));
+    setSubmitted(false);
+  };
+
+  const removeWorker = (id: string, name: string) => {
+    setDrafts(prev => prev.map(d =>
+      d.tempId === id ? { ...d, worker_names: d.worker_names.filter(n => n !== name) } : d
+    ));
+    setSubmitted(false);
   };
 
   const handleSubmit = async () => {
