@@ -21,8 +21,10 @@ export type Database = {
           end_time: string | null
           engineer_id: string
           engineer_name: string
+          execution_order: number | null
           id: string
           notes: string
+          pickup_location: string | null
           priority: string
           project_id: string
           project_name: string
@@ -42,8 +44,10 @@ export type Database = {
           end_time?: string | null
           engineer_id: string
           engineer_name?: string
+          execution_order?: number | null
           id?: string
           notes?: string
+          pickup_location?: string | null
           priority?: string
           project_id: string
           project_name?: string
@@ -63,8 +67,10 @@ export type Database = {
           end_time?: string | null
           engineer_id?: string
           engineer_name?: string
+          execution_order?: number | null
           id?: string
           notes?: string
+          pickup_location?: string | null
           priority?: string
           project_id?: string
           project_name?: string
