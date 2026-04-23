@@ -14,6 +14,27 @@ export interface DailyTripRequest {
   status: string;
   notes: string;
   created_at: string;
+  // Engineer suggestions (optional; dispatcher can override)
+  start_time?: string | null;
+  end_time?: string | null;
+  vehicle_number?: string | null;
+  vehicle_type?: string | null;
+  driver_name?: string | null;
+}
+
+export interface TripRequestInput {
+  project_id: string;
+  project_name: string;
+  site: string;
+  worker_names: string[];
+  work_type: string;
+  priority: string;
+  notes?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  vehicle_number?: string | null;
+  vehicle_type?: string | null;
+  driver_name?: string | null;
 }
 
 export async function fetchTripRequestsByDate(date: string): Promise<DailyTripRequest[]> {
