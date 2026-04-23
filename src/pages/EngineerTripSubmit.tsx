@@ -4,7 +4,7 @@ import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import type { Project, Vehicle } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
-import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown, AlertTriangle, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,7 @@ export default function EngineerTripSubmit() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [drafts, setDrafts] = useState<TripDraft[]>([]);
+  const [customNameInputs, setCustomNameInputs] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -164,18 +165,53 @@ export default function EngineerTripSubmit() {
     return [DEFAULT_PICKUP, ...sites];
   }, [projects]);
 
+  // Map worker name -> count of trips it appears on (for duplicate warnings)
+  const workerOccurrences = useMemo(() => {
+    const map = new Map<string, number>();
+    drafts.forEach(d => {
+      d.worker_names.forEach(n => {
+        const key = n.trim().toUpperCase();
+        if (!key) return;
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+    });
+    return map;
+  }, [drafts]);
+
   const validate = (): string | null => {
     if (drafts.length === 0) return 'Add at least one trip';
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
       if (!d.project_id) return `Trip ${i + 1}: select a project`;
-      if (d.worker_names.length === 0) return `Trip ${i + 1}: select at least one worker`;
+      if (d.worker_names.length === 0 && !d.notes.trim()) {
+        return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
+      }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
       if (d.start_time && d.end_time && d.start_time >= d.end_time) {
         return `Trip ${i + 1}: end time must be after start time`;
       }
     }
     return null;
+  };
+
+  const addCustomWorker = (id: string) => {
+    const raw = (customNameInputs[id] || '').trim();
+    if (!raw) return;
+    setDrafts(prev => prev.map(d => {
+      if (d.tempId !== id) return d;
+      // Avoid exact duplicate within the same trip (case-insensitive)
+      const exists = d.worker_names.some(n => n.trim().toUpperCase() === raw.toUpperCase());
+      return exists ? d : { ...d, worker_names: [...d.worker_names, raw] };
+    }));
+    setCustomNameInputs(prev => ({ ...prev, [id]: '' }));
+    setSubmitted(false);
+  };
+
+  const removeWorker = (id: string, name: string) => {
+    setDrafts(prev => prev.map(d =>
+      d.tempId === id ? { ...d, worker_names: d.worker_names.filter(n => n !== name) } : d
+    ));
+    setSubmitted(false);
   };
 
   const handleSubmit = async () => {
@@ -396,44 +432,107 @@ export default function EngineerTripSubmit() {
                   </div>
 
                   {/* Workers */}
-                  {project && (
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">
-                        Workers ({d.worker_names.length} of {allWorkers.length} selected)
-                      </label>
-                      <div className="flex flex-wrap gap-1.5 p-2 rounded-md border border-input bg-background min-h-[40px]">
-                        {allWorkers.length === 0 && (
-                          <span className="text-xs text-muted-foreground">No workers on this project</span>
-                        )}
-                        {allWorkers.map(name => {
-                          const picked = d.worker_names.includes(name);
-                          return (
-                            <button key={name}
-                              onClick={() => updateDraft(d.tempId, {
-                                worker_names: picked
-                                  ? d.worker_names.filter(n => n !== name)
-                                  : [...d.worker_names, name],
-                              })}
-                              className={`text-xs px-2 py-1 rounded transition-colors ${
-                                picked
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                              }`}>
-                              {name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {allWorkers.length > 0 && (
-                        <div className="flex gap-2 mt-1">
-                          <button onClick={() => updateDraft(d.tempId, { worker_names: allWorkers })}
-                            className="text-xs text-accent hover:underline">Select all</button>
-                          <button onClick={() => updateDraft(d.tempId, { worker_names: [] })}
-                            className="text-xs text-muted-foreground hover:underline">Clear</button>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Workers ({d.worker_names.length} selected{project ? ` • ${allWorkers.length} on project` : ''})
+                    </label>
+
+                    {/* Project worker quick-pick chips */}
+                    {project && allWorkers.length > 0 && (
+                      <>
+                        <div className="flex flex-wrap gap-1.5 p-2 rounded-md border border-input bg-background min-h-[40px]">
+                          {allWorkers.map(name => {
+                            const picked = d.worker_names.includes(name);
+                            return (
+                              <button key={name}
+                                onClick={() => updateDraft(d.tempId, {
+                                  worker_names: picked
+                                    ? d.worker_names.filter(n => n !== name)
+                                    : [...d.worker_names, name],
+                                })}
+                                className={`text-xs px-2 py-1 rounded transition-colors ${
+                                  picked
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                                }`}>
+                                {name}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
+                        <div className="flex gap-2 mt-1">
+                          <button onClick={() => updateDraft(d.tempId, { worker_names: Array.from(new Set([...d.worker_names, ...allWorkers])) })}
+                            className="text-xs text-accent hover:underline">Select all project workers</button>
+                          <button onClick={() => updateDraft(d.tempId, { worker_names: d.worker_names.filter(n => !allWorkers.includes(n)) })}
+                            className="text-xs text-muted-foreground hover:underline">Clear project workers</button>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Custom name input — visitors, subcontractors, swing labor */}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={customNameInputs[d.tempId] || ''}
+                        onChange={e => setCustomNameInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { e.preventDefault(); addCustomWorker(d.tempId); }
+                        }}
+                        placeholder="Add a name not on the project (e.g. visitor, subcontractor)…"
+                        className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                      />
+                      <button
+                        onClick={() => addCustomWorker(d.tempId)}
+                        className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1">
+                        <Plus className="h-3 w-3" /> Add
+                      </button>
                     </div>
-                  )}
+
+                    {/* Selected list with removable chips + duplicate warnings */}
+                    {d.worker_names.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Selected ({d.worker_names.length})</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {d.worker_names.map(name => {
+                            const isDup = (workerOccurrences.get(name.trim().toUpperCase()) || 0) > 1;
+                            const isCustom = !allWorkers.includes(name);
+                            return (
+                              <span key={name}
+                                className={`inline-flex items-center gap-1 text-xs pl-2 pr-1 py-1 rounded-full border ${
+                                  isDup
+                                    ? 'border-warning bg-warning/10 text-warning-foreground'
+                                    : isCustom
+                                      ? 'border-accent bg-accent/10 text-accent-foreground'
+                                      : 'border-border bg-muted text-foreground'
+                                }`}>
+                                {isDup && <AlertTriangle className="h-3 w-3 text-warning" />}
+                                {name}
+                                {isCustom && <span className="text-[10px] opacity-70">(custom)</span>}
+                                <button
+                                  onClick={() => removeWorker(d.tempId, name)}
+                                  title="Remove"
+                                  className="hover:bg-background/60 rounded-full p-0.5">
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {d.worker_names.some(n => (workerOccurrences.get(n.trim().toUpperCase()) || 0) > 1) && (
+                          <div className="mt-1.5 text-xs text-warning flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Some workers also appear on other trips today — make sure they can split their day.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {d.worker_names.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        No workers selected — this trip will be treated as a solo visit. <strong>Notes field below is required.</strong>
+                      </p>
+                    )}
+                  </div>
 
                   {/* Time */}
                   <div className="grid grid-cols-2 gap-3">
@@ -485,12 +584,18 @@ export default function EngineerTripSubmit() {
 
                   {/* Notes */}
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Notes</label>
+                    <label className={`text-xs font-medium block mb-1 ${d.worker_names.length === 0 ? 'text-warning' : 'text-muted-foreground'}`}>
+                      Notes {d.worker_names.length === 0 && <span className="font-semibold">— required (reason for solo trip)</span>}
+                    </label>
                     <textarea value={d.notes}
                       onChange={e => updateDraft(d.tempId, { notes: e.target.value })}
                       rows={2}
-                      placeholder="Special instructions for dispatcher…"
-                      className="w-full text-sm rounded-md border border-input bg-background px-3 py-2 resize-none" />
+                      placeholder={d.worker_names.length === 0
+                        ? 'e.g. Site inspection, material drop, supervisor visit…'
+                        : 'Special instructions for dispatcher…'}
+                      className={`w-full text-sm rounded-md border bg-background px-3 py-2 resize-none ${
+                        d.worker_names.length === 0 && !d.notes.trim() ? 'border-warning' : 'border-input'
+                      }`} />
                   </div>
 
                   {project && (
