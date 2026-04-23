@@ -71,17 +71,26 @@ export default function EngineerTripSubmit() {
     try {
       const existing = await fetchMyTripRequests(dateStr, user.id);
       if (existing.length > 0) {
-        setDrafts(existing.map(r => ({
-          tempId: r.id,
-          project_id: r.project_id,
-          worker_names: r.worker_names || [],
-          priority: (r.priority as TripDraft['priority']) || 'Medium',
-          start_time: r.start_time || '',
-          end_time: r.end_time || '',
-          vehicle_number: r.vehicle_number || '',
-          driver_name: r.driver_name || '',
-          notes: r.notes || '',
-        })));
+        // Sort by execution_order so the engineer sees the same sequence they submitted
+        const ordered = [...existing].sort((a, b) =>
+          (a.execution_order ?? 9999) - (b.execution_order ?? 9999),
+        );
+        setDrafts(ordered.map(r => {
+          const pickup = r.pickup_location || DEFAULT_PICKUP;
+          return {
+            tempId: r.id,
+            project_id: r.project_id,
+            worker_names: r.worker_names || [],
+            start_time: r.start_time || '',
+            end_time: r.end_time || '',
+            vehicle_number: r.vehicle_number || '',
+            driver_name: r.driver_name || '',
+            notes: r.notes || '',
+            pickup_location: pickup,
+            // Treat as "custom" if it isn't the default and isn't a known site (sites loaded async; safe to default false here, dropdown will pick it up if it matches)
+            pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
+          };
+        }));
         setSubmitted(true);
       } else {
         setDrafts([]);
@@ -138,7 +147,7 @@ export default function EngineerTripSubmit() {
     if (err) { toast({ title: err, variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
-      const payload: TripRequestInput[] = drafts.map(d => {
+      const payload: TripRequestInput[] = drafts.map((d, idx) => {
         const p = projects.find(x => x.id === d.project_id)!;
         const v = vehicles.find(x => x.number === d.vehicle_number);
         return {
@@ -147,13 +156,16 @@ export default function EngineerTripSubmit() {
           site: p?.site || '',
           worker_names: d.worker_names,
           work_type: p?.workType || '',
-          priority: d.priority,
+          // Priority is now derived from execution order (lower # = higher priority)
+          priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
           notes: d.notes,
           start_time: d.start_time || null,
           end_time: d.end_time || null,
           vehicle_number: d.vehicle_number || null,
           vehicle_type: v?.type || null,
           driver_name: d.driver_name || null,
+          pickup_location: d.pickup_location || DEFAULT_PICKUP,
+          execution_order: idx + 1,
         };
       });
       await submitTripRequests(dateStr, user.id, profileName || user.email || '', payload);
