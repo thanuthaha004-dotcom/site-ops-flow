@@ -294,17 +294,39 @@ export default function EngineerTripSubmit() {
               const allWorkers = project?.workerNames || [];
               return (
                 <div key={d.tempId} className="kpi-card space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Trip {idx + 1}</h3>
-                    <button onClick={() => removeDraft(d.tempId)}
-                      className="text-xs text-destructive hover:bg-destructive/10 p-1 rounded">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                        #{idx + 1}
+                      </span>
+                      <h3 className="text-sm font-semibold">Trip {idx + 1}</h3>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => moveDraft(d.tempId, -1)}
+                        disabled={idx === 0}
+                        title="Move up (run earlier)"
+                        className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => moveDraft(d.tempId, 1)}
+                        disabled={idx === drafts.length - 1}
+                        title="Move down (run later)"
+                        className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed">
+                        <ArrowDown className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => removeDraft(d.tempId)}
+                        title="Remove this trip"
+                        className="text-destructive hover:bg-destructive/10 p-1 rounded ml-1">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Project */}
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
                       <select value={d.project_id}
                         onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
@@ -316,24 +338,61 @@ export default function EngineerTripSubmit() {
                       </select>
                     </div>
 
-                    {/* Priority */}
+                    {/* Execution order # */}
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Priority</label>
-                      <div className="flex gap-1">
-                        {(['Low', 'Medium', 'High'] as const).map(p => (
-                          <button key={p} onClick={() => updateDraft(d.tempId, { priority: p })}
-                            className={`flex-1 text-xs px-2 py-2 rounded-md border transition-colors ${
-                              d.priority === p
-                                ? p === 'High' ? 'bg-destructive text-destructive-foreground border-destructive'
-                                  : p === 'Medium' ? 'bg-accent text-accent-foreground border-accent'
-                                  : 'bg-secondary text-secondary-foreground border-secondary'
-                                : 'bg-background text-muted-foreground border-input hover:bg-muted'
-                            }`}>
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">
+                        Execution Order
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={drafts.length}
+                        value={idx + 1}
+                        onChange={e => setOrder(d.tempId, e.target.value)}
+                        title="Lower number runs first. Drivers will follow this sequence."
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2"
+                      />
                     </div>
+                  </div>
+
+                  {/* Pickup location */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                      <MapPin className="h-3 w-3" /> Pickup Point
+                    </label>
+                    {d.pickup_custom ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={d.pickup_location}
+                          onChange={e => updateDraft(d.tempId, { pickup_location: e.target.value })}
+                          placeholder="Type pickup location…"
+                          className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                        />
+                        <button
+                          onClick={() => updateDraft(d.tempId, { pickup_custom: false, pickup_location: DEFAULT_PICKUP })}
+                          className="text-xs px-2 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                          Use list
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={pickupOptions.includes(d.pickup_location) ? d.pickup_location : '__custom__'}
+                        onChange={e => {
+                          const v = e.target.value;
+                          if (v === '__custom__') {
+                            updateDraft(d.tempId, { pickup_custom: true, pickup_location: '' });
+                          } else {
+                            updateDraft(d.tempId, { pickup_location: v });
+                          }
+                        }}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                        {pickupOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                        <option value="__custom__">Custom…</option>
+                      </select>
+                    )}
                   </div>
 
                   {/* Workers */}
