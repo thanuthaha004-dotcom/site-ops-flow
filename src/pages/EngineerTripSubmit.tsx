@@ -4,34 +4,38 @@ import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import type { Project, Vehicle } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
-import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
+const DEFAULT_PICKUP = 'Al Quoz Labour Camp';
+
 type TripDraft = {
   tempId: string;
   project_id: string;
   worker_names: string[];
-  priority: 'Low' | 'Medium' | 'High';
   start_time: string;
   end_time: string;
   vehicle_number: string;
   driver_name: string;
   notes: string;
+  pickup_location: string;
+  pickup_custom: boolean; // when true, pickup_location is free text
 };
 
 const newDraft = (): TripDraft => ({
   tempId: crypto.randomUUID(),
   project_id: '',
   worker_names: [],
-  priority: 'Medium',
   start_time: '',
   end_time: '',
   vehicle_number: '',
   driver_name: '',
   notes: '',
+  pickup_location: DEFAULT_PICKUP,
+  pickup_custom: false,
 });
 
 export default function EngineerTripSubmit() {
