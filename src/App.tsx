@@ -69,6 +69,7 @@ function ProtectedRoutes() {
             <Route path="/" element={<EngineerTripSubmit />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/submit-trips" element={<EngineerTripSubmit />} />
+            <Route path="/my-requests" element={<MyTripRequests />} />
           </>
         )}
       </Route>
