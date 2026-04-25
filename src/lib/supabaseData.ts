@@ -258,6 +258,7 @@ export interface TripScheduleRow {
   vehicle_type: string | null;
   vehicle_number: string | null;
   status: string;
+  notes: string;
 }
 
 export async function fetchTripsByDate(date: string): Promise<TripScheduleRow[]> {
@@ -294,6 +295,7 @@ export async function saveTripAssignments(
     pickup_location: a.pickup_location || 'Al Quoz Labour Camp',
     vehicle_type: a.vehicle_type,
     vehicle_number: a.vehicle_number,
+    notes: a.notes || '',
     status: 'assigned',
   }));
 

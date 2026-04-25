@@ -17,6 +17,10 @@ export interface TripWorker {
   engineerName?: string;
   /** Where the worker is picked up. Defaults to Al Quoz Labour Camp. */
   pickupLocation?: string;
+  /** Notes from the engineer's request — shown to dispatcher and driver. */
+  notes?: string;
+  /** True when this row is a placeholder for a request with no personnel. */
+  noPersonnel?: boolean;
 }
 
 export interface TripGroup {

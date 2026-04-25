@@ -105,7 +105,9 @@ export default function TripPlanning() {
         const loaded: TripWorker[] = rows.flatMap((r) => {
           // A persisted row may already group multiple workers (CSV in worker_name).
           // Split back so the planner can re-edit per worker.
-          const names = (r.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+          const rawNames = (r.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+          const isPlaceholder = rawNames.length === 0 || (rawNames.length === 1 && rawNames[0] === '— No personnel —');
+          const names = isPlaceholder ? ['— No personnel —'] : rawNames;
           return names.map((name, idx) => ({
             id: `TW-DB-${r.id}-${idx}`,
             name,
@@ -119,6 +121,8 @@ export default function TripPlanning() {
             projectName: r.project_name,
             engineerName: r.engineer_name || '',
             pickupLocation: r.pickup_location || 'Al Quoz Labour Camp',
+            notes: (r as any).notes || '',
+            noPersonnel: isPlaceholder,
           }));
         });
         setWorkers(loaded);
@@ -340,6 +344,7 @@ export default function TripPlanning() {
         project_name: w.projectName || '',
         engineer_name: w.engineerName || '',
         pickup_location: w.pickupLocation || 'Al Quoz Labour Camp',
+        notes: w.notes || '',
         vehicle_type: null,
         vehicle_number: null,
       }));
@@ -388,6 +393,7 @@ export default function TripPlanning() {
       end_time: string | null;
       urgent: boolean;
       names: string[];
+      notes: string[];
     };
     const buckets = new Map<string, Bucket>();
 
@@ -406,8 +412,10 @@ export default function TripPlanning() {
 
         const bucket = buckets.get(key);
         if (bucket) {
-          if (!bucket.names.includes(w.name)) bucket.names.push(w.name);
+          // Skip placeholder names so a real passenger doesn't get prefixed by "— No personnel —"
+          if (!w.noPersonnel && !bucket.names.includes(w.name)) bucket.names.push(w.name);
           if (w.urgent) bucket.urgent = true;
+          if (w.notes && !bucket.notes.includes(w.notes)) bucket.notes.push(w.notes);
         } else {
           buckets.set(key, {
             site: w.site,
@@ -422,7 +430,8 @@ export default function TripPlanning() {
             start_time: w.startTime || null,
             end_time: w.endTime || null,
             urgent: !!w.urgent,
-            names: [w.name],
+            names: w.noPersonnel ? [] : [w.name],
+            notes: w.notes ? [w.notes] : [],
           });
         }
       });
@@ -430,7 +439,7 @@ export default function TripPlanning() {
 
     const assignments = Array.from(buckets.values()).map(b => ({
       trip_date: toDateStr(selectedDate),
-      worker_name: b.names.join(', '),
+      worker_name: b.names.length > 0 ? b.names.join(', ') : '— No personnel —',
       site: b.site,
       department: b.department,
       time_slot: b.time_slot,
@@ -441,6 +450,7 @@ export default function TripPlanning() {
       project_name: b.project_name,
       engineer_name: b.engineer_name,
       pickup_location: b.pickup_location,
+      notes: b.notes.join(' | '),
       vehicle_type: b.vehicle_type,
       vehicle_number: b.vehicle_number,
     }));
@@ -610,8 +620,28 @@ export default function TripPlanning() {
     const gen: TripWorker[] = [];
     const seen = new Set<string>();
     tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
-      (req.worker_names || []).forEach((name, idx) => {
-        if (!name.trim()) return;
+      const names = (req.worker_names || []).filter(n => n && n.trim());
+      // No-personnel request: still create a placeholder so the trip flows through dispatch.
+      if (names.length === 0) {
+        gen.push({
+          id: `TW-REQ-${req.id}-NP`,
+          name: '— No personnel —',
+          site: req.site || 'Unassigned',
+          department: req.work_type || 'General',
+          timeSlot: defaultTimeSlot,
+          startTime: req.start_time || '',
+          endTime: req.end_time || '',
+          urgent: req.priority === 'High',
+          projectId: req.project_id,
+          projectName: req.project_name,
+          engineerName: req.engineer_name || '',
+          pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
+          notes: req.notes || '',
+          noPersonnel: true,
+        });
+        return;
+      }
+      names.forEach((name, idx) => {
         const key = `${name.trim().toUpperCase()}-${req.site}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -622,25 +652,26 @@ export default function TripPlanning() {
           site: req.site || 'Unassigned',
           department: masterWorker?.department || req.work_type || 'General',
           timeSlot: defaultTimeSlot,
-          startTime: '',
-          endTime: '',
+          startTime: req.start_time || '',
+          endTime: req.end_time || '',
           urgent: req.priority === 'High',
           projectId: req.project_id,
           projectName: req.project_name,
           engineerName: req.engineer_name || '',
-          pickupLocation: 'Al Quoz Labour Camp',
+          pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
+          notes: req.notes || '',
         });
       });
     });
     if (gen.length === 0) {
-      toast({ title: 'No workers found in submissions', variant: 'destructive' });
+      toast({ title: 'No submissions for this date', variant: 'destructive' });
       return;
     }
     setWorkers(gen);
     setGenerated(true);
     setSaved(false);
     setStep('review');
-    toast({ title: `Generated ${gen.length} trips from ${tripRequests.length} engineer submissions` });
+    toast({ title: `Generated ${gen.length} trip${gen.length === 1 ? '' : 's'} from ${tripRequests.length} engineer submission${tripRequests.length === 1 ? '' : 's'}` });
   };
 
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
@@ -892,11 +923,25 @@ export default function TripPlanning() {
                               )}
                             </div>
                           )}
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {(req.worker_names || []).map((n, i) => (
-                              <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
-                            ))}
-                          </div>
+                          {(req.worker_names || []).length > 0 ? (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {(req.worker_names || []).map((n, i) => (
+                                <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-2">
+                              <span className="text-[10px] uppercase tracking-wide font-semibold text-warning bg-warning/10 px-2 py-0.5 rounded">
+                                No personnel assigned
+                              </span>
+                            </div>
+                          )}
+                          {req.notes && req.notes.trim() && (
+                            <div className="mt-2 rounded-md border border-accent/30 bg-accent/5 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Engineer note</p>
+                              <p className="text-xs text-foreground whitespace-pre-wrap">{req.notes}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
