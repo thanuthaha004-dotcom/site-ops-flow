@@ -105,7 +105,9 @@ export default function TripPlanning() {
         const loaded: TripWorker[] = rows.flatMap((r) => {
           // A persisted row may already group multiple workers (CSV in worker_name).
           // Split back so the planner can re-edit per worker.
-          const names = (r.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+          const rawNames = (r.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+          const isPlaceholder = rawNames.length === 0 || (rawNames.length === 1 && rawNames[0] === '— No personnel —');
+          const names = isPlaceholder ? ['— No personnel —'] : rawNames;
           return names.map((name, idx) => ({
             id: `TW-DB-${r.id}-${idx}`,
             name,
@@ -119,6 +121,8 @@ export default function TripPlanning() {
             projectName: r.project_name,
             engineerName: r.engineer_name || '',
             pickupLocation: r.pickup_location || 'Al Quoz Labour Camp',
+            notes: (r as any).notes || '',
+            noPersonnel: isPlaceholder,
           }));
         });
         setWorkers(loaded);
@@ -616,8 +620,28 @@ export default function TripPlanning() {
     const gen: TripWorker[] = [];
     const seen = new Set<string>();
     tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
-      (req.worker_names || []).forEach((name, idx) => {
-        if (!name.trim()) return;
+      const names = (req.worker_names || []).filter(n => n && n.trim());
+      // No-personnel request: still create a placeholder so the trip flows through dispatch.
+      if (names.length === 0) {
+        gen.push({
+          id: `TW-REQ-${req.id}-NP`,
+          name: '— No personnel —',
+          site: req.site || 'Unassigned',
+          department: req.work_type || 'General',
+          timeSlot: defaultTimeSlot,
+          startTime: req.start_time || '',
+          endTime: req.end_time || '',
+          urgent: req.priority === 'High',
+          projectId: req.project_id,
+          projectName: req.project_name,
+          engineerName: req.engineer_name || '',
+          pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
+          notes: req.notes || '',
+          noPersonnel: true,
+        });
+        return;
+      }
+      names.forEach((name, idx) => {
         const key = `${name.trim().toUpperCase()}-${req.site}`;
         if (seen.has(key)) return;
         seen.add(key);
@@ -628,25 +652,26 @@ export default function TripPlanning() {
           site: req.site || 'Unassigned',
           department: masterWorker?.department || req.work_type || 'General',
           timeSlot: defaultTimeSlot,
-          startTime: '',
-          endTime: '',
+          startTime: req.start_time || '',
+          endTime: req.end_time || '',
           urgent: req.priority === 'High',
           projectId: req.project_id,
           projectName: req.project_name,
           engineerName: req.engineer_name || '',
-          pickupLocation: 'Al Quoz Labour Camp',
+          pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
+          notes: req.notes || '',
         });
       });
     });
     if (gen.length === 0) {
-      toast({ title: 'No workers found in submissions', variant: 'destructive' });
+      toast({ title: 'No submissions for this date', variant: 'destructive' });
       return;
     }
     setWorkers(gen);
     setGenerated(true);
     setSaved(false);
     setStep('review');
-    toast({ title: `Generated ${gen.length} trips from ${tripRequests.length} engineer submissions` });
+    toast({ title: `Generated ${gen.length} trip${gen.length === 1 ? '' : 's'} from ${tripRequests.length} engineer submission${tripRequests.length === 1 ? '' : 's'}` });
   };
 
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
