@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, MapPin, Users, Truck, Play, Pause, CheckCircle2, AlertCircle, Clock,
-  Navigation, FolderKanban, UserCog,
+  Navigation, FolderKanban, UserCog, StickyNote,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -143,6 +143,16 @@ export default function TripDetail() {
           <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Passengers</p>
             <p>{passengers.join(', ')}</p>
+          </div>
+        )}
+
+        {trip.notes && trip.notes.trim() && (
+          <div className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 mb-1">
+              <StickyNote className="h-3.5 w-3.5 text-accent" />
+              <p className="text-xs font-semibold text-accent uppercase tracking-wide">Engineer's Note</p>
+            </div>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{trip.notes}</p>
           </div>
         )}
 

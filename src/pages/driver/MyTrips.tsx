@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle } from 'lucide-react';
+import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote } from 'lucide-react';
 import { fetchDriverTrips, tripActiveSeconds, formatDuration, type DriverTrip } from '@/lib/driverData';
 
 function statusPill(status: string) {
@@ -119,6 +119,12 @@ export default function MyTrips() {
                         <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> {trip.vehicle_number}</span>
                       )}
                     </div>
+                    {trip.notes && trip.notes.trim() && (
+                      <div className="rounded-md border border-accent/30 bg-accent/5 px-2.5 py-1.5 flex items-start gap-1.5">
+                        <StickyNote className="h-3.5 w-3.5 text-accent mt-0.5 shrink-0" />
+                        <span className="text-xs text-foreground line-clamp-2"><span className="font-semibold">Note:</span> {trip.notes}</span>
+                      </div>
+                    )}
                     {/* Live progress: started / completed / duration */}
                     {(trip.started_at || trip.completed_at) && (
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs pt-1.5 border-t border-border/60">
