@@ -562,11 +562,16 @@ export default function TripPlanning() {
   );
   const hiddenCompletedCount = workers.length - visibleWorkers.length;
 
+  // Keep completed trip groups visible (so admin sees "Completed" cards with timestamps),
+  // but for in-progress / pending groups, filter out workers whose trips are already done.
   const visibleTripGroups = useMemo(() => {
     if (completedWorkerKeys.size === 0) return tripGroups;
     return tripGroups
-      .map(g => ({ ...g, workers: g.workers.filter(w => !completedWorkerKeys.has(keyForWorker(w))) }))
-      .filter(g => g.workers.length > 0);
+      .map(g => {
+        if (g.status === 'completed') return g; // preserve completed cards as-is
+        return { ...g, workers: g.workers.filter(w => !completedWorkerKeys.has(keyForWorker(w))) };
+      })
+      .filter(g => g.status === 'completed' || g.workers.length > 0);
   }, [tripGroups, completedWorkerKeys]);
 
   const filteredGroups = activeSlot === 'All' ? visibleTripGroups : visibleTripGroups.filter(g => g.timeSlot === activeSlot);
@@ -619,7 +624,15 @@ export default function TripPlanning() {
     }
     const gen: TripWorker[] = [];
     const seen = new Set<string>();
+    let skippedCompleted = 0;
+    let skippedDispatched = 0;
     tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
+      // Skip requests already linked to a dispatched / in-progress / completed trip —
+      // re-generating them creates duplicates.
+      const live = requestLiveStatus.get(req.id);
+      if (live?.status === 'completed') { skippedCompleted++; return; }
+      if (live?.status === 'in_progress' || live?.status === 'assigned') { skippedDispatched++; return; }
+
       const names = (req.worker_names || []).filter(n => n && n.trim());
       // No-personnel request: still create a placeholder so the trip flows through dispatch.
       if (names.length === 0) {
@@ -664,14 +677,20 @@ export default function TripPlanning() {
       });
     });
     if (gen.length === 0) {
-      toast({ title: 'No submissions for this date', variant: 'destructive' });
+      const reason = skippedCompleted + skippedDispatched > 0
+        ? `${skippedCompleted} completed, ${skippedDispatched} already dispatched — nothing new to generate.`
+        : 'No new submissions for this date';
+      toast({ title: 'Nothing to generate', description: reason, variant: 'destructive' });
       return;
     }
     setWorkers(gen);
     setGenerated(true);
     setSaved(false);
     setStep('review');
-    toast({ title: `Generated ${gen.length} trip${gen.length === 1 ? '' : 's'} from ${tripRequests.length} engineer submission${tripRequests.length === 1 ? '' : 's'}` });
+    const skipNote = (skippedCompleted + skippedDispatched) > 0
+      ? ` · skipped ${skippedCompleted} completed${skippedDispatched ? `, ${skippedDispatched} already dispatched` : ''}`
+      : '';
+    toast({ title: `Generated ${gen.length} trip${gen.length === 1 ? '' : 's'}${skipNote}` });
   };
 
   const copyableDates = recentDates.filter(d => d !== toDateStr(selectedDate));
