@@ -923,11 +923,25 @@ export default function TripPlanning() {
                               )}
                             </div>
                           )}
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {(req.worker_names || []).map((n, i) => (
-                              <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
-                            ))}
-                          </div>
+                          {(req.worker_names || []).length > 0 ? (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {(req.worker_names || []).map((n, i) => (
+                                <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-2">
+                              <span className="text-[10px] uppercase tracking-wide font-semibold text-warning bg-warning/10 px-2 py-0.5 rounded">
+                                No personnel assigned
+                              </span>
+                            </div>
+                          )}
+                          {req.notes && req.notes.trim() && (
+                            <div className="mt-2 rounded-md border border-accent/30 bg-accent/5 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Engineer note</p>
+                              <p className="text-xs text-foreground whitespace-pre-wrap">{req.notes}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
