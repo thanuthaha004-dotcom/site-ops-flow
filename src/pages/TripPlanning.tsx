@@ -131,7 +131,6 @@ export default function TripPlanning() {
       }
       setTripGroups([]);
       setStats(null);
-      setStep('review');
     } catch {
       toast({ title: 'Failed to load trips for this date', variant: 'destructive' });
     } finally {
