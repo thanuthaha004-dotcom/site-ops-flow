@@ -69,9 +69,16 @@ export default function EngineerTripSubmit() {
     fetchVehicles().then(setVehicles).catch(() => {});
   }, [profileName]);
 
-  // Hydrate existing submissions for this date as editable drafts
+  // Reset the "form cleared" flag whenever the engineer switches to a different
+  // date — so each new date independently hydrates with whatever was submitted.
+  useEffect(() => { setFormCleared(false); }, [dateStr]);
+
+  // Hydrate existing submissions for this date as editable drafts.
+  // Skipped when the engineer has explicitly cleared the form for this date
+  // (so the page opens blank for a new entry while the underlying history is preserved).
   const loadExisting = useCallback(async () => {
     if (!user) return;
+    if (formCleared) { setLoading(false); return; }
     setLoading(true);
     try {
       const existing = await fetchMyTripRequests(dateStr, user.id);
@@ -106,7 +113,7 @@ export default function EngineerTripSubmit() {
     } finally {
       setLoading(false);
     }
-  }, [dateStr, user]);
+  }, [dateStr, user, formCleared]);
 
   useEffect(() => { loadExisting(); }, [loadExisting]);
 
