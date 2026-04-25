@@ -48,6 +48,10 @@ export default function EngineerTripSubmit() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  // When true, skip auto-hydrating the form with previously-submitted requests
+  // for the currently-selected date. Reset whenever the date changes or after
+  // a fresh submit, so engineers can still review prior entries by reloading.
+  const [formCleared, setFormCleared] = useState(false);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
@@ -65,9 +69,16 @@ export default function EngineerTripSubmit() {
     fetchVehicles().then(setVehicles).catch(() => {});
   }, [profileName]);
 
-  // Hydrate existing submissions for this date as editable drafts
+  // Reset the "form cleared" flag whenever the engineer switches to a different
+  // date — so each new date independently hydrates with whatever was submitted.
+  useEffect(() => { setFormCleared(false); }, [dateStr]);
+
+  // Hydrate existing submissions for this date as editable drafts.
+  // Skipped when the engineer has explicitly cleared the form for this date
+  // (so the page opens blank for a new entry while the underlying history is preserved).
   const loadExisting = useCallback(async () => {
     if (!user) return;
+    if (formCleared) { setLoading(false); return; }
     setLoading(true);
     try {
       const existing = await fetchMyTripRequests(dateStr, user.id);
@@ -102,7 +113,7 @@ export default function EngineerTripSubmit() {
     } finally {
       setLoading(false);
     }
-  }, [dateStr, user]);
+  }, [dateStr, user, formCleared]);
 
   useEffect(() => { loadExisting(); }, [loadExisting]);
 
@@ -251,26 +262,14 @@ export default function EngineerTripSubmit() {
     }
   };
 
-  const handleClearAll = async () => {
-    if (!user) return;
-    if (drafts.length === 0 && !submitted) return;
-    const confirmMsg = submitted
-      ? `Clear all trips for ${format(selectedDate, 'MMM d, yyyy')}? This will also delete your previously submitted requests for this date.`
-      : 'Clear all trips on this form?';
-    if (!window.confirm(confirmMsg)) return;
-    setSubmitting(true);
-    try {
-      // Wipe persisted requests so the page won't re-hydrate them on next visit.
-      await submitTripRequests(dateStr, user.id, profileName || user.email || '', []);
-      setDrafts([]);
-      setCustomNameInputs({});
-      setSubmitted(false);
-      toast({ title: 'Form cleared' });
-    } catch {
-      toast({ title: 'Failed to clear form', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleClearAll = () => {
+    if (drafts.length === 0) return;
+    if (!window.confirm('Reset the form for a new entry? Your already-submitted trip history for this date is kept and stays visible in "My Trip Requests".')) return;
+    setDrafts([]);
+    setCustomNameInputs({});
+    setSubmitted(false);
+    setFormCleared(true); // suppress re-hydration of past submission for this date
+    toast({ title: 'Form reset — ready for a new entry' });
   };
 
   const totalWorkers = useMemo(() => drafts.reduce((s, d) => s + d.worker_names.length, 0), [drafts]);
@@ -331,11 +330,11 @@ export default function EngineerTripSubmit() {
               {drafts.length} trip{drafts.length === 1 ? '' : 's'} • {totalWorkers} worker{totalWorkers === 1 ? '' : 's'}
             </p>
             <div className="flex items-center gap-2">
-              {(drafts.length > 0 || submitted) && (
+              {drafts.length > 0 && (
                 <button onClick={handleClearAll} disabled={submitting}
-                  title="Remove all trips on this date and start fresh"
-                  className="text-xs px-3 py-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center gap-1 disabled:opacity-50">
-                  <Trash2 className="h-3 w-3" /> Clear All
+                  title="Reset the form for a new entry — your submitted trip history is kept"
+                  className="text-xs px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1 disabled:opacity-50">
+                  <Trash2 className="h-3 w-3" /> Reset Form
                 </button>
               )}
               <button onClick={addDraft}
