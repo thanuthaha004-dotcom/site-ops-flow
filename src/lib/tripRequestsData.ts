@@ -68,36 +68,82 @@ export async function submitTripRequests(
   engineerName: string,
   requests: TripRequestInput[]
 ): Promise<void> {
-  // Delete existing requests by this engineer for this date (full replace on resubmit)
-  await supabase
+  // Fetch existing requests so we can determine which are already linked to a
+  // dispatched / in-progress / completed trip. Those must NOT be deleted —
+  // the admin needs full visibility (Pending, In Progress, Completed) on the
+  // Smart Trip Planning board even if the engineer resubmits the form.
+  const { data: existing } = await supabase
     .from('daily_trip_requests')
-    .delete()
+    .select('*')
     .eq('trip_date', date)
     .eq('engineer_id', engineerId);
 
+  const existingRows = (existing || []) as DailyTripRequest[];
+  let preservedIds = new Set<string>();
+  if (existingRows.length > 0) {
+    try {
+      const live = await fetchRequestLiveStatuses(date, existingRows);
+      existingRows.forEach(r => {
+        const s = live.get(r.id)?.status;
+        if (s === 'assigned' || s === 'in_progress' || s === 'completed') {
+          preservedIds.add(r.id);
+        }
+      });
+    } catch { /* ignore — fall back to delete-all behaviour */ }
+  }
+
+  // Delete only requests that have NOT yet been dispatched.
+  const idsToDelete = existingRows.filter(r => !preservedIds.has(r.id)).map(r => r.id);
+  if (idsToDelete.length > 0) {
+    await supabase
+      .from('daily_trip_requests')
+      .delete()
+      .in('id', idsToDelete);
+  }
+
   if (requests.length === 0) return;
 
-  const rows = requests.map((r, idx) => ({
-    trip_date: date,
-    engineer_id: engineerId,
-    engineer_name: engineerName,
-    project_id: r.project_id,
-    project_name: r.project_name,
-    site: r.site,
-    worker_names: r.worker_names,
-    work_type: r.work_type,
-    priority: r.priority,
-    notes: r.notes || '',
-    status: 'pending',
-    start_time: r.start_time || null,
-    end_time: r.end_time || null,
-    vehicle_number: r.vehicle_number || null,
-    vehicle_type: r.vehicle_type || null,
-    driver_name: r.driver_name || null,
-    pickup_location: r.pickup_location || 'Al Quoz Labour Camp',
-    execution_order: r.execution_order ?? idx + 1,
-  }));
+  // Skip new rows that duplicate a preserved (already-dispatched) row.
+  // Match on project + site + overlapping workers.
+  const norm = (s: string) => (s || '').trim().toUpperCase();
+  const preservedRows = existingRows.filter(r => preservedIds.has(r.id));
+  const isDuplicateOfPreserved = (r: TripRequestInput) => {
+    const newWorkers = new Set((r.worker_names || []).map(norm).filter(Boolean));
+    return preservedRows.some(p => {
+      if (norm(p.site) !== norm(r.site)) return false;
+      const projMatches = r.project_id ? p.project_id === r.project_id : norm(p.project_name) === norm(r.project_name);
+      if (!projMatches) return false;
+      const pWorkers = new Set((p.worker_names || []).map(norm).filter(Boolean));
+      if (newWorkers.size === 0 && pWorkers.size === 0) return true;
+      for (const n of newWorkers) if (pWorkers.has(n)) return true;
+      return false;
+    });
+  };
 
+  const rows = requests
+    .filter(r => !isDuplicateOfPreserved(r))
+    .map((r, idx) => ({
+      trip_date: date,
+      engineer_id: engineerId,
+      engineer_name: engineerName,
+      project_id: r.project_id,
+      project_name: r.project_name,
+      site: r.site,
+      worker_names: r.worker_names,
+      work_type: r.work_type,
+      priority: r.priority,
+      notes: r.notes || '',
+      status: 'pending',
+      start_time: r.start_time || null,
+      end_time: r.end_time || null,
+      vehicle_number: r.vehicle_number || null,
+      vehicle_type: r.vehicle_type || null,
+      driver_name: r.driver_name || null,
+      pickup_location: r.pickup_location || 'Al Quoz Labour Camp',
+      execution_order: r.execution_order ?? preservedRows.length + idx + 1,
+    }));
+
+  if (rows.length === 0) return;
   const { error } = await supabase.from('daily_trip_requests').insert(rows);
   if (error) throw error;
 }
