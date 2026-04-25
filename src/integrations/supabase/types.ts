@@ -234,6 +234,7 @@ export type Database = {
           end_time: string | null
           engineer_name: string
           id: string
+          notes: string
           pickup_location: string
           project_id: string | null
           project_name: string
@@ -255,6 +256,7 @@ export type Database = {
           end_time?: string | null
           engineer_name?: string
           id?: string
+          notes?: string
           pickup_location?: string
           project_id?: string | null
           project_name?: string
@@ -276,6 +278,7 @@ export type Database = {
           end_time?: string | null
           engineer_name?: string
           id?: string
+          notes?: string
           pickup_location?: string
           project_id?: string | null
           project_name?: string
