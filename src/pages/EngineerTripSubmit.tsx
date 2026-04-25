@@ -251,26 +251,14 @@ export default function EngineerTripSubmit() {
     }
   };
 
-  const handleClearAll = async () => {
-    if (!user) return;
-    if (drafts.length === 0 && !submitted) return;
-    const confirmMsg = submitted
-      ? `Clear all trips for ${format(selectedDate, 'MMM d, yyyy')}? This will also delete your previously submitted requests for this date.`
-      : 'Clear all trips on this form?';
-    if (!window.confirm(confirmMsg)) return;
-    setSubmitting(true);
-    try {
-      // Wipe persisted requests so the page won't re-hydrate them on next visit.
-      await submitTripRequests(dateStr, user.id, profileName || user.email || '', []);
-      setDrafts([]);
-      setCustomNameInputs({});
-      setSubmitted(false);
-      toast({ title: 'Form cleared' });
-    } catch {
-      toast({ title: 'Failed to clear form', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleClearAll = () => {
+    if (drafts.length === 0) return;
+    if (!window.confirm('Reset the form for a new entry? Your already-submitted trip history for this date is kept and stays visible in "My Trip Requests".')) return;
+    setDrafts([]);
+    setCustomNameInputs({});
+    setSubmitted(false);
+    setFormCleared(true); // suppress re-hydration of past submission for this date
+    toast({ title: 'Form reset — ready for a new entry' });
   };
 
   const totalWorkers = useMemo(() => drafts.reduce((s, d) => s + d.worker_names.length, 0), [drafts]);
