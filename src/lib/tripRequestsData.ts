@@ -133,8 +133,12 @@ export async function fetchRequestLiveStatuses(
   const rank = (s: string) =>
     s === 'completed' ? 3 : s === 'in_progress' ? 2 : s === 'assigned' ? 1 : 0;
 
+  // Recognize the placeholder used for worker-less (solo / material-only) trips.
+  const isPlaceholderWorker = (n: string) =>
+    !n || n.includes('NO PERSONNEL') || n.startsWith('—') || n.endsWith('—');
+
   requests.forEach(req => {
-    const reqWorkers = new Set((req.worker_names || []).map(norm));
+    const reqWorkers = new Set((req.worker_names || []).map(norm).filter(Boolean));
     const matches = (data || []).filter(r => {
       if (norm(r.site) !== norm(req.site)) return false;
       const projMatches = req.project_id
@@ -142,6 +146,11 @@ export async function fetchRequestLiveStatuses(
         : norm(r.project_name) === norm(req.project_name);
       if (!projMatches) return false;
       const tripWorkers = (r.worker_name || '').split(',').map(n => norm(n)).filter(Boolean);
+      // Worker-less request: match any trip on same project+site that is also
+      // worker-less (placeholder) — these are the dispatched solo trips.
+      if (reqWorkers.size === 0) {
+        return tripWorkers.length === 0 || tripWorkers.every(isPlaceholderWorker);
+      }
       return tripWorkers.some(n => reqWorkers.has(n));
     });
     if (matches.length === 0) return;
