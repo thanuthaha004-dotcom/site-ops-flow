@@ -68,12 +68,38 @@ export async function submitTripRequests(
   engineerName: string,
   requests: TripRequestInput[]
 ): Promise<void> {
-  // Delete existing requests by this engineer for this date (full replace on resubmit)
-  await supabase
+  // Fetch existing requests so we can determine which are already linked to a
+  // dispatched / in-progress / completed trip. Those must NOT be deleted —
+  // the admin needs full visibility (Pending, In Progress, Completed) on the
+  // Smart Trip Planning board even if the engineer resubmits the form.
+  const { data: existing } = await supabase
     .from('daily_trip_requests')
-    .delete()
+    .select('*')
     .eq('trip_date', date)
     .eq('engineer_id', engineerId);
+
+  const existingRows = (existing || []) as DailyTripRequest[];
+  let preservedIds = new Set<string>();
+  if (existingRows.length > 0) {
+    try {
+      const live = await fetchRequestLiveStatuses(date, existingRows);
+      existingRows.forEach(r => {
+        const s = live.get(r.id)?.status;
+        if (s === 'assigned' || s === 'in_progress' || s === 'completed') {
+          preservedIds.add(r.id);
+        }
+      });
+    } catch { /* ignore — fall back to delete-all behaviour */ }
+  }
+
+  // Delete only requests that have NOT yet been dispatched.
+  const idsToDelete = existingRows.filter(r => !preservedIds.has(r.id)).map(r => r.id);
+  if (idsToDelete.length > 0) {
+    await supabase
+      .from('daily_trip_requests')
+      .delete()
+      .in('id', idsToDelete);
+  }
 
   if (requests.length === 0) return;
 
