@@ -625,13 +625,14 @@ export default function TripPlanning() {
     const gen: TripWorker[] = [];
     const seen = new Set<string>();
     let skippedCompleted = 0;
-    let skippedDispatched = 0;
+    let skippedInProgress = 0;
     tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
-      // Skip requests already linked to a dispatched / in-progress / completed trip —
-      // re-generating them creates duplicates.
+      // Block regeneration only once the driver has actually started the trip
+      // (in_progress) or finished it (completed). A merely 'assigned' trip
+      // (dispatched but not yet started) can still be regenerated/redispatched.
       const live = requestLiveStatus.get(req.id);
       if (live?.status === 'completed') { skippedCompleted++; return; }
-      if (live?.status === 'in_progress' || live?.status === 'assigned') { skippedDispatched++; return; }
+      if (live?.status === 'in_progress') { skippedInProgress++; return; }
 
       const names = (req.worker_names || []).filter(n => n && n.trim());
       // No-personnel request: still create a placeholder so the trip flows through dispatch.
