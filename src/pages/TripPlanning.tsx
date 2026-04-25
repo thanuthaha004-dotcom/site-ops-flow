@@ -678,8 +678,8 @@ export default function TripPlanning() {
       });
     });
     if (gen.length === 0) {
-      const reason = skippedCompleted + skippedDispatched > 0
-        ? `${skippedCompleted} completed, ${skippedDispatched} already dispatched — nothing new to generate.`
+      const reason = skippedCompleted + skippedInProgress > 0
+        ? `${skippedCompleted} completed, ${skippedInProgress} already started by driver — nothing new to generate.`
         : 'No new submissions for this date';
       toast({ title: 'Nothing to generate', description: reason, variant: 'destructive' });
       return;
@@ -688,8 +688,8 @@ export default function TripPlanning() {
     setGenerated(true);
     setSaved(false);
     setStep('review');
-    const skipNote = (skippedCompleted + skippedDispatched) > 0
-      ? ` · skipped ${skippedCompleted} completed${skippedDispatched ? `, ${skippedDispatched} already dispatched` : ''}`
+    const skipNote = (skippedCompleted + skippedInProgress) > 0
+      ? ` · skipped ${skippedCompleted} completed${skippedInProgress ? `, ${skippedInProgress} in progress` : ''}`
       : '';
     toast({ title: `Generated ${gen.length} trip${gen.length === 1 ? '' : 's'}${skipNote}` });
   };
