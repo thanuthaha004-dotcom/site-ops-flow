@@ -330,11 +330,11 @@ export default function EngineerTripSubmit() {
               {drafts.length} trip{drafts.length === 1 ? '' : 's'} • {totalWorkers} worker{totalWorkers === 1 ? '' : 's'}
             </p>
             <div className="flex items-center gap-2">
-              {(drafts.length > 0 || submitted) && (
+              {drafts.length > 0 && (
                 <button onClick={handleClearAll} disabled={submitting}
-                  title="Remove all trips on this date and start fresh"
-                  className="text-xs px-3 py-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center gap-1 disabled:opacity-50">
-                  <Trash2 className="h-3 w-3" /> Clear All
+                  title="Reset the form for a new entry — your submitted trip history is kept"
+                  className="text-xs px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1 disabled:opacity-50">
+                  <Trash2 className="h-3 w-3" /> Reset Form
                 </button>
               )}
               <button onClick={addDraft}
