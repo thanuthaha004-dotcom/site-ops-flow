@@ -14,6 +14,7 @@ import Attendance from "./pages/Attendance";
 import TripPlanning from "./pages/TripPlanning";
 import Engineers from "./pages/Engineers";
 import EngineerTripSubmit from "./pages/EngineerTripSubmit";
+import MyTripRequests from "./pages/engineer/MyTripRequests";
 import DriverDashboard from "./pages/driver/Dashboard";
 import MyTrips from "./pages/driver/MyTrips";
 import TripDetail from "./pages/driver/TripDetail";
