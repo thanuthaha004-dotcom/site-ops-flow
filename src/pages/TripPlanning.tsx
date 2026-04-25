@@ -340,6 +340,7 @@ export default function TripPlanning() {
         project_name: w.projectName || '',
         engineer_name: w.engineerName || '',
         pickup_location: w.pickupLocation || 'Al Quoz Labour Camp',
+        notes: w.notes || '',
         vehicle_type: null,
         vehicle_number: null,
       }));
@@ -388,6 +389,7 @@ export default function TripPlanning() {
       end_time: string | null;
       urgent: boolean;
       names: string[];
+      notes: string[];
     };
     const buckets = new Map<string, Bucket>();
 
@@ -406,8 +408,10 @@ export default function TripPlanning() {
 
         const bucket = buckets.get(key);
         if (bucket) {
-          if (!bucket.names.includes(w.name)) bucket.names.push(w.name);
+          // Skip placeholder names so a real passenger doesn't get prefixed by "— No personnel —"
+          if (!w.noPersonnel && !bucket.names.includes(w.name)) bucket.names.push(w.name);
           if (w.urgent) bucket.urgent = true;
+          if (w.notes && !bucket.notes.includes(w.notes)) bucket.notes.push(w.notes);
         } else {
           buckets.set(key, {
             site: w.site,
@@ -422,7 +426,8 @@ export default function TripPlanning() {
             start_time: w.startTime || null,
             end_time: w.endTime || null,
             urgent: !!w.urgent,
-            names: [w.name],
+            names: w.noPersonnel ? [] : [w.name],
+            notes: w.notes ? [w.notes] : [],
           });
         }
       });
@@ -430,7 +435,7 @@ export default function TripPlanning() {
 
     const assignments = Array.from(buckets.values()).map(b => ({
       trip_date: toDateStr(selectedDate),
-      worker_name: b.names.join(', '),
+      worker_name: b.names.length > 0 ? b.names.join(', ') : '— No personnel —',
       site: b.site,
       department: b.department,
       time_slot: b.time_slot,
@@ -441,6 +446,7 @@ export default function TripPlanning() {
       project_name: b.project_name,
       engineer_name: b.engineer_name,
       pickup_location: b.pickup_location,
+      notes: b.notes.join(' | '),
       vehicle_type: b.vehicle_type,
       vehicle_number: b.vehicle_number,
     }));
