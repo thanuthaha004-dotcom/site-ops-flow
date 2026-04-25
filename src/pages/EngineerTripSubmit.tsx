@@ -326,14 +326,23 @@ export default function EngineerTripSubmit() {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-sm text-muted-foreground">
               {drafts.length} trip{drafts.length === 1 ? '' : 's'} • {totalWorkers} worker{totalWorkers === 1 ? '' : 's'}
             </p>
-            <button onClick={addDraft}
-              className="text-xs px-3 py-1.5 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-1">
-              <Plus className="h-3 w-3" /> Add Trip
-            </button>
+            <div className="flex items-center gap-2">
+              {(drafts.length > 0 || submitted) && (
+                <button onClick={handleClearAll} disabled={submitting}
+                  title="Remove all trips on this date and start fresh"
+                  className="text-xs px-3 py-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center gap-1 disabled:opacity-50">
+                  <Trash2 className="h-3 w-3" /> Clear All
+                </button>
+              )}
+              <button onClick={addDraft}
+                className="text-xs px-3 py-1.5 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-1">
+                <Plus className="h-3 w-3" /> Add Trip
+              </button>
+            </div>
           </div>
 
           {drafts.length === 0 && (
