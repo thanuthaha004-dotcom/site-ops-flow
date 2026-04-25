@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut, ShieldCheck,
+  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut, ShieldCheck, ListChecks,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
