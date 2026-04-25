@@ -273,6 +273,8 @@ export default function EngineerTripSubmit() {
     }
   };
 
+  const totalWorkers = useMemo(() => drafts.reduce((s, d) => s + d.worker_names.length, 0), [drafts]);
+
   return (
     <div className="space-y-6">
       <div>
