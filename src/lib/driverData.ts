@@ -32,6 +32,7 @@ export interface DriverTrip {
   completed_at: string | null;
   start_time: string | null;
   end_time: string | null;
+  notes: string;
   segments: TripSegment[];
 }
 
