@@ -319,8 +319,8 @@ export default function EngineerTripSubmit() {
       ) : projects.length === 0 ? (
         <div className="kpi-card text-center py-12">
           <FolderKanban className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-          <h2 className="text-lg font-semibold">No Projects Assigned</h2>
-          <p className="text-sm text-muted-foreground mt-1">You don't have any active projects with workers assigned to you.</p>
+          <h2 className="text-lg font-semibold">No Projects Available</h2>
+          <p className="text-sm text-muted-foreground mt-1">There are no active or scheduled projects with workers to dispatch.</p>
         </div>
       ) : (
         <>
