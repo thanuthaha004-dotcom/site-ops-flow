@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
+import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
 import type { Project, Vehicle } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
-import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown, AlertTriangle, X } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown, AlertTriangle, X, Upload, Download } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
