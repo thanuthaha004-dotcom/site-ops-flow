@@ -268,8 +268,85 @@ export default function EngineerTripSubmit() {
     setDrafts([]);
     setCustomNameInputs({});
     setSubmitted(false);
-    setFormCleared(true); // suppress re-hydration of past submission for this date
+    setFormCleared(true);
     toast({ title: 'Form reset — ready for a new entry' });
+  };
+
+  // ===== Bulk upload from Excel =====
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Always reset so re-selecting the same file still triggers onChange
+    if (e.target) e.target.value = '';
+    if (!file) return;
+
+    try {
+      const rows = await parseTripRequestsExcel(file);
+      if (rows.length === 0) {
+        toast({ title: 'No trips found in the file', description: 'Make sure rows are filled in under the template headers.', variant: 'destructive' });
+        return;
+      }
+
+      // Project lookup: name OR code, case-insensitive
+      const projectByKey = new Map<string, Project>();
+      projects.forEach(p => {
+        if (p.name) projectByKey.set(p.name.trim().toLowerCase(), p);
+        if (p.code) projectByKey.set(p.code.trim().toLowerCase(), p);
+      });
+
+      const unmatched: string[] = [];
+      const newDrafts: TripDraft[] = [];
+
+      rows
+        .slice()
+        .sort((a, b) => (a.execution_order ?? 9999) - (b.execution_order ?? 9999))
+        .forEach((row) => {
+          const proj = projectByKey.get((row.project || '').trim().toLowerCase());
+          if (!proj) {
+            if (row.project) unmatched.push(row.project);
+            return;
+          }
+          const veh = vehicles.find(v => v.number.trim().toLowerCase() === row.vehicle_number.trim().toLowerCase());
+          const pickup = row.pickup_location || DEFAULT_PICKUP;
+          newDrafts.push({
+            tempId: crypto.randomUUID(),
+            project_id: proj.id,
+            worker_names: row.workers,
+            start_time: row.start_time,
+            end_time: row.end_time,
+            vehicle_number: veh?.number || '',
+            driver_name: row.driver_name || veh?.driver || '',
+            notes: row.notes,
+            pickup_location: pickup,
+            pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+          });
+        });
+
+      if (newDrafts.length === 0) {
+        toast({
+          title: 'No matching projects found',
+          description: unmatched.length > 0
+            ? `Unknown project: ${Array.from(new Set(unmatched)).slice(0, 3).join(', ')}`
+            : 'Check that the Project column matches a project name or code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setDrafts(newDrafts);
+      setSubmitted(false);
+      setFormCleared(true);
+      toast({
+        title: `Loaded ${newDrafts.length} trip${newDrafts.length === 1 ? '' : 's'} from Excel`,
+        description: unmatched.length > 0
+          ? `${unmatched.length} row(s) skipped — unknown project: ${Array.from(new Set(unmatched)).slice(0, 2).join(', ')}`
+          : 'Review the trips, then click Submit.',
+      });
+    } catch (err) {
+      console.error('Excel upload failed', err);
+      toast({ title: 'Could not read the Excel file', description: 'Please use the provided template.', variant: 'destructive' });
+    }
   };
 
   const totalWorkers = useMemo(() => drafts.reduce((s, d) => s + d.worker_names.length, 0), [drafts]);
