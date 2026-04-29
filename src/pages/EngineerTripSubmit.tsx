@@ -353,9 +353,33 @@ export default function EngineerTripSubmit() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Submit Trip Requests</h1>
-        <p className="text-muted-foreground text-sm">Build one or more trips per day. Vehicle, driver and time are suggestions — dispatcher may adjust.</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Submit Trip Requests</h1>
+          <p className="text-muted-foreground text-sm">Build one or more trips per day. Vehicle, driver and time are suggestions — dispatcher may adjust.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={downloadTripRequestsTemplate}
+            title="Download the Excel template for bulk trip request uploads"
+            className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1.5">
+            <Download className="h-3.5 w-3.5" /> Download Template
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || projects.length === 0}
+            title="Upload a filled-in Excel template to create multiple trips at once"
+            className="text-xs px-3 py-2 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 flex items-center gap-1.5 disabled:opacity-50">
+            <Upload className="h-3.5 w-3.5" /> Upload Excel
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            onChange={handleExcelUpload}
+            className="hidden"
+          />
+        </div>
       </div>
 
       {/* Date picker */}
