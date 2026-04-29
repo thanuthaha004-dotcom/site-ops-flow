@@ -498,6 +498,55 @@ export default function TripPlanning() {
     }
   };
 
+  // Admin moves a worker from one trip to another (or to a brand-new trip).
+  const handleMoveWorker = (fromGroupId: string, workerId: string, toGroupId: string) => {
+    setTripGroups(prev => {
+      const fromGroup = prev.find(g => g.id === fromGroupId);
+      if (!fromGroup) return prev;
+      const worker = fromGroup.workers.find(w => w.id === workerId);
+      if (!worker) return prev;
+
+      const recalc = (g: TripGroup): TripGroup => {
+        const cap = g.suggestedVehicle?.capacity || Math.max(g.workers.length, 1);
+        const utilization = g.workers.length / cap;
+        return { ...g, utilization, isInefficient: utilization < MIN_UTILIZATION && !g.isUrgent };
+      };
+
+      // Remove from source
+      let updated = prev.map(g => g.id === fromGroupId
+        ? { ...g, workers: g.workers.filter(w => w.id !== workerId), sites: [...new Set(g.workers.filter(w => w.id !== workerId).map(w => w.site))] }
+        : g
+      );
+
+      if (toGroupId === '__new__') {
+        const area = getAreaCluster(worker.site);
+        const newGroup: TripGroup = {
+          id: `TRP-NEW-${Date.now()}`,
+          area,
+          sites: [worker.site],
+          workers: [worker],
+          timeSlot: worker.timeSlot,
+          suggestedVehicle: null,
+          status: 'pending',
+          utilization: 0,
+          isInefficient: true,
+          isUrgent: !!worker.urgent,
+        };
+        updated = [...updated, newGroup];
+      } else {
+        updated = updated.map(g => g.id === toGroupId
+          ? { ...g, workers: [...g.workers, worker], sites: [...new Set([...g.sites, worker.site])] }
+          : g
+        );
+      }
+
+      // Drop emptied non-completed groups
+      updated = updated.filter(g => g.workers.length > 0 || g.status === 'completed');
+      return updated.map(recalc);
+    });
+    toast({ title: 'Worker reassigned' });
+  };
+
   // Admin picks a real vehicle from the fleet → applies real capacity, driver, type.
   const handleSelectVehicle = (groupId: string, vehicleId: string) => {
     setTripGroups(prev => prev.map(g => {
