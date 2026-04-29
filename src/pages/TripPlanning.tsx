@@ -498,6 +498,55 @@ export default function TripPlanning() {
     }
   };
 
+  // Admin moves a worker from one trip to another (or to a brand-new trip).
+  const handleMoveWorker = (fromGroupId: string, workerId: string, toGroupId: string) => {
+    setTripGroups(prev => {
+      const fromGroup = prev.find(g => g.id === fromGroupId);
+      if (!fromGroup) return prev;
+      const worker = fromGroup.workers.find(w => w.id === workerId);
+      if (!worker) return prev;
+
+      const recalc = (g: TripGroup): TripGroup => {
+        const cap = g.suggestedVehicle?.capacity || Math.max(g.workers.length, 1);
+        const utilization = g.workers.length / cap;
+        return { ...g, utilization, isInefficient: utilization < MIN_UTILIZATION && !g.isUrgent };
+      };
+
+      // Remove from source
+      let updated = prev.map(g => g.id === fromGroupId
+        ? { ...g, workers: g.workers.filter(w => w.id !== workerId), sites: [...new Set(g.workers.filter(w => w.id !== workerId).map(w => w.site))] }
+        : g
+      );
+
+      if (toGroupId === '__new__') {
+        const area = getAreaCluster(worker.site);
+        const newGroup: TripGroup = {
+          id: `TRP-NEW-${Date.now()}`,
+          area,
+          sites: [worker.site],
+          workers: [worker],
+          timeSlot: worker.timeSlot,
+          suggestedVehicle: null,
+          status: 'pending',
+          utilization: 0,
+          isInefficient: true,
+          isUrgent: !!worker.urgent,
+        };
+        updated = [...updated, newGroup];
+      } else {
+        updated = updated.map(g => g.id === toGroupId
+          ? { ...g, workers: [...g.workers, worker], sites: [...new Set([...g.sites, worker.site])] }
+          : g
+        );
+      }
+
+      // Drop emptied non-completed groups
+      updated = updated.filter(g => g.workers.length > 0 || g.status === 'completed');
+      return updated.map(recalc);
+    });
+    toast({ title: 'Worker reassigned' });
+  };
+
   // Admin picks a real vehicle from the fleet → applies real capacity, driver, type.
   const handleSelectVehicle = (groupId: string, vehicleId: string) => {
     setTripGroups(prev => prev.map(g => {
@@ -1232,8 +1281,61 @@ export default function TripPlanning() {
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    <div className="flex flex-wrap gap-1">
-                      {g.workers.map(w => <span key={w.id} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{w.name}</span>)}
+                    {/* Per-worker details: project, site, engineer, pickup, notes + reassign */}
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                      {g.workers.map(w => {
+                        const canMove = g.status !== 'dispatched' && g.status !== 'in_progress' && g.status !== 'completed';
+                        const moveTargets = tripGroups.filter(t =>
+                          t.id !== g.id &&
+                          t.timeSlot === g.timeSlot &&
+                          t.status !== 'dispatched' && t.status !== 'in_progress' && t.status !== 'completed'
+                        );
+                        return (
+                          <div key={w.id} className="rounded border border-border/60 bg-background/40 px-2 py-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold truncate">{w.name}</p>
+                                {w.projectName && (
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                                    <FolderKanban className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{w.projectName}</span>
+                                  </p>
+                                )}
+                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                                  <MapPin className="h-2.5 w-2.5 shrink-0" />
+                                  <span className="truncate">{w.site}</span>
+                                </p>
+                                {w.engineerName && (
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                                    <UserCog className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{w.engineerName}</span>
+                                  </p>
+                                )}
+                                {w.pickupLocation && w.pickupLocation !== 'Al Quoz Labour Camp' && (
+                                  <p className="text-[10px] text-muted-foreground truncate">Pickup: {w.pickupLocation}</p>
+                                )}
+                                {w.notes && (
+                                  <p className="text-[10px] text-warning truncate" title={w.notes}>📝 {w.notes}</p>
+                                )}
+                              </div>
+                              {canMove && (
+                                <select
+                                  value=""
+                                  onChange={e => { if (e.target.value) handleMoveWorker(g.id, w.id, e.target.value); }}
+                                  className="shrink-0 px-1 py-0.5 rounded border border-input bg-background text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                  title="Reassign to another trip in same time slot"
+                                >
+                                  <option value="">Move…</option>
+                                  {moveTargets.map(t => (
+                                    <option key={t.id} value={t.id}>→ {t.area} ({t.workers.length})</option>
+                                  ))}
+                                  <option value="__new__">→ New trip</option>
+                                </select>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Vehicle assignment from real fleet */}
