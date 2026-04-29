@@ -55,19 +55,18 @@ export default function EngineerTripSubmit() {
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  // Load assigned projects + fleet
+  // Load all active/scheduled projects across departments — any engineer can
+  // submit trip requests for any project, regardless of which engineer "owns" it.
   useEffect(() => {
     fetchProjects().then(all => {
-      const me = (profileName || '').trim().toLowerCase();
-      const mine = all.filter(p =>
+      const available = all.filter(p =>
         (p.status === 'Active' || p.status === 'Scheduled') &&
-        (p.engineer || '').trim().toLowerCase() === me &&
         (p.workerNames || []).length > 0
       );
-      setProjects(mine);
+      setProjects(available);
     }).catch(() => {});
     fetchVehicles().then(setVehicles).catch(() => {});
-  }, [profileName]);
+  }, []);
 
   // Reset the "form cleared" flag whenever the engineer switches to a different
   // date — so each new date independently hydrates with whatever was submitted.
