@@ -73,11 +73,16 @@ export async function parseVehiclesExcel(file: File): Promise<Vehicle[]> {
 // ============= Trip Request bulk upload =============
 
 export type TripRequestRow = {
+  trip_date: string;
+  department: string;
   project: string;
+  project_location: string;
+  pickup_location: string;
+  dropoff_location: string;
   workers: string[];
   start_time: string;
   end_time: string;
-  pickup_location: string;
+  engineer: string;
   vehicle_number: string;
   driver_name: string;
   notes: string;
