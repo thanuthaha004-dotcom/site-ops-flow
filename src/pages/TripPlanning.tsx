@@ -1281,8 +1281,61 @@ export default function TripPlanning() {
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    <div className="flex flex-wrap gap-1">
-                      {g.workers.map(w => <span key={w.id} className="bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-xs">{w.name}</span>)}
+                    {/* Per-worker details: project, site, engineer, pickup, notes + reassign */}
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                      {g.workers.map(w => {
+                        const canMove = g.status !== 'dispatched' && g.status !== 'in_progress' && g.status !== 'completed';
+                        const moveTargets = tripGroups.filter(t =>
+                          t.id !== g.id &&
+                          t.timeSlot === g.timeSlot &&
+                          t.status !== 'dispatched' && t.status !== 'in_progress' && t.status !== 'completed'
+                        );
+                        return (
+                          <div key={w.id} className="rounded border border-border/60 bg-background/40 px-2 py-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold truncate">{w.name}</p>
+                                {w.projectName && (
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                                    <FolderKanban className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{w.projectName}</span>
+                                  </p>
+                                )}
+                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                                  <MapPin className="h-2.5 w-2.5 shrink-0" />
+                                  <span className="truncate">{w.site}</span>
+                                </p>
+                                {w.engineerName && (
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                                    <UserCog className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">{w.engineerName}</span>
+                                  </p>
+                                )}
+                                {w.pickupLocation && w.pickupLocation !== 'Al Quoz Labour Camp' && (
+                                  <p className="text-[10px] text-muted-foreground truncate">Pickup: {w.pickupLocation}</p>
+                                )}
+                                {w.notes && (
+                                  <p className="text-[10px] text-warning truncate" title={w.notes}>📝 {w.notes}</p>
+                                )}
+                              </div>
+                              {canMove && (
+                                <select
+                                  value=""
+                                  onChange={e => { if (e.target.value) handleMoveWorker(g.id, w.id, e.target.value); }}
+                                  className="shrink-0 px-1 py-0.5 rounded border border-input bg-background text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                  title="Reassign to another trip in same time slot"
+                                >
+                                  <option value="">Move…</option>
+                                  {moveTargets.map(t => (
+                                    <option key={t.id} value={t.id}>→ {t.area} ({t.workers.length})</option>
+                                  ))}
+                                  <option value="__new__">→ New trip</option>
+                                </select>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Vehicle assignment from real fleet */}
