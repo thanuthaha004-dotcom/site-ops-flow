@@ -24,6 +24,12 @@ type TripDraft = {
   notes: string;
   pickup_location: string;
   pickup_custom: boolean; // when true, pickup_location is free text
+  // Free-text overrides used when the row came from an Excel upload with a
+  // project name that doesn't match any existing project. When set, project_id
+  // is left blank and these values are submitted verbatim.
+  custom_project_name?: string;
+  custom_site?: string;
+  custom_work_type?: string;
 };
 
 const newDraft = (): TripDraft => ({
@@ -89,9 +95,10 @@ export default function EngineerTripSubmit() {
         );
         setDrafts(ordered.map(r => {
           const pickup = r.pickup_location || DEFAULT_PICKUP;
+          const hasProject = r.project_id && projects.some(p => p.id === r.project_id);
           return {
             tempId: r.id,
-            project_id: r.project_id,
+            project_id: hasProject ? r.project_id : '',
             worker_names: r.worker_names || [],
             start_time: r.start_time || '',
             end_time: r.end_time || '',
@@ -101,6 +108,9 @@ export default function EngineerTripSubmit() {
             pickup_location: pickup,
             // Treat as "custom" if it isn't the default and isn't a known site (sites loaded async; safe to default false here, dropdown will pick it up if it matches)
             pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
+            custom_project_name: hasProject ? undefined : (r.project_name || ''),
+            custom_site: hasProject ? undefined : (r.site || ''),
+            custom_work_type: hasProject ? undefined : (r.work_type || ''),
           };
         }));
         setSubmitted(true);
@@ -193,7 +203,8 @@ export default function EngineerTripSubmit() {
     if (drafts.length === 0) return 'Add at least one trip';
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
-      if (!d.project_id) return `Trip ${i + 1}: select a project`;
+      const hasCustomProject = (d.custom_project_name || '').trim().length > 0;
+      if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
       if (d.worker_names.length === 0 && !d.notes.trim()) {
         return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
       }
@@ -232,14 +243,14 @@ export default function EngineerTripSubmit() {
     setSubmitting(true);
     try {
       const payload: TripRequestInput[] = drafts.map((d, idx) => {
-        const p = projects.find(x => x.id === d.project_id)!;
+        const p = projects.find(x => x.id === d.project_id);
         const v = vehicles.find(x => x.number === d.vehicle_number);
         return {
-          project_id: d.project_id,
-          project_name: p?.name || '',
-          site: p?.site || '',
+          project_id: d.project_id || '',
+          project_name: p?.name || d.custom_project_name || '',
+          site: p?.site || d.custom_site || '',
           worker_names: d.worker_names,
-          work_type: p?.workType || '',
+          work_type: p?.workType || d.custom_work_type || '',
           // Priority is now derived from execution order (lower # = higher priority)
           priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
           notes: d.notes,
@@ -295,40 +306,54 @@ export default function EngineerTripSubmit() {
         if (p.code) projectByKey.set(p.code.trim().toLowerCase(), p);
       });
 
-      const unmatched: string[] = [];
       const newDrafts: TripDraft[] = [];
+      let newProjectCount = 0;
 
       rows
         .slice()
         .sort((a, b) => (a.execution_order ?? 9999) - (b.execution_order ?? 9999))
         .forEach((row) => {
           const proj = projectByKey.get((row.project || '').trim().toLowerCase());
-          if (!proj) {
-            if (row.project) unmatched.push(row.project);
-            return;
-          }
-          const veh = vehicles.find(v => v.number.trim().toLowerCase() === row.vehicle_number.trim().toLowerCase());
+          const veh = vehicles.find(v => row.vehicle_number && v.number.trim().toLowerCase() === row.vehicle_number.trim().toLowerCase());
           const pickup = row.pickup_location || DEFAULT_PICKUP;
-          newDrafts.push({
-            tempId: crypto.randomUUID(),
-            project_id: proj.id,
-            worker_names: row.workers,
-            start_time: row.start_time,
-            end_time: row.end_time,
-            vehicle_number: veh?.number || '',
-            driver_name: row.driver_name || veh?.driver || '',
-            notes: row.notes,
-            pickup_location: pickup,
-            pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
-          });
+          if (proj) {
+            newDrafts.push({
+              tempId: crypto.randomUUID(),
+              project_id: proj.id,
+              worker_names: row.workers,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              vehicle_number: veh?.number || row.vehicle_number || '',
+              driver_name: row.driver_name || veh?.driver || '',
+              notes: row.notes,
+              pickup_location: pickup,
+              pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+            });
+          } else {
+            // Unknown project — accept the row as-is, using the Excel values verbatim.
+            newProjectCount += 1;
+            newDrafts.push({
+              tempId: crypto.randomUUID(),
+              project_id: '',
+              worker_names: row.workers,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              vehicle_number: veh?.number || row.vehicle_number || '',
+              driver_name: row.driver_name || veh?.driver || '',
+              notes: row.notes,
+              pickup_location: pickup,
+              pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+              custom_project_name: row.project || '',
+              custom_site: row.project_location || '',
+              custom_work_type: row.department || '',
+            });
+          }
         });
 
       if (newDrafts.length === 0) {
         toast({
-          title: 'No matching projects found',
-          description: unmatched.length > 0
-            ? `Unknown project: ${Array.from(new Set(unmatched)).slice(0, 3).join(', ')}`
-            : 'Check that the Project column matches a project name or code.',
+          title: 'No rows found in the file',
+          description: 'Fill in the template rows and try again.',
           variant: 'destructive',
         });
         return;
@@ -339,8 +364,8 @@ export default function EngineerTripSubmit() {
       setFormCleared(true);
       toast({
         title: `Loaded ${newDrafts.length} trip${newDrafts.length === 1 ? '' : 's'} from Excel`,
-        description: unmatched.length > 0
-          ? `${unmatched.length} row(s) skipped — unknown project: ${Array.from(new Set(unmatched)).slice(0, 2).join(', ')}`
+        description: newProjectCount > 0
+          ? `${newProjectCount} row(s) use a project not in the system — submitted as-is.`
           : 'Review the trips, then click Submit.',
       });
     } catch (err) {
@@ -495,15 +520,41 @@ export default function EngineerTripSubmit() {
                     {/* Project */}
                     <div className="md:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
-                      <select value={d.project_id}
-                        onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
-                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
-                        <option value="">Select project…</option>
-                        {projects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name} — {p.site || 'No site'}</option>
-                        ))}
-                      </select>
+                      {(d.custom_project_name !== undefined) ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={d.custom_project_name}
+                            onChange={e => updateDraft(d.tempId, { custom_project_name: e.target.value })}
+                            placeholder="Project name (from Excel)"
+                            className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                          />
+                          <input
+                            type="text"
+                            value={d.custom_site || ''}
+                            onChange={e => updateDraft(d.tempId, { custom_site: e.target.value })}
+                            placeholder="Project location"
+                            className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateDraft(d.tempId, { custom_project_name: undefined, custom_site: undefined, custom_work_type: undefined, project_id: '' })}
+                            className="text-xs px-2 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                            Use list
+                          </button>
+                        </div>
+                      ) : (
+                        <select value={d.project_id}
+                          onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
+                          className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                          <option value="">Select project…</option>
+                          {projects.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} — {p.site || 'No site'}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
+
 
                     {/* Execution order # */}
                     <div>
