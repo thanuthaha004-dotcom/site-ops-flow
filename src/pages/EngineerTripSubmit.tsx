@@ -243,14 +243,14 @@ export default function EngineerTripSubmit() {
     setSubmitting(true);
     try {
       const payload: TripRequestInput[] = drafts.map((d, idx) => {
-        const p = projects.find(x => x.id === d.project_id)!;
+        const p = projects.find(x => x.id === d.project_id);
         const v = vehicles.find(x => x.number === d.vehicle_number);
         return {
-          project_id: d.project_id,
-          project_name: p?.name || '',
-          site: p?.site || '',
+          project_id: d.project_id || '',
+          project_name: p?.name || d.custom_project_name || '',
+          site: p?.site || d.custom_site || '',
           worker_names: d.worker_names,
-          work_type: p?.workType || '',
+          work_type: p?.workType || d.custom_work_type || '',
           // Priority is now derived from execution order (lower # = higher priority)
           priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
           notes: d.notes,
