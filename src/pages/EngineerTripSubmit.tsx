@@ -203,7 +203,8 @@ export default function EngineerTripSubmit() {
     if (drafts.length === 0) return 'Add at least one trip';
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
-      if (!d.project_id) return `Trip ${i + 1}: select a project`;
+      const hasCustomProject = (d.custom_project_name || '').trim().length > 0;
+      if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
       if (d.worker_names.length === 0 && !d.notes.trim()) {
         return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
       }
