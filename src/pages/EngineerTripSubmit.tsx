@@ -520,15 +520,41 @@ export default function EngineerTripSubmit() {
                     {/* Project */}
                     <div className="md:col-span-2">
                       <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
-                      <select value={d.project_id}
-                        onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
-                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
-                        <option value="">Select project…</option>
-                        {projects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name} — {p.site || 'No site'}</option>
-                        ))}
-                      </select>
+                      {(d.custom_project_name !== undefined) ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={d.custom_project_name}
+                            onChange={e => updateDraft(d.tempId, { custom_project_name: e.target.value })}
+                            placeholder="Project name (from Excel)"
+                            className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                          />
+                          <input
+                            type="text"
+                            value={d.custom_site || ''}
+                            onChange={e => updateDraft(d.tempId, { custom_site: e.target.value })}
+                            placeholder="Project location"
+                            className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateDraft(d.tempId, { custom_project_name: undefined, custom_site: undefined, custom_work_type: undefined, project_id: '' })}
+                            className="text-xs px-2 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                            Use list
+                          </button>
+                        </div>
+                      ) : (
+                        <select value={d.project_id}
+                          onChange={e => updateDraft(d.tempId, { project_id: e.target.value, worker_names: [] })}
+                          className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                          <option value="">Select project…</option>
+                          {projects.map(p => (
+                            <option key={p.id} value={p.id}>{p.name} — {p.site || 'No site'}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
+
 
                     {/* Execution order # */}
                     <div>
