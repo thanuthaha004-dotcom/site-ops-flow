@@ -95,9 +95,10 @@ export default function EngineerTripSubmit() {
         );
         setDrafts(ordered.map(r => {
           const pickup = r.pickup_location || DEFAULT_PICKUP;
+          const hasProject = r.project_id && projects.some(p => p.id === r.project_id);
           return {
             tempId: r.id,
-            project_id: r.project_id,
+            project_id: hasProject ? r.project_id : '',
             worker_names: r.worker_names || [],
             start_time: r.start_time || '',
             end_time: r.end_time || '',
@@ -107,6 +108,9 @@ export default function EngineerTripSubmit() {
             pickup_location: pickup,
             // Treat as "custom" if it isn't the default and isn't a known site (sites loaded async; safe to default false here, dropdown will pick it up if it matches)
             pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
+            custom_project_name: hasProject ? undefined : (r.project_name || ''),
+            custom_site: hasProject ? undefined : (r.site || ''),
+            custom_work_type: hasProject ? undefined : (r.work_type || ''),
           };
         }));
         setSubmitted(true);
