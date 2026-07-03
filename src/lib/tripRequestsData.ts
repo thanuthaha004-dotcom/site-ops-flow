@@ -5,7 +5,7 @@ export interface DailyTripRequest {
   trip_date: string;
   engineer_id: string;
   engineer_name: string;
-  project_id: string;
+  project_id: string | null;
   project_name: string;
   site: string;
   worker_names: string[];
