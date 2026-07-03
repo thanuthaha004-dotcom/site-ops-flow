@@ -26,7 +26,7 @@ export type Database = {
           notes: string
           pickup_location: string | null
           priority: string
-          project_id: string
+          project_id: string | null
           project_name: string
           site: string
           start_time: string | null
@@ -49,7 +49,7 @@ export type Database = {
           notes?: string
           pickup_location?: string | null
           priority?: string
-          project_id: string
+          project_id?: string | null
           project_name?: string
           site?: string
           start_time?: string | null
@@ -72,7 +72,7 @@ export type Database = {
           notes?: string
           pickup_location?: string | null
           priority?: string
-          project_id?: string
+          project_id?: string | null
           project_name?: string
           site?: string
           start_time?: string | null
