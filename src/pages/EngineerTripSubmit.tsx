@@ -306,40 +306,54 @@ export default function EngineerTripSubmit() {
         if (p.code) projectByKey.set(p.code.trim().toLowerCase(), p);
       });
 
-      const unmatched: string[] = [];
       const newDrafts: TripDraft[] = [];
+      let newProjectCount = 0;
 
       rows
         .slice()
         .sort((a, b) => (a.execution_order ?? 9999) - (b.execution_order ?? 9999))
         .forEach((row) => {
           const proj = projectByKey.get((row.project || '').trim().toLowerCase());
-          if (!proj) {
-            if (row.project) unmatched.push(row.project);
-            return;
-          }
-          const veh = vehicles.find(v => v.number.trim().toLowerCase() === row.vehicle_number.trim().toLowerCase());
+          const veh = vehicles.find(v => row.vehicle_number && v.number.trim().toLowerCase() === row.vehicle_number.trim().toLowerCase());
           const pickup = row.pickup_location || DEFAULT_PICKUP;
-          newDrafts.push({
-            tempId: crypto.randomUUID(),
-            project_id: proj.id,
-            worker_names: row.workers,
-            start_time: row.start_time,
-            end_time: row.end_time,
-            vehicle_number: veh?.number || '',
-            driver_name: row.driver_name || veh?.driver || '',
-            notes: row.notes,
-            pickup_location: pickup,
-            pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
-          });
+          if (proj) {
+            newDrafts.push({
+              tempId: crypto.randomUUID(),
+              project_id: proj.id,
+              worker_names: row.workers,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              vehicle_number: veh?.number || row.vehicle_number || '',
+              driver_name: row.driver_name || veh?.driver || '',
+              notes: row.notes,
+              pickup_location: pickup,
+              pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+            });
+          } else {
+            // Unknown project — accept the row as-is, using the Excel values verbatim.
+            newProjectCount += 1;
+            newDrafts.push({
+              tempId: crypto.randomUUID(),
+              project_id: '',
+              worker_names: row.workers,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              vehicle_number: veh?.number || row.vehicle_number || '',
+              driver_name: row.driver_name || veh?.driver || '',
+              notes: row.notes,
+              pickup_location: pickup,
+              pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+              custom_project_name: row.project || '',
+              custom_site: row.project_location || '',
+              custom_work_type: row.department || '',
+            });
+          }
         });
 
       if (newDrafts.length === 0) {
         toast({
-          title: 'No matching projects found',
-          description: unmatched.length > 0
-            ? `Unknown project: ${Array.from(new Set(unmatched)).slice(0, 3).join(', ')}`
-            : 'Check that the Project column matches a project name or code.',
+          title: 'No rows found in the file',
+          description: 'Fill in the template rows and try again.',
           variant: 'destructive',
         });
         return;
@@ -350,8 +364,8 @@ export default function EngineerTripSubmit() {
       setFormCleared(true);
       toast({
         title: `Loaded ${newDrafts.length} trip${newDrafts.length === 1 ? '' : 's'} from Excel`,
-        description: unmatched.length > 0
-          ? `${unmatched.length} row(s) skipped — unknown project: ${Array.from(new Set(unmatched)).slice(0, 2).join(', ')}`
+        description: newProjectCount > 0
+          ? `${newProjectCount} row(s) use a project not in the system — submitted as-is.`
           : 'Review the trips, then click Submit.',
       });
     } catch (err) {
