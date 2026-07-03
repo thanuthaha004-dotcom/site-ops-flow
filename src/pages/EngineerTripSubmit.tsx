@@ -24,6 +24,12 @@ type TripDraft = {
   notes: string;
   pickup_location: string;
   pickup_custom: boolean; // when true, pickup_location is free text
+  // Free-text overrides used when the row came from an Excel upload with a
+  // project name that doesn't match any existing project. When set, project_id
+  // is left blank and these values are submitted verbatim.
+  custom_project_name?: string;
+  custom_site?: string;
+  custom_work_type?: string;
 };
 
 const newDraft = (): TripDraft => ({
