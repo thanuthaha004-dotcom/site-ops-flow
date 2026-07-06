@@ -5,7 +5,7 @@ import {
   snapToTimeSlot, getAreaCluster, setCachedVehicles,
 } from '@/lib/tripPlanning';
 import {
-  fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
+  fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, saveDispatchedTripAssignments, getRecentTripDates,
   fetchDriverAreaDefaults, upsertDriverAreaDefaults,
 } from '@/lib/supabaseData';
 import { fetchTripRequestsByDate, fetchRequestLiveStatuses, fetchCompletedWorkerKeys, buildCompletedWorkerKey, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
@@ -105,6 +105,7 @@ export default function TripPlanning() {
       ]);
       setCompletedWorkerKeys(completed);
       if (rows.length > 0) {
+        const vehicleByNumber = new Map(vehicleList.map(v => [v.number, v]));
         const loaded: TripWorker[] = rows.flatMap((r) => {
           // A persisted row may already group multiple workers (CSV in worker_name).
           // Split back so the planner can re-edit per worker.
@@ -130,22 +131,84 @@ export default function TripPlanning() {
             requestedDriver: (r as any).driver_name || null,
           }));
         });
+        const groupMap = new Map<string, TripGroup>();
+        rows.forEach((r) => {
+          const rawNames = (r.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+          const isPlaceholder = rawNames.length === 0 || (rawNames.length === 1 && rawNames[0] === '— No personnel —');
+          const names = isPlaceholder ? ['— No personnel —'] : rawNames;
+          const vehicle = r.vehicle_number ? vehicleByNumber.get(r.vehicle_number) : undefined;
+          const key = [r.trip_date, r.time_slot, r.vehicle_number || '', r.pickup_location || '', r.status].join('||');
+          const existing = groupMap.get(key);
+          const rowWorkers: TripWorker[] = names.map((name, idx) => ({
+            id: `TW-DB-${r.id}-${idx}`,
+            name,
+            site: r.site,
+            department: r.department,
+            timeSlot: r.time_slot,
+            startTime: r.start_time || '',
+            endTime: r.end_time || '',
+            urgent: r.urgent,
+            projectId: r.project_id,
+            projectName: r.project_name,
+            engineerName: r.engineer_name || '',
+            pickupLocation: r.pickup_location || 'Al Quoz Labour Camp',
+            notes: r.notes || '',
+            noPersonnel: isPlaceholder,
+            requestedVehicleNumber: r.vehicle_number || null,
+          }));
+          if (existing) {
+            existing.workers.push(...rowWorkers);
+            existing.sites = [...new Set([...existing.sites, r.site])];
+            existing.area = [...new Set([...existing.sites.map(getAreaCluster)])].join(' + ');
+            existing.isUrgent = existing.isUrgent || !!r.urgent;
+            existing.liveTripId = existing.liveTripId || r.id;
+            existing.startedAt = existing.startedAt || r.started_at || null;
+            existing.completedAt = existing.completedAt || r.completed_at || null;
+            const capacity = existing.suggestedVehicle?.capacity || Math.max(existing.workers.length, 1);
+            existing.utilization = existing.workers.length / capacity;
+            existing.isInefficient = existing.utilization < MIN_UTILIZATION && !existing.isUrgent;
+          } else {
+            const capacity = vehicle?.capacity || Math.max(names.length, 1);
+            groupMap.set(key, {
+              id: `TRP-DB-${r.id}`,
+              area: getAreaCluster(r.site),
+              sites: [r.site],
+              workers: rowWorkers,
+              timeSlot: r.time_slot,
+              suggestedVehicle: r.vehicle_number ? {
+                id: vehicle?.id || `db-${r.vehicle_number}`,
+                number: r.vehicle_number,
+                type: r.vehicle_type || vehicle?.type || 'Vehicle',
+                capacity,
+                driver: vehicle?.driver || '',
+              } : null,
+              status: r.status === 'completed' ? 'completed' : r.status === 'in_progress' ? 'in_progress' : r.status === 'assigned' ? 'dispatched' : 'pending',
+              utilization: names.length / capacity,
+              isInefficient: names.length / capacity < MIN_UTILIZATION && !r.urgent,
+              isUrgent: !!r.urgent,
+              startedAt: r.started_at || null,
+              completedAt: r.completed_at || null,
+              liveTripId: r.id,
+            });
+          }
+        });
         setWorkers(loaded);
+        setTripGroups(Array.from(groupMap.values()));
         setSaved(true);
         setGenerated(true);
       } else {
         setWorkers([]);
+        setTripGroups([]);
         setSaved(false);
         setGenerated(false);
       }
-      setTripGroups([]);
       setStats(null);
     } catch {
       toast({ title: 'Failed to load trips for this date', variant: 'destructive' });
     } finally {
       setLoadingTrips(false);
     }
-  }, []);
+  }, [vehicleList]);
 
   useEffect(() => { loadTripsForDate(selectedDate); }, [selectedDate, loadTripsForDate]);
 
@@ -171,10 +234,17 @@ export default function TripPlanning() {
           const gWorkerNames = new Set(g.workers.map(w => norm(w.name)));
           const match = rows.find(r => {
             if (r.time_slot !== g.timeSlot) return false;
-            if (veh && r.vehicle_number === veh) return true;
-            if (gSites.includes(norm(r.site))) return true;
-            // Fallback: any passenger name overlap (handles site typos / casing)
+            if (veh && r.vehicle_number && r.vehicle_number !== veh) return false;
+            if (!gSites.includes(norm(r.site))) return false;
+            const workerProjects = new Set(g.workers
+              .filter(w => norm(w.site) === norm(r.site))
+              .map(w => w.projectId || norm(w.projectName || '')));
+            const rowProject = r.project_id || norm(r.project_name || '');
+            if (workerProjects.size > 0 && !workerProjects.has(rowProject)) return false;
             const rNames = (r.worker_name || '').split(',').map(n => norm(n)).filter(Boolean);
+            if (rNames.length === 0 || rNames.every(n => n.includes('NO PERSONNEL') || n.startsWith('—'))) {
+              return g.workers.some(w => w.noPersonnel && norm(w.site) === norm(r.site));
+            }
             return rNames.some(n => gWorkerNames.has(n));
           });
           if (!match) return g;
@@ -461,7 +531,7 @@ export default function TripPlanning() {
       vehicle_number: b.vehicle_number,
     }));
 
-    await saveTripAssignments(toDateStr(selectedDate), assignments);
+    await saveDispatchedTripAssignments(toDateStr(selectedDate), assignments);
     setSaved(true);
     getRecentTripDates().then(setRecentDates).catch(() => {});
   };
@@ -472,10 +542,12 @@ export default function TripPlanning() {
       toast({ title: 'Select a vehicle first', description: 'Pick a vehicle from the dropdown before dispatching.', variant: 'destructive' });
       return;
     }
-    const updated = tripGroups.map(g => g.id === groupId ? { ...g, status: 'dispatched' as const } : g);
+    const dispatchedTarget = { ...target, status: 'dispatched' as const };
+    const updated = tripGroups.map(g => g.id === groupId ? dispatchedTarget : g);
     setTripGroups(updated);
     try {
-      await persistDispatchedTrips(updated);
+      await persistDispatchedTrips([dispatchedTarget]);
+      setStep('dispatch');
       toast({ title: 'Trip dispatched & saved!' });
     } catch {
       toast({ title: 'Dispatched locally but failed to save to database', variant: 'destructive' });
