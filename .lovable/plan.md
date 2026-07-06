@@ -1,47 +1,49 @@
-## Goal
-When an engineer bulk-uploads the Excel template, accept every row as-is — including unknown project names, sites, engineer names, drivers, vehicles, etc. Never block, never skip, never show a validation error. The uploaded data becomes the source of truth for that row and flows straight into the trip schedule.
 
-## Current behaviour (what to change)
-`src/pages/EngineerTripSubmit.tsx` → `handleExcelUpload` looks up each row's project in the local `projects` map. Rows without a match are pushed to `unmatched`, dropped from the draft list, and a warning toast fires. If nothing matches at all, the whole upload is rejected.
+# Performance Plan — Login & Dashboard
 
-Additionally, the submit path (`submitTripRequests`) writes to `daily_trip_requests`, whose schema currently forces every row to reference a real project:
-- `project_id uuid NOT NULL` with FK to `projects(id)`
-- `UNIQUE (trip_date, project_id)` — also blocks multiple trips for the same project on the same day (an existing pain point)
+Goal: reduce the time between clicking "Sign In" and seeing the dashboard, and cut redundant data fetches app-wide.
 
-So even if the UI accepted unknown projects, the DB would reject them.
+## What's slow today (evidence from the code)
 
-## Plan
+1. **Big JS bundle on the login page.** `src/App.tsx` imports every page (Dashboard, Projects, Schedule, Fleet, Workforce, Attendance, TripPlanning, Engineers, EngineerTripSubmit, MyTripRequests, DriverDashboard, MyTrips, TripDetail, DriverApprovals, PendingApproval, ResetPassword, NotFound) at the top. All of them — including Recharts, XLSX helpers, etc. — download before login can even render.
+2. **Auth blocks on two sequential fetches.** `AuthContext` waits for `getSession` → then `user_roles` + `profiles` before `loading` becomes false. Nothing renders in the meantime.
+3. **Dashboard refetches on every mount.** `Dashboard.tsx` calls `fetchProjects()` and `fetchVehicles()` in `useEffect` with no cache. Navigating away and back re-hits the DB. Same pattern in most pages.
+4. **Dashboard pulls full rows** (`select *`) just to compute counts and averages, and to render 4 vehicles.
+5. **QueryClient defaults** aren't tuned — default `staleTime: 0` means every mount refetches.
 
-### 1. DB migration (`daily_trip_requests`)
-- Make `project_id` **nullable** and keep the FK (nullable FK is fine — unknown projects store `NULL` here and rely on `project_name` text).
-- **Drop** the `daily_trip_requests_trip_date_project_id_key` unique constraint. It's incompatible with (a) multiple trips per project per day and (b) rows without a project_id.
-- No change needed to `trip_schedules` — `project_id` there is already nullable with `ON DELETE SET NULL`.
+## Fix Plan
 
-### 2. Excel upload handler (`src/pages/EngineerTripSubmit.tsx` → `handleExcelUpload`)
-- Remove the "unmatched → skip + warn" branch.
-- For each row: try to match a project by name/code (case-insensitive). If found, use its `id`, `name`, `site`, `workType`, `type`.
-- If **not** found, accept the row anyway and build a draft using the Excel values verbatim:
-  - `project_id: ''` (submitted as `NULL`)
-  - `project_name`: value from Excel
-  - `site`: `Project Location` from Excel (or blank)
-  - `pickup_location`: `Pickup Location` from Excel (falls back to Al Quoz Camp)
-  - `worker_names`: parsed passengers as-is
-  - `start_time`, `end_time`, `vehicle_number`, `driver_name`, `execution_order`, `notes`, `engineer` (if provided) — all passed through
-- Toast becomes purely informational: `Loaded N trips from Excel` — no "unknown project" warning.
+### 1. Code-split routes (biggest win for login speed)
+- Convert every route component in `App.tsx` to `React.lazy(() => import(...))`.
+- Wrap `<Routes>` in `<Suspense fallback={<Loader/>}>`.
+- Keep `Login`, `AuthProvider`, and `AppLayout` eager so the login screen paints immediately.
 
-### 3. Draft-validation & submit path
-- `validateDrafts` currently requires `d.project_id`. Relax it: allow a draft with **no** `project_id` provided `project_name` is present (drafts created from Excel).
-- `submitTripRequests` (`src/lib/tripRequestsData.ts`) — replace `project_id: r.project_id` with `project_id: r.project_id || null` so nullable inserts work. Same for the duplicate-preserved matcher (already tolerant: it falls back to `project_name` when `project_id` is empty).
-- The Admin "Generate Trips" pipeline in `TripPlanning.tsx` already reads `project_name`, `site`, `worker_names`, etc. from the request and copies them into `trip_schedules`. Since `trip_schedules.project_id` is already nullable, unknown-project requests flow through without any further change.
+### 2. Tune React Query as the app-wide cache
+- `defaultOptions.queries`: `staleTime: 60_000`, `gcTime: 5 * 60_000`, `refetchOnWindowFocus: false`.
+- Migrate `Dashboard.tsx` (and later other pages) from `useEffect + useState` to `useQuery(['projects'])` / `useQuery(['vehicles'])`. Re-entering the dashboard becomes instant.
 
-### 4. Sanity checks after implementation
-- Type-check with tsgo.
-- Confirm generated Supabase types reflect the new nullable `project_id` before the front-end submit path is touched (types regenerate after the migration).
-- Manually verify with a test row containing a made-up project name that: (a) the draft appears, (b) submit succeeds, (c) admin sees it in Engineer Requests, and (d) Generate Trips dispatches it.
+### 3. Faster auth boot
+- In `AuthContext`, set `user` + `session` and flip `loading=false` as soon as `getSession()` resolves, so the layout can render. Fetch role/profile in the background and update state when ready.
+- Guard admin-only routes with a small "checking permissions…" state instead of blocking the whole app.
 
-### What stays the same
-- The manual form (single-trip add) still uses the project dropdown — no behaviour change for engineers who don't use Excel.
-- Existing already-dispatched requests are preserved (existing logic in `submitTripRequests`).
-- No changes to the Excel template itself.
+### 4. Slimmer dashboard query
+- Add lightweight selectors in `src/lib/supabaseData.ts`:
+  - `fetchProjectsSummary()` — selects only `id, name, type, site, status, progress, priority`.
+  - `fetchVehiclesSummary()` — selects only `id, number, driver, status, utilization`, ordered/limited for the fleet widget.
+- Dashboard uses these instead of the full `fetch*` calls.
 
-Approve to execute in this order: (1) migration, (2) UI + submit code edits, (3) type-check.
+### 5. Prefetch what users almost always visit next
+- On successful login, `queryClient.prefetchQuery` for the landing page's data (dashboard for admin, my-requests for engineer, my-trips for driver). Kicks off the fetch during the route transition rather than after mount.
+
+## Out of scope for this pass
+- Rewriting every page to React Query (only Dashboard now; others can follow).
+- Server-side pagination.
+- Adding DB indexes (no slow-query evidence yet — will check with `slow_queries` if problems remain after the client fixes).
+
+## Files touched
+- `src/App.tsx` — lazy routes + Suspense + QueryClient defaults.
+- `src/contexts/AuthContext.tsx` — non-blocking role/profile fetch.
+- `src/pages/Dashboard.tsx` — use React Query + summary selectors.
+- `src/lib/supabaseData.ts` — add `fetchProjectsSummary`, `fetchVehiclesSummary`.
+
+Reply "go" to execute, or tell me what to change.
