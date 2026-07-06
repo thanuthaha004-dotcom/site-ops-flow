@@ -193,14 +193,21 @@ export default function TripPlanning() {
           }
         });
         setWorkers(loaded);
-        setTripGroups(Array.from(groupMap.values()));
+        const loadedGroups = Array.from(groupMap.values());
+        setTripGroups(loadedGroups);
         setSaved(true);
         setGenerated(true);
+        // If any trips are already dispatched/in-progress/completed for this date,
+        // jump straight to the Dispatch view so the admin sees prior dispatch details.
+        if (loadedGroups.some(g => g.status === 'dispatched' || g.status === 'in_progress' || g.status === 'completed')) {
+          setStep('dispatch');
+        }
       } else {
         setWorkers([]);
         setTripGroups([]);
         setSaved(false);
         setGenerated(false);
+        setStep('requests');
       }
       setStats(null);
     } catch {
