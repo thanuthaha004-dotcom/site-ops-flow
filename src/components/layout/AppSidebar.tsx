@@ -32,10 +32,12 @@ const driverNavItems = [
 export default function AppSidebar() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
-  const { role, profileName, signOut } = useAuth();
+  const { user, role, profileName, roleLoading, signOut } = useAuth();
 
   const navItems = role === 'admin' ? adminNavItems : role === 'driver' ? driverNavItems : engineerNavItems;
-  const initials = profileName ? profileName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : 'U';
+  const displayName = profileName || user?.user_metadata?.full_name || user?.email || 'User';
+  const displayRole = role || (roleLoading ? 'Loading...' : 'Engineer');
+  const initials = displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   const panelLabel = role === 'admin' ? 'Admin Panel' : role === 'driver' ? 'Driver Panel' : 'Engineer Panel';
 
   return (
@@ -102,8 +104,8 @@ export default function AppSidebar() {
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-primary-foreground truncate">{profileName || 'User'}</p>
-              <p className="text-xs text-sidebar-muted capitalize">{role || 'Loading...'}</p>
+              <p className="text-sm font-medium text-primary-foreground truncate">{displayName}</p>
+              <p className="text-xs text-sidebar-muted capitalize">{displayRole}</p>
             </div>
             <button onClick={signOut} className="p-1.5 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-primary-foreground transition-colors" title="Sign out">
               <LogOut className="h-4 w-4" />
