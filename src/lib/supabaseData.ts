@@ -29,6 +29,43 @@ export async function fetchProjects(): Promise<Project[]> {
   return (data || []).map(rowToProject);
 }
 
+// Lightweight variant for dashboards — only the columns the UI actually renders.
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  type: string;
+  site: string;
+  status: string;
+  priority: string;
+  progress: number;
+}
+
+export async function fetchProjectsSummary(): Promise<ProjectSummary[]> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, name, type, site, status, priority, progress')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as ProjectSummary[];
+}
+
+export interface VehicleSummary {
+  id: string;
+  number: string;
+  driver: string;
+  status: string;
+  utilization: number;
+}
+
+export async function fetchVehiclesSummary(): Promise<VehicleSummary[]> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('id, number, driver, status, utilization')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as VehicleSummary[];
+}
+
 export async function insertProject(p: Omit<Project, 'id'>): Promise<Project> {
   const { data, error } = await supabase.from('projects').insert({
     code: p.code,
