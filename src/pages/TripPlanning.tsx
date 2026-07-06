@@ -258,7 +258,7 @@ export default function TripPlanning() {
           let status: TripGroup['status'] = g.status;
           if (match.status === 'completed') status = 'completed';
           else if (match.status === 'in_progress') status = 'in_progress';
-          else if (match.status === 'assigned' && g.status !== 'pending' && g.status !== 'optimized') status = 'dispatched';
+          else if (match.status === 'assigned') status = 'dispatched';
           return {
             ...g,
             status,
@@ -794,13 +794,14 @@ export default function TripPlanning() {
     const seen = new Set<string>();
     let skippedCompleted = 0;
     let skippedInProgress = 0;
+    let skippedDispatched = 0;
     tripRequests.filter(r => r.status === 'pending' || r.status === 'approved').forEach(req => {
-      // Block regeneration only once the driver has actually started the trip
-      // (in_progress) or finished it (completed). A merely 'assigned' trip
-      // (dispatched but not yet started) can still be regenerated/redispatched.
+      // Once a trip has been dispatched it should be view-only. Do not regenerate
+      // it into Optimize again, otherwise the admin sees the same trip as pending.
       const live = requestLiveStatus.get(req.id);
       if (live?.status === 'completed') { skippedCompleted++; return; }
       if (live?.status === 'in_progress') { skippedInProgress++; return; }
+      if (live?.status === 'assigned') { skippedDispatched++; return; }
 
       const names = (req.worker_names || []).filter(n => n && n.trim());
       // No-personnel request: still create a placeholder so the trip flows through dispatch.
@@ -852,9 +853,10 @@ export default function TripPlanning() {
       });
     });
     if (gen.length === 0) {
-      const reason = skippedCompleted + skippedInProgress > 0
-        ? `${skippedCompleted} completed, ${skippedInProgress} already started by driver — nothing new to generate.`
+      const reason = skippedCompleted + skippedInProgress + skippedDispatched > 0
+        ? `${skippedDispatched} already dispatched, ${skippedInProgress} already started, ${skippedCompleted} completed — nothing new to generate.`
         : 'No new submissions for this date';
+      if (skippedDispatched + skippedInProgress + skippedCompleted > 0) setStep('dispatch');
       toast({ title: 'Nothing to generate', description: reason, variant: 'destructive' });
       return;
     }
@@ -862,8 +864,8 @@ export default function TripPlanning() {
     setGenerated(true);
     setSaved(false);
     setStep('review');
-    const skipNote = (skippedCompleted + skippedInProgress) > 0
-      ? ` · skipped ${skippedCompleted} completed${skippedInProgress ? `, ${skippedInProgress} in progress` : ''}`
+    const skipNote = (skippedCompleted + skippedInProgress + skippedDispatched) > 0
+      ? ` · skipped ${skippedDispatched} dispatched${skippedInProgress ? `, ${skippedInProgress} in progress` : ''}${skippedCompleted ? `, ${skippedCompleted} completed` : ''}`
       : '';
     toast({ title: `Generated ${gen.length} trip${gen.length === 1 ? '' : 's'}${skipNote}` });
   };
@@ -1554,7 +1556,7 @@ export default function TripPlanning() {
             });
             })()}
           </div>
-          {tripGroups.some(g => g.status !== 'dispatched') && (
+          {tripGroups.some(g => !['dispatched', 'in_progress', 'completed'].includes(g.status)) && (
             <div className="flex justify-end">
               <button onClick={handleDispatchAll} className="px-6 py-2.5 rounded-md bg-accent text-accent-foreground font-medium text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4" /> Dispatch All Trips
