@@ -1485,28 +1485,124 @@ export default function TripPlanning() {
         </div>
       )}
 
-      {step === 'dispatch' && (
-        <div className="kpi-card text-center py-12">
-          <CheckCircle2 className="h-16 w-16 text-success mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">All Trips Dispatched!</h2>
-          <p className="text-muted-foreground mb-4">
-            {tripGroups.filter(g => g.status === 'dispatched').length} trips dispatched for {format(selectedDate, 'MMM d, yyyy')} • {workers.length} workers assigned.
-          </p>
-          {stats && (
-            <div className="flex justify-center gap-6 text-sm">
-              <div><span className="text-muted-foreground">Trips saved:</span> <strong className="text-success">{stats.tripsSaved}</strong></div>
-              <div><span className="text-muted-foreground">Avg utilization:</span> <strong>{stats.avgUtilization}%</strong></div>
-              <div><span className="text-muted-foreground">Workers grouped:</span> <strong>{workers.length}</strong></div>
+      {step === 'dispatch' && (() => {
+        const dispatchedTrips = tripGroups.filter(g => ['dispatched', 'in_progress', 'completed'].includes(g.status));
+        const pendingTrips = tripGroups.filter(g => !['dispatched', 'in_progress', 'completed'].includes(g.status));
+        const dispatchedWorkerCount = dispatchedTrips.reduce((sum, g) => sum + g.workers.length, 0);
+        const statusPill = (s: string) => {
+          if (s === 'completed') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/15 text-success text-[10px] font-bold uppercase"><CheckCircle2 className="h-3 w-3" /> Completed</span>;
+          if (s === 'in_progress') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/15 text-accent text-[10px] font-bold uppercase animate-pulse"><Clock className="h-3 w-3" /> In Progress</span>;
+          return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-info/15 text-info text-[10px] font-bold uppercase"><CheckCircle2 className="h-3 w-3" /> Dispatched</span>;
+        };
+        return (
+          <div className="space-y-4">
+            <div className="kpi-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-success" /> Dispatched Trips</h2>
+                <p className="text-muted-foreground text-sm">
+                  {dispatchedTrips.length} of {tripGroups.length} trips dispatched • {dispatchedWorkerCount} workers assigned • {format(selectedDate, 'MMM d, yyyy')}
+                </p>
+              </div>
+              <button
+                onClick={() => setStep('optimize')}
+                className="px-4 py-2 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80 self-start sm:self-auto"
+              >
+                ← Back to Trip Cards
+              </button>
             </div>
-          )}
-          <button
-            onClick={() => setStep('optimize')}
-            className="mt-6 px-4 py-2 rounded-md bg-secondary text-secondary-foreground text-sm hover:bg-secondary/80"
-          >
-            ← Back to Trip Cards
-          </button>
-        </div>
-      )}
+
+            {dispatchedTrips.length === 0 ? (
+              <div className="kpi-card text-center py-8 text-sm text-muted-foreground">No trips dispatched yet.</div>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {dispatchedTrips.map(g => {
+                  const projects = [...new Set(g.workers.map(w => w.projectName).filter(Boolean))];
+                  const engineers = [...new Set(g.workers.map(w => w.engineerName).filter(Boolean))];
+                  return (
+                    <div key={g.id} className={`kpi-card ${g.status === 'completed' ? 'border-success/40 bg-success/5' : g.status === 'in_progress' ? 'border-accent/40' : ''}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h3 className="font-semibold flex items-center gap-1.5"><Bus className="h-4 w-4 text-accent" /> {g.area}</h3>
+                          <p className="text-xs text-muted-foreground">{g.timeSlot} • {g.workers.length} worker{g.workers.length !== 1 ? 's' : ''}</p>
+                        </div>
+                        {statusPill(g.status)}
+                      </div>
+
+                      <div className="space-y-1.5 text-xs bg-muted/20 px-2 py-2 rounded mb-2">
+                        <div className="flex items-center gap-2">
+                          <Bus className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">Vehicle:</span>
+                          <span className="font-medium">{g.suggestedVehicle ? `${g.suggestedVehicle.number} · ${g.suggestedVehicle.type}` : 'Unassigned'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <UserCog className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">Driver:</span>
+                          <span className="font-medium">{g.suggestedVehicle?.driver || '—'}</span>
+                        </div>
+                        {engineers.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <UserCog className="h-3 w-3 text-muted-foreground mt-0.5" />
+                            <span className="text-muted-foreground">Engineer:</span>
+                            <span className="font-medium">{engineers.join(', ')}</span>
+                          </div>
+                        )}
+                        {projects.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <FolderKanban className="h-3 w-3 text-muted-foreground mt-0.5" />
+                            <span className="text-muted-foreground">Project:</span>
+                            <span className="font-medium truncate">{projects.join(', ')}</span>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+                          <span className="text-muted-foreground">Sites:</span>
+                          <span className="font-medium truncate">{g.sites.join(', ')}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                        {g.workers.map(w => (
+                          <div key={w.id} className="text-[11px] flex items-center justify-between border-b border-border/40 last:border-0 py-0.5">
+                            <span className="font-medium truncate">{w.name}</span>
+                            <span className="text-muted-foreground truncate ml-2">{w.site}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {(g.startedAt || g.completedAt) && (
+                        <div className="space-y-1 pt-2 mt-2 border-t border-border text-xs">
+                          {g.startedAt && (
+                            <div className="flex items-center gap-2 text-accent">
+                              <Clock className="h-3 w-3" />
+                              <span>Started {new Date(g.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )}
+                          {g.completedAt && (
+                            <div className="flex items-center gap-2 text-success">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>Completed {new Date(g.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {pendingTrips.length > 0 && (
+              <div className="kpi-card border-warning/40">
+                <p className="text-sm">
+                  <AlertTriangle className="h-4 w-4 text-warning inline mr-1" />
+                  <strong>{pendingTrips.length}</strong> trip{pendingTrips.length !== 1 ? 's' : ''} still pending dispatch.{' '}
+                  <button onClick={() => setStep('optimize')} className="text-accent underline">Return to Optimize</button> to dispatch the rest.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
