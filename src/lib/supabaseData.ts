@@ -295,8 +295,14 @@ export interface TripScheduleRow {
   vehicle_type: string | null;
   vehicle_number: string | null;
   status: string;
+  started_at?: string | null;
+  completed_at?: string | null;
   notes: string;
 }
+
+type TripScheduleInput = Omit<TripScheduleRow, 'id' | 'status' | 'started_at' | 'completed_at'> & {
+  status?: string;
+};
 
 export async function fetchTripsByDate(date: string): Promise<TripScheduleRow[]> {
   const { data, error } = await supabase
@@ -310,12 +316,66 @@ export async function fetchTripsByDate(date: string): Promise<TripScheduleRow[]>
 
 export async function saveTripAssignments(
   date: string,
-  assignments: Omit<TripScheduleRow, 'id' | 'status'>[]
+  assignments: TripScheduleInput[]
 ): Promise<TripScheduleRow[]> {
-  // Delete existing for this date first
-  await supabase.from('trip_schedules').delete().eq('trip_date', date);
+  // Replace only draft/pending planning rows for this date. Already-dispatched
+  // driver trips must stay visible and must not be overwritten by a review save.
+  await supabase.from('trip_schedules').delete().eq('trip_date', date).eq('status', 'pending');
 
   if (assignments.length === 0) return [];
+
+  const rows = assignments.map(a => ({
+    trip_date: date,
+    worker_name: a.worker_name,
+    site: a.site,
+    department: a.department,
+    time_slot: a.time_slot,
+    start_time: a.start_time,
+    end_time: a.end_time,
+    urgent: a.urgent || false,
+    project_id: a.project_id,
+    project_name: a.project_name,
+    engineer_name: a.engineer_name || '',
+    pickup_location: a.pickup_location || 'Al Quoz Labour Camp',
+    vehicle_type: a.vehicle_type,
+    vehicle_number: a.vehicle_number,
+    notes: a.notes || '',
+    status: a.status || 'pending',
+  }));
+
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .insert(rows)
+    .select();
+  if (error) throw error;
+  return (data || []) as TripScheduleRow[];
+}
+
+export async function saveDispatchedTripAssignments(
+  date: string,
+  assignments: TripScheduleInput[]
+): Promise<TripScheduleRow[]> {
+  if (assignments.length === 0) return [];
+
+  // Remove previous saved rows for the exact dispatched project/site/slot/pickup
+  // combinations, then insert the refreshed driver assignments. This prevents a
+  // single-trip dispatch from replacing every other optimized trip for the day.
+  for (const a of assignments) {
+    let query = supabase
+      .from('trip_schedules')
+      .delete()
+      .eq('trip_date', date)
+      .eq('time_slot', a.time_slot)
+      .eq('site', a.site)
+      .eq('pickup_location', a.pickup_location || 'Al Quoz Labour Camp')
+      .in('status', ['pending', 'assigned']);
+
+    if (a.project_id) query = query.eq('project_id', a.project_id);
+    else query = query.eq('project_name', a.project_name || '');
+
+    const { error } = await query;
+    if (error) throw error;
+  }
 
   const rows = assignments.map(a => ({
     trip_date: date,

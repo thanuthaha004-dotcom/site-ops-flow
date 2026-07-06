@@ -187,6 +187,7 @@ export async function fetchRequestLiveStatuses(
     const reqWorkers = new Set((req.worker_names || []).map(norm).filter(Boolean));
     const matches = (data || []).filter(r => {
       if (norm(r.site) !== norm(req.site)) return false;
+      if (req.vehicle_number && r.vehicle_number && norm(r.vehicle_number) !== norm(req.vehicle_number)) return false;
       const projMatches = req.project_id
         ? r.project_id === req.project_id
         : norm(r.project_name) === norm(req.project_name);
