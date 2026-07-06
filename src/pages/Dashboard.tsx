@@ -1,21 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import KPICard from '@/components/dashboard/KPICard';
 import { StatusBadge, PriorityBadge } from '@/components/dashboard/ProjectStatusBadge';
 import { utilizationData } from '@/data/mockData';
-import type { Project, Vehicle, KPI } from '@/data/mockData';
-import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
+import type { KPI } from '@/data/mockData';
+import { fetchProjectsSummary, fetchVehiclesSummary } from '@/lib/supabaseData';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Truck, AlertTriangle, MapPin } from 'lucide-react';
+import { Truck, MapPin } from 'lucide-react';
 
 export default function Dashboard() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-
-  useEffect(() => {
-    fetchProjects().then(setProjects).catch(() => {});
-    fetchVehicles().then(setVehicles).catch(() => {});
-  }, []);
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects', 'summary'],
+    queryFn: fetchProjectsSummary,
+  });
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ['vehicles', 'summary'],
+    queryFn: fetchVehiclesSummary,
+  });
 
   const activeProjects = projects.filter(p => p.status === 'Active');
   const avgUtil = vehicles.length ? Math.round(vehicles.reduce((a, v) => a + v.utilization, 0) / vehicles.length) : 0;
@@ -97,9 +98,9 @@ export default function Dashboard() {
                   <td className="py-3"><p className="font-medium">{p.name}</p><p className="text-xs text-muted-foreground sm:hidden">{p.type}</p></td>
                   <td className="py-3 hidden sm:table-cell"><span className="text-xs bg-secondary px-2 py-1 rounded">{p.type}</span></td>
                   <td className="py-3 hidden md:table-cell"><span className="flex items-center gap-1 text-muted-foreground"><MapPin className="h-3 w-3" />{p.site}</span></td>
-                  <td className="py-3"><StatusBadge status={p.status} /></td>
+                  <td className="py-3"><StatusBadge status={p.status as any} /></td>
                   <td className="py-3 w-32"><div className="flex items-center gap-2"><Progress value={p.progress} className="h-2 flex-1" /><span className="text-xs text-muted-foreground w-8">{p.progress}%</span></div></td>
-                  <td className="py-3 hidden lg:table-cell"><PriorityBadge priority={p.priority} /></td>
+                  <td className="py-3 hidden lg:table-cell"><PriorityBadge priority={p.priority as any} /></td>
                 </tr>
               ))}
             </tbody>

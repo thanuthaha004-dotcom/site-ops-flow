@@ -23,6 +23,7 @@ interface AuthState {
   pending: boolean;
   profileName: string;
   loading: boolean;
+  roleLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string, role: AppRole) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(false);
 
   const fetchRole = async (userId: string): Promise<{ role: AppRole | null; pending: boolean }> => {
     const { data, error } = await supabase
@@ -71,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    const applySession = async (nextSession: Session | null) => {
+    const applySession = (nextSession: Session | null) => {
       if (!mounted) return;
 
       setSession(nextSession);
@@ -81,22 +83,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(null);
         setPending(false);
         setProfileName('');
+        setRoleLoading(false);
         setLoading(false);
         return;
       }
 
-      const [roleResult, nextProfileName] = await Promise.all([
+      // Unblock the UI right away so lazy chunks + layout can render.
+      setLoading(false);
+      setRoleLoading(true);
+
+      // Role + profile in parallel, in the background.
+      Promise.all([
         fetchRole(nextSession.user.id),
         fetchProfile(nextSession.user.id),
-      ]);
-
-      if (!mounted) return;
-
-      // pending roles act as "no role" — user lands on awaiting-approval screen
-      setRole(roleResult.pending ? null : roleResult.role);
-      setPending(roleResult.pending);
-      setProfileName(nextProfileName);
-      setLoading(false);
+      ]).then(([roleResult, nextProfileName]) => {
+        if (!mounted) return;
+        setRole(roleResult.pending ? null : roleResult.role);
+        setPending(roleResult.pending);
+        setProfileName(nextProfileName);
+        setRoleLoading(false);
+      }).catch(() => {
+        if (!mounted) return;
+        setRoleLoading(false);
+      });
     };
 
     supabase.auth.getSession()
@@ -166,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, pending, profileName, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, pending, profileName, loading, roleLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
