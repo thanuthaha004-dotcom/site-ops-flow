@@ -21,6 +21,10 @@ export interface TripWorker {
   notes?: string;
   /** True when this row is a placeholder for a request with no personnel. */
   noPersonnel?: boolean;
+  /** Vehicle number the engineer pre-selected on the request (dispatcher may override). */
+  requestedVehicleNumber?: string | null;
+  /** Driver name the engineer pre-selected on the request (dispatcher may override). */
+  requestedDriver?: string | null;
 }
 
 export interface TripGroup {
