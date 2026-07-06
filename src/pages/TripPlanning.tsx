@@ -123,6 +123,8 @@ export default function TripPlanning() {
             pickupLocation: r.pickup_location || 'Al Quoz Labour Camp',
             notes: (r as any).notes || '',
             noPersonnel: isPlaceholder,
+            requestedVehicleNumber: r.vehicle_number || null,
+            requestedDriver: (r as any).driver_name || null,
           }));
         });
         setWorkers(loaded);
@@ -701,6 +703,8 @@ export default function TripPlanning() {
           pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
           notes: req.notes || '',
           noPersonnel: true,
+          requestedVehicleNumber: req.vehicle_number || null,
+          requestedDriver: req.driver_name || null,
         });
         return;
       }
@@ -723,6 +727,8 @@ export default function TripPlanning() {
           engineerName: req.engineer_name || '',
           pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
           notes: req.notes || '',
+          requestedVehicleNumber: req.vehicle_number || null,
+          requestedDriver: req.driver_name || null,
         });
       });
     });
