@@ -37,7 +37,18 @@ export default function Login() {
     } else {
       if (!fullName.trim()) { setError('Full name is required'); setLoading(false); return; }
       const res = await signUp(email, password, fullName, role);
-      if (res.error) setError(res.error);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        if (role === 'driver') {
+          setInfo('Account created! Your driver access is pending admin approval. You can sign in now to check your status.');
+        } else {
+          setInfo('Account created! You can now sign in.');
+        }
+        setMode('login');
+        setPassword('');
+        setFullName('');
+      }
     }
     setLoading(false);
   };
