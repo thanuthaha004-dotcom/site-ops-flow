@@ -672,11 +672,45 @@ export default function TripPlanning() {
   }, [tripRequests, selectedDate]);
 
   // Generate workers from engineer requests
+  // Map an engineer-supplied start_time ("HH:MM" or "HH:MM:SS", 12/24h) to the
+  // nearest configured trip time slot. Falls back to the admin's default slot
+  // only when the engineer didn't provide a time.
+  const slotFromEngineerTime = (raw?: string | null): string => {
+    if (!raw) return defaultTimeSlot;
+    const s = String(raw).trim();
+    const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+    if (!m) return defaultTimeSlot;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ap = m[3]?.toUpperCase();
+    if (ap === 'PM' && h < 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    const target = h * 60 + min;
+    const toMinutes = (slot: string) => {
+      const mm = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!mm) return 0;
+      let hh = parseInt(mm[1], 10);
+      const mn = parseInt(mm[2], 10);
+      const a = mm[3].toUpperCase();
+      if (a === 'PM' && hh < 12) hh += 12;
+      if (a === 'AM' && hh === 12) hh = 0;
+      return hh * 60 + mn;
+    };
+    let best = TIME_SLOTS[0];
+    let bestDiff = Infinity;
+    TIME_SLOTS.forEach(slot => {
+      const d = Math.abs(toMinutes(slot) - target);
+      if (d < bestDiff) { bestDiff = d; best = slot; }
+    });
+    return best;
+  };
+
   const handleGenerateFromRequests = () => {
     if (tripRequests.length === 0) {
       toast({ title: 'No engineer submissions for this date', variant: 'destructive' });
       return;
     }
+
     const gen: TripWorker[] = [];
     const seen = new Set<string>();
     let skippedCompleted = 0;
@@ -697,7 +731,8 @@ export default function TripPlanning() {
           name: '— No personnel —',
           site: req.site || 'Unassigned',
           department: req.work_type || 'General',
-          timeSlot: defaultTimeSlot,
+          timeSlot: slotFromEngineerTime(req.start_time),
+
           startTime: req.start_time || '',
           endTime: req.end_time || '',
           urgent: req.priority === 'High',
@@ -722,7 +757,8 @@ export default function TripPlanning() {
           name: name.trim(),
           site: req.site || 'Unassigned',
           department: masterWorker?.department || req.work_type || 'General',
-          timeSlot: defaultTimeSlot,
+          timeSlot: slotFromEngineerTime(req.start_time),
+
           startTime: req.start_time || '',
           endTime: req.end_time || '',
           urgent: req.priority === 'High',
