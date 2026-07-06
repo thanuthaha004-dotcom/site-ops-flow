@@ -265,6 +265,18 @@ export function groupWorkersByAreaAndTime(workers: TripWorker[]): TripGroup[] {
     if (!vehicle) vehicle = findBestVehicle(groupWorkers.length, usedVehicleIds);
     if (vehicle && !vehicle.id.startsWith('req-')) usedVehicleIds.add(vehicle.id);
 
+    // Overlay engineer-requested driver name when provided — engineer's choice wins over the
+    // fleet's default driver, so admins see exactly what the engineer asked for.
+    if (vehicle) {
+      const driverCounts = new Map<string, number>();
+      groupWorkers.forEach(w => {
+        const d = (w.requestedDriver || '').trim();
+        if (d) driverCounts.set(d, (driverCounts.get(d) || 0) + 1);
+      });
+      const topDriver = [...driverCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (topDriver) vehicle = { ...vehicle, driver: topDriver };
+    }
+
 
     const capacity = vehicle?.capacity || suggestVehicleType(groupWorkers.length).capacity;
     const utilization = groupWorkers.length / capacity;
