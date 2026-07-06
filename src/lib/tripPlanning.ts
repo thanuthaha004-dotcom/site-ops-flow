@@ -217,26 +217,54 @@ export function groupWorkersByAreaAndTime(workers: TripWorker[]): TripGroup[] {
     const [area, timeSlot] = key.split('__');
     const sites = [...new Set(groupWorkers.map(w => w.site))];
 
-    // Prefer engineer-selected vehicle when all workers in this group requested the same one.
+    // Prefer engineer-selected vehicle. Rank requested vehicles by how many workers picked them,
+    // then pick the first one that fits the group and is still free. This keeps auto-prefill
+    // working even when a few workers in the group requested different vehicles.
     let vehicle: SuggestedVehicle | null = null;
-    const reqNums = [...new Set(groupWorkers.map(w => (w.requestedVehicleNumber || '').trim()).filter(Boolean))];
-    if (reqNums.length === 1) {
-      const match = cachedVehicles.find(v => v.number === reqNums[0]);
-      if (match && !usedVehicleIds.has(match.id)) {
+    const vehicleCounts = new Map<string, number>();
+    groupWorkers.forEach(w => {
+      const n = (w.requestedVehicleNumber || '').trim();
+      if (n) vehicleCounts.set(n, (vehicleCounts.get(n) || 0) + 1);
+    });
+    const rankedVehicleNums = [...vehicleCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([n]) => n);
+    for (const num of rankedVehicleNums) {
+      const match = cachedVehicles.find(v => v.number === num);
+      if (match && !usedVehicleIds.has(match.id) && match.capacity >= groupWorkers.length) {
         const suggestion = suggestVehicleType(groupWorkers.length);
         vehicle = { id: match.id, number: match.number, type: match.type || suggestion.type, capacity: match.capacity, driver: match.driver };
+        break;
+      }
+    }
+    // Even if capacity is short or vehicle is already used elsewhere, still prefill the top
+    // requested number so the admin sees the engineer's choice and can adjust.
+    if (!vehicle && rankedVehicleNums.length > 0) {
+      const num = rankedVehicleNums[0];
+      const match = cachedVehicles.find(v => v.number === num);
+      const suggestion = suggestVehicleType(groupWorkers.length);
+      if (match) {
+        vehicle = { id: match.id, number: match.number, type: match.type || suggestion.type, capacity: match.capacity, driver: match.driver };
+      } else {
+        vehicle = { id: `req-${num}`, number: num, type: suggestion.type, capacity: suggestion.capacity, driver: '' };
       }
     }
     // Fall back to engineer-requested driver name only (no fleet match) so admin still sees the prefill.
     if (!vehicle) {
-      const reqDrivers = [...new Set(groupWorkers.map(w => (w.requestedDriver || '').trim()).filter(Boolean))];
-      if (reqDrivers.length === 1) {
+      const driverCounts = new Map<string, number>();
+      groupWorkers.forEach(w => {
+        const d = (w.requestedDriver || '').trim();
+        if (d) driverCounts.set(d, (driverCounts.get(d) || 0) + 1);
+      });
+      const topDriver = [...driverCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (topDriver) {
         const suggestion = suggestVehicleType(groupWorkers.length);
-        vehicle = { id: `req-${reqDrivers[0]}`, number: reqNums[0] || '—', type: suggestion.type, capacity: suggestion.capacity, driver: reqDrivers[0] };
+        vehicle = { id: `req-${topDriver}`, number: '—', type: suggestion.type, capacity: suggestion.capacity, driver: topDriver };
       }
     }
     if (!vehicle) vehicle = findBestVehicle(groupWorkers.length, usedVehicleIds);
     if (vehicle && !vehicle.id.startsWith('req-')) usedVehicleIds.add(vehicle.id);
+
 
     const capacity = vehicle?.capacity || suggestVehicleType(groupWorkers.length).capacity;
     const utilization = groupWorkers.length / capacity;
