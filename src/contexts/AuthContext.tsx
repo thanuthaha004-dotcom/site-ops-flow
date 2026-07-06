@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(false);
 
   const fetchRole = async (userId: string): Promise<{ role: AppRole | null; pending: boolean }> => {
     const { data, error } = await supabase
