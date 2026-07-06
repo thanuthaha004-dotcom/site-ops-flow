@@ -123,6 +123,8 @@ export default function TripPlanning() {
             pickupLocation: r.pickup_location || 'Al Quoz Labour Camp',
             notes: (r as any).notes || '',
             noPersonnel: isPlaceholder,
+            requestedVehicleNumber: r.vehicle_number || null,
+            requestedDriver: (r as any).driver_name || null,
           }));
         });
         setWorkers(loaded);
