@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   TripGroup, TripWorker, TripStats,
   optimizeTrips, TIME_SLOTS, MIN_UTILIZATION,
-  snapToTimeSlot, getAreaCluster,
+  snapToTimeSlot, getAreaCluster, setCachedVehicles,
 } from '@/lib/tripPlanning';
 import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, getRecentTripDates,
@@ -80,7 +80,10 @@ export default function TripPlanning() {
   useEffect(() => {
     fetchProjects().then(setProjectList).catch(() => {});
     fetchWorkers().then(setWorkerList).catch(() => {});
-    fetchVehicles().then(setVehicleList).catch(() => {});
+    fetchVehicles().then((vehicles) => {
+      setVehicleList(vehicles);
+      setCachedVehicles(vehicles);
+    }).catch(() => {});
     getRecentTripDates().then(setRecentDates).catch(() => {});
     fetchDriverAreaDefaults().then(setDriverAreaDefaults).catch(() => {});
   }, []);
@@ -367,6 +370,7 @@ export default function TripPlanning() {
   };
 
   const handleOptimize = () => {
+    setCachedVehicles(vehicleList);
     // Only re-group workers whose trips aren't already completed.
     const pool = workers.filter(w => !completedWorkerKeys.has(keyForWorker(w)));
     if (pool.length === 0) { toast({ title: 'No pending workers to optimize', variant: 'destructive' }); return; }
