@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    const applySession = async (nextSession: Session | null) => {
+    const applySession = (nextSession: Session | null) => {
       if (!mounted) return;
 
       setSession(nextSession);
@@ -83,22 +83,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(null);
         setPending(false);
         setProfileName('');
+        setRoleLoading(false);
         setLoading(false);
         return;
       }
 
-      const [roleResult, nextProfileName] = await Promise.all([
+      // Unblock the UI right away so lazy chunks + layout can render.
+      setLoading(false);
+      setRoleLoading(true);
+
+      // Role + profile in parallel, in the background.
+      Promise.all([
         fetchRole(nextSession.user.id),
         fetchProfile(nextSession.user.id),
-      ]);
-
-      if (!mounted) return;
-
-      // pending roles act as "no role" — user lands on awaiting-approval screen
-      setRole(roleResult.pending ? null : roleResult.role);
-      setPending(roleResult.pending);
-      setProfileName(nextProfileName);
-      setLoading(false);
+      ]).then(([roleResult, nextProfileName]) => {
+        if (!mounted) return;
+        setRole(roleResult.pending ? null : roleResult.role);
+        setPending(roleResult.pending);
+        setProfileName(nextProfileName);
+        setRoleLoading(false);
+      }).catch(() => {
+        if (!mounted) return;
+        setRoleLoading(false);
+      });
     };
 
     supabase.auth.getSession()
