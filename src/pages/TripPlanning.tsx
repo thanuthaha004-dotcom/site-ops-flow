@@ -727,6 +727,8 @@ export default function TripPlanning() {
           engineerName: req.engineer_name || '',
           pickupLocation: req.pickup_location || 'Al Quoz Labour Camp',
           notes: req.notes || '',
+          requestedVehicleNumber: req.vehicle_number || null,
+          requestedDriver: req.driver_name || null,
         });
       });
     });
