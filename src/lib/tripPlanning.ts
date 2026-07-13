@@ -131,7 +131,18 @@ function similarity(a: string, b: string): number {
 
 const FUZZY_THRESHOLD = 0.7;
 
+// Admin-managed extra mappings from the zone_locations table. Injected via setCustomZoneMappings().
+let customZoneMappings: Array<{ keyword: string; zone: string }> = [];
+export function setCustomZoneMappings(rows: Array<{ location_keyword: string; zone: string }>) {
+  customZoneMappings = rows.map(r => ({ keyword: normalizeSite(r.location_keyword), zone: r.zone }))
+    .filter(r => r.keyword.length > 0);
+}
+export function getBuiltInZoneClusters(): Record<string, string[]> {
+  return AREA_CLUSTERS;
+}
+
 export function getAreaCluster(site: string): string {
+
   const upper = normalizeSite(site);
   if (!upper) return 'Other';
 
