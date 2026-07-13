@@ -106,17 +106,30 @@ const pick = (r: Record<string, string>, ...keys: string[]) => {
   return '';
 };
 
-// Excel time cells can come back as a fractional day number (0.5 = 12:00).
+// Excel time cells can come back as a fractional day number (0.5 = 12:00),
+// a plain "HH:MM", or a human string like "5.30 AM" / "5:30AM" / "17.00".
 const normalizeTime = (raw: string): string => {
   const v = (raw || '').trim();
   if (!v) return '';
-  const m = v.match(/^(\d{1,2}):(\d{2})/);
-  if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+
+  // Fractional day (Excel time serial)
   const n = Number(v);
-  if (Number.isFinite(n) && n >= 0 && n < 1) {
+  if (Number.isFinite(n) && n > 0 && n < 1) {
     const totalMin = Math.round(n * 24 * 60);
     const h = Math.floor(totalMin / 60);
     const mm = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  }
+
+  // Match H, H:MM, H.MM, "5 30", optional AM/PM
+  const m = v.match(/^(\d{1,2})[:.,\s]?(\d{2})?\s*([AaPp][Mm])?/);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const mm = parseInt(m[2] || '0', 10);
+    const ampm = (m[3] || '').toUpperCase();
+    if (!Number.isFinite(h) || h < 0 || h > 23 || mm < 0 || mm > 59) return v;
+    if (ampm === 'PM' && h < 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
     return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   }
   return v;
