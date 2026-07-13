@@ -746,6 +746,9 @@ export default function EngineerTripSubmit() {
                         onChange={e => onVehicleChange(d.tempId, e.target.value)}
                         className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
                         <option value="">— Let dispatcher decide —</option>
+                        {d.vehicle_number && !vehicles.some(v => v.number === d.vehicle_number) && (
+                          <option value={d.vehicle_number}>{d.vehicle_number} • (from Excel)</option>
+                        )}
                         {vehicles.map(v => (
                           <option key={v.id} value={v.number}>
                             {v.number} • {v.type} • {v.capacity} seats
