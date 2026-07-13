@@ -25,6 +25,8 @@ const DriverDashboard = lazy(() => import("./pages/driver/Dashboard"));
 const MyTrips = lazy(() => import("./pages/driver/MyTrips"));
 const TripDetail = lazy(() => import("./pages/driver/TripDetail"));
 const DriverApprovals = lazy(() => import("./pages/admin/DriverApprovals"));
+const ZoneManagement = lazy(() => import("./pages/admin/ZoneManagement"));
+
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
