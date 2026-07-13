@@ -153,8 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) return { error: error.message };
     if (data.user) {
-      // Drivers self-signup as pending; admin must approve.
-      const isPending = selectedRole === 'driver';
+      // Drivers and Engineers self-signup as pending; admin must approve.
+      const isPending = selectedRole === 'driver' || selectedRole === 'engineer';
       await supabase.from('user_roles').insert({
         user_id: data.user.id,
         role: selectedRole,

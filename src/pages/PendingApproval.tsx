@@ -12,8 +12,8 @@ export default function PendingApproval() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight">Awaiting Approval</h1>
           <p className="text-sm text-muted-foreground">
-            {profileName ? `Hi ${profileName}, your` : 'Your'} driver account is pending admin approval.
-            Once approved, you'll see your assigned trips here.
+            {profileName ? `Hi ${profileName}, your` : 'Your'} account is pending administrator approval.
+            Once approved, you'll get access on your next sign-in.
           </p>
         </div>
         <button onClick={signOut}
