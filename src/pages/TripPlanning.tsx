@@ -86,7 +86,9 @@ export default function TripPlanning() {
     }).catch(() => {});
     getRecentTripDates().then(setRecentDates).catch(() => {});
     fetchDriverAreaDefaults().then(setDriverAreaDefaults).catch(() => {});
+    import('@/lib/zoneMappings').then(m => m.loadZoneMappings().catch(() => {}));
   }, []);
+
 
   // Initialize selected projects when project list loads
   useEffect(() => {
