@@ -209,9 +209,8 @@ export default function EngineerTripSubmit() {
         return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
       }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
-      if (d.start_time && d.end_time && d.start_time >= d.end_time) {
-        return `Trip ${i + 1}: end time must be after start time`;
-      }
+      // End time is captured by the driver, not by the engineer, so no
+      // start/end ordering check is needed here.
     }
     return null;
   };
