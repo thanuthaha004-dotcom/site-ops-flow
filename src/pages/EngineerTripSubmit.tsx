@@ -255,7 +255,7 @@ export default function EngineerTripSubmit() {
           priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
           notes: d.notes,
           start_time: d.start_time || null,
-          end_time: d.end_time || null,
+          end_time: null, // captured by driver on trip completion
           vehicle_number: d.vehicle_number || null,
           vehicle_type: v?.type || null,
           driver_name: d.driver_name || null,
