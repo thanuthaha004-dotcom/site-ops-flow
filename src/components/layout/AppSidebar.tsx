@@ -15,7 +15,7 @@ const adminNavItems = [
   { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
   { path: '/trips', label: 'Trip Planning', icon: Route },
   { path: '/engineers', label: 'Engineers', icon: UserCog },
-  { path: '/driver-approvals', label: 'Driver Approvals', icon: ShieldCheck },
+  { path: '/driver-approvals', label: 'User Approvals', icon: ShieldCheck },
 ];
 
 const engineerNavItems = [
