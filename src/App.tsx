@@ -71,7 +71,9 @@ function ProtectedRoutes() {
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/trips" element={<TripPlanning />} />
               <Route path="/engineers" element={<Engineers />} />
+              <Route path="/zones" element={<ZoneManagement />} />
               <Route path="/driver-approvals" element={<DriverApprovals />} />
+
             </>
           ) : role === 'driver' ? (
             <>
