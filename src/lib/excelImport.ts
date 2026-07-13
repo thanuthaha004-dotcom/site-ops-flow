@@ -89,9 +89,19 @@ export type TripRequestRow = {
   execution_order?: number;
 };
 
+const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
 const pick = (r: Record<string, string>, ...keys: string[]) => {
+  // Exact-match first
   for (const k of keys) {
     if (r[k] !== undefined && String(r[k]).trim() !== '') return String(r[k]).trim();
+  }
+  // Fuzzy match: normalize both header and alias (strip spaces/case/punctuation)
+  const wanted = new Set(keys.map(normKey));
+  for (const rk of Object.keys(r)) {
+    if (wanted.has(normKey(rk)) && String(r[rk]).trim() !== '') {
+      return String(r[rk]).trim();
+    }
   }
   return '';
 };
