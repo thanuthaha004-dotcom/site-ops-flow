@@ -131,9 +131,25 @@ function similarity(a: string, b: string): number {
 
 const FUZZY_THRESHOLD = 0.7;
 
+// Admin-managed extra mappings from the zone_locations table. Injected via setCustomZoneMappings().
+let customZoneMappings: Array<{ keyword: string; zone: string }> = [];
+export function setCustomZoneMappings(rows: Array<{ location_keyword: string; zone: string }>) {
+  customZoneMappings = rows.map(r => ({ keyword: normalizeSite(r.location_keyword), zone: r.zone }))
+    .filter(r => r.keyword.length > 0);
+}
+export function getBuiltInZoneClusters(): Record<string, string[]> {
+  return AREA_CLUSTERS;
+}
+
 export function getAreaCluster(site: string): string {
+
   const upper = normalizeSite(site);
   if (!upper) return 'Other';
+
+  // 0. Admin-added mappings win — exact keyword match on normalized site.
+  for (const { keyword, zone } of customZoneMappings) {
+    if (upper === keyword || upper.includes(keyword)) return zone;
+  }
 
   // 1. Exact substring match (fast path) — Hub first so "Al Quoz" doesn't match other rules
   for (const keyword of AREA_CLUSTERS['Hub - Al Quoz Camp']) {
@@ -143,6 +159,7 @@ export function getAreaCluster(site: string): string {
     if (area === 'Hub - Al Quoz Camp') continue;
     if (keywords.some(k => upper.includes(k))) return area;
   }
+
 
   // 2. Fuzzy fallback — score every keyword against full input AND each token, pick best ≥ threshold.
   // This handles typos ("Jumeriah", "Jabel Ali") and noise around a known name ("Marina Walk" → MARINA).

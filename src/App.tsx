@@ -25,6 +25,8 @@ const DriverDashboard = lazy(() => import("./pages/driver/Dashboard"));
 const MyTrips = lazy(() => import("./pages/driver/MyTrips"));
 const TripDetail = lazy(() => import("./pages/driver/TripDetail"));
 const DriverApprovals = lazy(() => import("./pages/admin/DriverApprovals"));
+const ZoneManagement = lazy(() => import("./pages/admin/ZoneManagement"));
+
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -69,7 +71,9 @@ function ProtectedRoutes() {
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/trips" element={<TripPlanning />} />
               <Route path="/engineers" element={<Engineers />} />
+              <Route path="/zones" element={<ZoneManagement />} />
               <Route path="/driver-approvals" element={<DriverApprovals />} />
+
             </>
           ) : role === 'driver' ? (
             <>

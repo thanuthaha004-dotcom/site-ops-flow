@@ -483,6 +483,33 @@ export type Database = {
         }
         Relationships: []
       }
+      zone_locations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          location_keyword: string
+          updated_at: string
+          zone: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_keyword: string
+          updated_at?: string
+          zone: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_keyword?: string
+          updated_at?: string
+          zone?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
