@@ -89,9 +89,19 @@ export type TripRequestRow = {
   execution_order?: number;
 };
 
+const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
 const pick = (r: Record<string, string>, ...keys: string[]) => {
+  // Exact-match first
   for (const k of keys) {
     if (r[k] !== undefined && String(r[k]).trim() !== '') return String(r[k]).trim();
+  }
+  // Fuzzy match: normalize both header and alias (strip spaces/case/punctuation)
+  const wanted = new Set(keys.map(normKey));
+  for (const rk of Object.keys(r)) {
+    if (wanted.has(normKey(rk)) && String(r[rk]).trim() !== '') {
+      return String(r[rk]).trim();
+    }
   }
   return '';
 };
@@ -127,8 +137,8 @@ export async function parseTripRequestsExcel(file: File): Promise<TripRequestRow
       start_time: normalizeTime(pick(r, 'Pickup Time', 'Start Time', 'start_time', 'StartTime', 'Start')),
       end_time: normalizeTime(pick(r, 'End Time', 'end_time', 'EndTime', 'End', 'Drop-off Time', 'Dropoff Time')),
       engineer: pick(r, 'Engineer Information', 'Engineer', 'engineer', 'Engineer Name'),
-      vehicle_number: pick(r, 'Vehicle Number', 'vehicle_number', 'Vehicle'),
-      driver_name: pick(r, 'Driver Name', 'Driver', 'driver', 'driver_name'),
+      vehicle_number: pick(r, 'Vehicle Number', 'Vehicle No', 'Vehicle No.', 'Vehicle_No', 'VehicleNo', 'Vehicle #', 'vehicle_number', 'Vehicle', 'Vehicle Reg', 'Vehicle Registration', 'Reg No'),
+      driver_name: pick(r, 'Driver Name', 'DriverName', 'Driver_Name', 'Driver', 'driver', 'driver_name', 'Assigned Driver'),
       notes: pick(r, 'Notes', 'notes', 'Remarks'),
       execution_order: Number(pick(r, 'Execution Order', 'execution_order', 'Order', 'Sequence')) || (i + 1),
     }))
