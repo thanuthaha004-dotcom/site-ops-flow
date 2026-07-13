@@ -716,24 +716,17 @@ export default function EngineerTripSubmit() {
                     )}
                   </div>
 
-                  {/* Time */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
-                        <Clock className="h-3 w-3" /> Start time
-                      </label>
-                      <input type="time" value={d.start_time}
-                        onChange={e => updateDraft(d.tempId, { start_time: e.target.value })}
-                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
-                        <Clock className="h-3 w-3" /> End time
-                      </label>
-                      <input type="time" value={d.end_time}
-                        onChange={e => updateDraft(d.tempId, { end_time: e.target.value })}
-                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
-                    </div>
+                  {/* Start time (End time is captured by the driver on trip completion) */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                      <Clock className="h-3 w-3" /> Start time
+                    </label>
+                    <input type="time" value={d.start_time}
+                      onChange={e => updateDraft(d.tempId, { start_time: e.target.value })}
+                      className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      End time will be recorded automatically when the driver marks the trip complete.
+                    </p>
                   </div>
 
                   {/* Vehicle + Driver */}
