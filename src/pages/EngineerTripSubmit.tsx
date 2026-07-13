@@ -209,9 +209,8 @@ export default function EngineerTripSubmit() {
         return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
       }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
-      if (d.start_time && d.end_time && d.start_time >= d.end_time) {
-        return `Trip ${i + 1}: end time must be after start time`;
-      }
+      // End time is captured by the driver, not by the engineer, so no
+      // start/end ordering check is needed here.
     }
     return null;
   };
@@ -255,7 +254,7 @@ export default function EngineerTripSubmit() {
           priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
           notes: d.notes,
           start_time: d.start_time || null,
-          end_time: d.end_time || null,
+          end_time: null, // captured by driver on trip completion
           vehicle_number: d.vehicle_number || null,
           vehicle_type: v?.type || null,
           driver_name: d.driver_name || null,
@@ -716,24 +715,17 @@ export default function EngineerTripSubmit() {
                     )}
                   </div>
 
-                  {/* Time */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
-                        <Clock className="h-3 w-3" /> Start time
-                      </label>
-                      <input type="time" value={d.start_time}
-                        onChange={e => updateDraft(d.tempId, { start_time: e.target.value })}
-                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
-                        <Clock className="h-3 w-3" /> End time
-                      </label>
-                      <input type="time" value={d.end_time}
-                        onChange={e => updateDraft(d.tempId, { end_time: e.target.value })}
-                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
-                    </div>
+                  {/* Start time (End time is captured by the driver on trip completion) */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                      <Clock className="h-3 w-3" /> Start time
+                    </label>
+                    <input type="time" value={d.start_time}
+                      onChange={e => updateDraft(d.tempId, { start_time: e.target.value })}
+                      className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      End time will be recorded automatically when the driver marks the trip complete.
+                    </p>
                   </div>
 
                   {/* Vehicle + Driver */}
