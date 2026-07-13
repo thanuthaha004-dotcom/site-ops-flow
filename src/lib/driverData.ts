@@ -191,7 +191,7 @@ export function formatDuration(sec: number): string {
   return `${s}s`;
 }
 
-// ── Admin: pending driver approvals ──
+// ── Admin: pending user approvals (drivers & engineers) ──
 
 export interface PendingDriver {
   user_id: string;
@@ -200,11 +200,13 @@ export interface PendingDriver {
   role_id: string;
 }
 
-export async function fetchPendingDrivers(): Promise<PendingDriver[]> {
+export type ApprovableRole = 'driver' | 'engineer';
+
+export async function fetchPendingApprovals(role: ApprovableRole): Promise<PendingDriver[]> {
   const { data: roles, error } = await supabase
     .from('user_roles')
     .select('id, user_id, role, pending')
-    .eq('role', 'driver')
+    .eq('role', role)
     .eq('pending', true);
   if (error) throw error;
   if (!roles?.length) return [];
@@ -222,16 +224,25 @@ export async function fetchPendingDrivers(): Promise<PendingDriver[]> {
   }));
 }
 
-export async function approveDriver(roleId: string) {
+// Back-compat wrapper for driver-only callers.
+export async function fetchPendingDrivers(): Promise<PendingDriver[]> {
+  return fetchPendingApprovals('driver');
+}
+
+export async function approveUser(roleId: string) {
   const { error } = await supabase.from('user_roles')
     .update({ pending: false }).eq('id', roleId);
   if (error) throw error;
 }
 
-export async function rejectDriver(roleId: string) {
+export async function rejectUser(roleId: string) {
   const { error } = await supabase.from('user_roles').delete().eq('id', roleId);
   if (error) throw error;
 }
+
+// Aliases kept so existing driver-approval imports keep working.
+export const approveDriver = approveUser;
+export const rejectDriver = rejectUser;
 
 // Vehicles list (for admin to assign driver_user_id)
 export async function fetchDriverUsers(): Promise<{ user_id: string; full_name: string; email: string }[]> {
