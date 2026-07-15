@@ -246,6 +246,45 @@ export async function rejectUser(roleId: string) {
 export const approveDriver = approveUser;
 export const rejectDriver = rejectUser;
 
+export interface DirectoryUser {
+  user_id: string;
+  role_id: string;
+  full_name: string;
+  email: string;
+  pending: boolean;
+}
+
+/** All users with the given role (both approved and pending). */
+export async function fetchAllUsersByRole(role: ApprovableRole): Promise<DirectoryUser[]> {
+  const { data: roles, error } = await supabase
+    .from('user_roles')
+    .select('id, user_id, pending')
+    .eq('role', role);
+  if (error) throw error;
+  if (!roles?.length) return [];
+
+  const ids = roles.map(r => r.user_id);
+  const { data: profs } = await supabase
+    .from('profiles').select('id, full_name, email').in('id', ids);
+  const profMap = new Map((profs || []).map((p: any) => [p.id, p]));
+
+  return roles.map((r: any) => ({
+    user_id: r.user_id,
+    role_id: r.id,
+    full_name: profMap.get(r.user_id)?.full_name || '',
+    email: profMap.get(r.user_id)?.email || '',
+    pending: !!r.pending,
+  })).sort((a, b) => a.full_name.localeCompare(b.full_name));
+}
+
+/** Trigger a Supabase password-reset email for a user account. */
+export async function sendPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw error;
+}
+
 // Vehicles list (for admin to assign driver_user_id)
 export async function fetchDriverUsers(): Promise<{ user_id: string; full_name: string; email: string }[]> {
   const { data: roles, error } = await supabase
