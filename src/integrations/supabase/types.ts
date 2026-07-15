@@ -233,6 +233,7 @@ export type Database = {
           department: string
           end_time: string | null
           engineer_name: string
+          execution_order: number | null
           id: string
           notes: string
           pickup_location: string
@@ -255,6 +256,7 @@ export type Database = {
           department?: string
           end_time?: string | null
           engineer_name?: string
+          execution_order?: number | null
           id?: string
           notes?: string
           pickup_location?: string
@@ -277,6 +279,7 @@ export type Database = {
           department?: string
           end_time?: string | null
           engineer_name?: string
+          execution_order?: number | null
           id?: string
           notes?: string
           pickup_location?: string
