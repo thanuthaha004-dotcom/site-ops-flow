@@ -298,6 +298,7 @@ export interface TripScheduleRow {
   started_at?: string | null;
   completed_at?: string | null;
   notes: string;
+  execution_order?: number | null;
 }
 
 type TripScheduleInput = Omit<TripScheduleRow, 'id' | 'status' | 'started_at' | 'completed_at'> & {
