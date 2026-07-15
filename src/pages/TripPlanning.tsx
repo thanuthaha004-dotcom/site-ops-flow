@@ -482,6 +482,7 @@ export default function TripPlanning() {
       urgent: boolean;
       names: string[];
       notes: string[];
+      execution_order: number | null;
     };
     const buckets = new Map<string, Bucket>();
 
@@ -504,6 +505,12 @@ export default function TripPlanning() {
           if (!w.noPersonnel && !bucket.names.includes(w.name)) bucket.names.push(w.name);
           if (w.urgent) bucket.urgent = true;
           if (w.notes && !bucket.notes.includes(w.notes)) bucket.notes.push(w.notes);
+          // Bucket inherits the LOWEST Trip No — that trip runs first for the driver.
+          if (w.executionOrder != null) {
+            bucket.execution_order = bucket.execution_order == null
+              ? w.executionOrder
+              : Math.min(bucket.execution_order, w.executionOrder);
+          }
         } else {
           buckets.set(key, {
             site: w.site,
@@ -520,6 +527,7 @@ export default function TripPlanning() {
             urgent: !!w.urgent,
             names: w.noPersonnel ? [] : [w.name],
             notes: w.notes ? [w.notes] : [],
+            execution_order: w.executionOrder ?? null,
           });
         }
       });
@@ -541,6 +549,7 @@ export default function TripPlanning() {
       notes: b.notes.join(' | '),
       vehicle_type: b.vehicle_type,
       vehicle_number: b.vehicle_number,
+      execution_order: b.execution_order,
     }));
 
     await saveDispatchedTripAssignments(toDateStr(selectedDate), assignments);
