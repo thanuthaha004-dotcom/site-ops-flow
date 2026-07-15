@@ -115,6 +115,36 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_locations: {
+        Row: {
+          accuracy_m: number | null
+          heading: number | null
+          lat: number
+          lng: number
+          speed_kmh: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          heading?: number | null
+          lat: number
+          lng: number
+          speed_kmh?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          heading?: number | null
+          lat?: number
+          lng?: number
+          speed_kmh?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       engineers: {
         Row: {
           created_at: string

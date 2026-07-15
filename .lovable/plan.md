@@ -1,67 +1,60 @@
 
 ## Goal
-When an unexpected trip comes in, the admin enters a destination and the app returns a **ranked list of nearest vehicles** using live GPS positions pulled from your existing locator (`pro.mylocatorplus.com`).
+Skip MyLocatorPlus. Use the **driver's own phone GPS** (via the browser) to report vehicle location automatically whenever the driver has the app open. Admin gets a "Nearest Vehicle" finder for unexpected trips using this live data.
 
-## Prerequisite (must confirm before build)
-MyLocatorPlus is a third-party GPS platform. To read live positions, we need one of:
-
-1. **API access from MyLocatorPlus** — the account owner requests API credentials (username/password, API key, or token) from MyLocatorPlus support. Most platforms of this type expose a REST endpoint that returns `{vehicle, lat, lng, speed, last_update}`.
-2. **If no API is offered** — MyLocatorPlus won't work; we'd fall back to drivers' phones sending GPS from the driver PWA (separate feature).
-
-Please contact MyLocatorPlus and ask: *"Do you provide a REST API or data feed for live vehicle positions? If yes, please share the API documentation and credentials."*
-Once you have those, I'll wire it in. The plan below assumes option 1.
+## How it works (plain language)
+- When a driver opens the app on their phone, the browser asks **once**: *"Allow this site to access your location?"* → they tap Allow.
+- From then on, while the app stays open (foreground), the phone silently sends its GPS coordinates to our backend every ~30 seconds.
+- Each driver's phone location = their vehicle's location (because they drive it).
+- Admin sees all vehicles live on a map and can find the nearest one instantly.
 
 ## What we'll build
 
-### 1. Store locator credentials securely
-- Save the MyLocatorPlus API base URL + token as backend secrets (never in frontend code).
+### 1. Database
+- New table `driver_locations` (one row per driver, updated in place): `user_id`, `lat`, `lng`, `accuracy_m`, `speed_kmh`, `updated_at`.
+- Realtime enabled so admin map updates live.
 
-### 2. Vehicle ↔ tracker mapping
-- Add a `locator_device_id` field on the `vehicles` table so each Lovable vehicle links to its tracker unit in MyLocatorPlus.
-- Admin edits this once per vehicle in Fleet page.
+### 2. Driver PWA — automatic location sharing
+- On login, ask permission once with a friendly banner: *"Share your location so dispatch can send you the closest jobs."* → Allow / Not now.
+- If allowed → background hook uses `navigator.geolocation.watchPosition` and pushes to `driver_locations` every 30s (or when moved >100m).
+- Small status chip in driver dashboard: 🟢 *Location sharing on* / 🔴 *Off — tap to enable*.
+- Stops when the app is closed or backgrounded (this is a browser limitation — see caveats).
 
-### 3. Backend function: `get-live-positions`
-- Edge function calls MyLocatorPlus API, returns `[{vehicle_number, lat, lng, last_update, speed}]`.
-- Cached ~30s to avoid hammering the provider.
+### 3. Admin — Live Fleet Map
+- New page `/fleet/live` with a Google Map showing every driver's current pin, name, vehicle number, and "updated Xs ago".
+- Grey pin if last update > 5 min (considered stale).
 
-### 4. Backend function: `find-nearest-vehicles`
-- Input: destination address or lat/lng, optional required headcount.
-- Steps:
-  a. Geocode destination (using existing Google Maps connector if present, else Mapbox).
-  b. Pull live positions via `get-live-positions`.
-  c. Compute **road distance & ETA** to destination for each vehicle (Google/Mapbox Distance Matrix).
-  d. Return top 5 sorted by ETA with: vehicle number, current driver, distance km, ETA min, last GPS update age, current status flag (on-trip / idle — informational only, per your choice all vehicles are eligible).
-
-### 5. Admin UI: "Unexpected Trip" page
-- New route `/trip-planning/unexpected` (also entry point from Trip Planning header).
-- Form: destination (address autocomplete + map pin), optional headcount, notes.
-- On submit → shows ranked list card view:
+### 4. Admin — Unexpected Trip / Nearest Vehicle
+- New page `/trip-planning/unexpected`.
+- Admin enters destination (address autocomplete).
+- System returns **top 5 nearest drivers** sorted by driving ETA:
   ```text
-  #1  K 41732  •  Habeeb        •  4.2 km  •  ~9 min  •  updated 12s ago  •  [Assign]
-  #2  D 22984  •  Rashid         •  7.8 km  •  ~15 min •  updated 40s ago  •  [Assign]
-  ...
+  #1  Habeeb    K 41732   4.2 km   ~9 min    updated 12s ago   [Assign]
+  #2  Rashid    D 22984   7.8 km   ~15 min   updated 40s ago   [Assign]
   ```
-- "Assign" button creates a `trip_schedules` row for that vehicle + notifies the driver (visible in their Dashboard immediately).
-- Small live map showing all vehicle pins + the destination pin.
+- "Assign" creates a `trip_schedules` row → appears in that driver's Dashboard immediately.
 
-### 6. Reuse on existing planning page
-- Add an "Live positions" toggle on the main Trip Planning map so admin can always see where each vehicle currently is.
+### 5. Distance calculation
+- Uses Google Maps Routes API (via the Lovable-managed Google Maps connector — 1-click, no key required from you).
+
+## Caveats (important to know upfront)
+- **Only works while the driver has the app open in the foreground.** Browsers stop background GPS when the tab is closed or the phone is locked. If drivers need location tracking with the app closed, we'd need to convert the driver app to a native mobile app (Capacitor) — a separate, larger effort.
+- **Driver must tap "Allow" once.** If they deny, we show an in-app message telling them how to re-enable in browser settings.
+- **Accuracy depends on the phone** (usually 5–20 m outdoors, worse indoors).
+- **Battery**: 30-second interval + `watchPosition` is light — comparable to using Google Maps.
 
 ## Technical section
-- **Tables**: `ALTER vehicles ADD locator_device_id text`.
-- **Secrets**: `MYLOCATORPLUS_BASE_URL`, `MYLOCATORPLUS_TOKEN` (via add_secret after you share).
-- **Edge functions**: `get-live-positions`, `find-nearest-vehicles`, `create-unexpected-trip`.
-- **Distance**: prefer Google Maps Distance Matrix (Lovable-managed connector — 1-click, no key). Falls back to haversine straight-line if quota/error.
-- **Caching**: in-memory 30s on positions; per-request on distance matrix.
-- **Auth**: admin-only RLS on the assignment endpoint.
-- **Realtime**: subscribe the Unexpected Trip page to positions every 30s.
+- **Table**: `driver_locations (user_id uuid pk, lat double precision, lng double precision, accuracy_m real, speed_kmh real, updated_at timestamptz)` with RLS: driver can upsert own row, admins can read all.
+- **Grants**: `GRANT SELECT, INSERT, UPDATE ON public.driver_locations TO authenticated; GRANT ALL TO service_role;` and `ALTER PUBLICATION supabase_realtime ADD TABLE public.driver_locations;`.
+- **Hook**: `useDriverLocationBroadcast()` — mounts once in driver layout, checks permission, calls `navigator.geolocation.watchPosition({enableHighAccuracy:true, maximumAge:15000})`, throttled upsert to Supabase.
+- **Edge function** `find-nearest-vehicles`: input `{lat, lng, limit=5}`; joins `driver_locations` + `vehicles` + `profiles`; calls Routes API `computeRouteMatrix` for ETAs.
+- **Admin map**: subscribes to `driver_locations` postgres_changes and re-renders pins.
+- **Permission UX**: reusable `<LocationPermissionCard />` component with allow / dismiss states persisted in `localStorage`.
 
 ## Out of scope (unless you ask)
-- Auto-assignment (you chose "suggest ranked list").
-- Historical playback of vehicle routes.
-- Geofence alerts.
+- Native background tracking (needs Capacitor).
+- Historical route playback (we only keep the latest position; add a `driver_location_history` table later if you want trails).
+- Geofence alerts / arrival auto-detection.
 
-## Next step
-Reply with either:
-- **"Go ahead"** — I'll build steps 1–6 in build mode, and pause to request the MyLocatorPlus credentials via the secure secret form once the code is ready.
-- Or share the MyLocatorPlus API doc link now so I can tailor the position fetcher exactly to their response shape.
+## Ready to build?
+Reply **"go ahead"** and I'll implement steps 1–5 in one pass. No credentials needed from you — the Google Maps connector is 1-click and I'll trigger it during build.
