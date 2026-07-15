@@ -854,6 +854,7 @@ export default function TripPlanning() {
           notes: req.notes || '',
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
+          executionOrder: req.execution_order ?? null,
         });
       });
     });
