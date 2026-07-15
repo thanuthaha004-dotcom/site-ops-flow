@@ -433,6 +433,7 @@ export default function TripPlanning() {
         notes: w.notes || '',
         vehicle_type: null,
         vehicle_number: null,
+        execution_order: w.executionOrder ?? null,
       }));
       await saveTripAssignments(toDateStr(selectedDate), assignments);
       setSaved(true);
