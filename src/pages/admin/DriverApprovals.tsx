@@ -138,12 +138,12 @@ export default function DriverApprovals() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button disabled={busy === d.role_id}
-                        onClick={() => act(d.role_id, () => approveUser(d.role_id), `${roleLabel} approved`)}
+                        onClick={() => act(d.role_id, () => approveUser(d.role_id), `${roleLabel(d.role)} approved`)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
                         <Check className="h-3.5 w-3.5" /> Approve
                       </button>
                       <button disabled={busy === d.role_id}
-                        onClick={() => act(d.role_id, () => rejectUser(d.role_id), `${roleLabel} rejected`)}
+                        onClick={() => act(d.role_id, () => rejectUser(d.role_id), `${roleLabel(d.role)} rejected`)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-destructive/15 text-destructive text-xs font-semibold hover:bg-destructive/25 disabled:opacity-50">
                         <X className="h-3.5 w-3.5" /> Reject
                       </button>
