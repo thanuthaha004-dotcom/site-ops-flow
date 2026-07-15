@@ -342,6 +342,7 @@ export async function saveTripAssignments(
     vehicle_number: a.vehicle_number,
     notes: a.notes || '',
     status: a.status || 'pending',
+    execution_order: a.execution_order ?? null,
   }));
 
   const { data, error } = await supabase
