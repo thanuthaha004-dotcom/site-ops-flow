@@ -828,6 +828,7 @@ export default function TripPlanning() {
           noPersonnel: true,
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
+          executionOrder: req.execution_order ?? null,
         });
         return;
       }
