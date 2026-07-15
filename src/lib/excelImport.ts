@@ -152,20 +152,21 @@ export async function parseTripRequestsExcel(file: File): Promise<TripRequestRow
       engineer: pick(r, 'Engineer Information', 'Engineer', 'engineer', 'Engineer Name'),
       vehicle_number: pick(r, 'Vehicle Number', 'Vehicle No', 'Vehicle No.', 'Vehicle_No', 'VehicleNo', 'Vehicle #', 'vehicle_number', 'Vehicle', 'Vehicle Reg', 'Vehicle Registration', 'Reg No'),
       driver_name: pick(r, 'Driver Name', 'DriverName', 'Driver_Name', 'Driver', 'driver', 'driver_name', 'Assigned Driver'),
-      notes: pick(r, 'Notes', 'notes', 'Remarks'),
-      execution_order: Number(pick(r, 'Execution Order', 'execution_order', 'Order', 'Sequence')) || (i + 1),
+      notes: pick(r, 'Purpose of Trip', 'Trip Purpose', 'Purpose', 'purpose', 'purpose_of_trip', 'Notes', 'notes', 'Remarks'),
+      execution_order: Number(pick(r, 'Trip No', 'Trip No.', 'Trip Number', 'trip_no', 'trip_number', 'Execution Order', 'execution_order', 'Order', 'Sequence')) || (i + 1),
     }))
     .filter(r => r.project || r.workers.length > 0 || r.notes);
 }
 
 export function downloadTripRequestsTemplate() {
   const headers = [
-    'Trip Date', 'Department', 'Project Name', 'Project Location',
+    'Trip No', 'Trip Date', 'Department', 'Project Name', 'Project Location',
     'Pickup Location', 'Drop-off Location', 'Pickup Time', 'Passenger Details',
-    'Engineer Information', 'Vehicle Number', 'Driver Name', 'Execution Order', 'Notes',
+    'Engineer Information', 'Vehicle Number', 'Driver Name', 'Purpose of Trip', 'Notes',
   ];
   const example = [
     {
+      'Trip No': 1,
       'Trip Date': '2026-04-29',
       'Department': 'LPG',
       'Project Name': 'Ambuja Tower LPG',
@@ -177,10 +178,11 @@ export function downloadTripRequestsTemplate() {
       'Engineer Information': 'Eng. Mohammed Ali',
       'Vehicle Number': 'DXB-12345',
       'Driver Name': 'Saeed Ullah',
-      'Execution Order': 1,
-      'Notes': 'Pipe installation phase 2',
+      'Purpose of Trip': 'Pipe installation phase 2',
+      'Notes': 'Bring extra fittings',
     },
     {
+      'Trip No': 2,
       'Trip Date': '2026-04-29',
       'Department': 'Fire Fighting',
       'Project Name': 'Marina Heights Fire Fighting',
@@ -192,21 +194,22 @@ export function downloadTripRequestsTemplate() {
       'Engineer Information': 'Eng. Rahul Verma',
       'Vehicle Number': '',
       'Driver Name': '',
-      'Execution Order': 2,
-      'Notes': 'Detection system testing',
+      'Purpose of Trip': 'Detection system testing',
+      'Notes': '',
     },
   ];
   const ws = XLSX.utils.json_to_sheet(example, { header: headers });
   ws['!cols'] = [
-    { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 24 },
+    { wch: 8 }, { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 24 },
     { wch: 22 }, { wch: 26 }, { wch: 11 }, { wch: 36 },
-    { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 32 },
+    { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 32 }, { wch: 28 },
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Trip Requests');
 
   const instructions = [
     ['Field', 'Required', 'Description'],
+    ['Trip No', 'No', 'Execution order for the day; lower runs first. Defaults to row order.'],
     ['Trip Date', 'Yes', 'Date of the trip in YYYY-MM-DD format (e.g. 2026-04-29).'],
     ['Department', 'No', 'Department handling the work (LPG, Fire Fighting, AMC, etc.).'],
     ['Project Name', 'Yes', 'Exact project name or code (must exist in the system).'],
@@ -214,12 +217,12 @@ export function downloadTripRequestsTemplate() {
     ['Pickup Location', 'No', 'Defaults to "Al Quoz Labour Camp" if empty.'],
     ['Drop-off Location', 'No', 'Destination site. Defaults to the project location if empty.'],
     ['Pickup Time', 'No', 'Format HH:MM (24-hour), e.g. 07:00.'],
-    ['Passenger Details', 'Yes*', 'Comma-separated worker names. *Required unless Notes explains a solo trip.'],
+    ['Passenger Details', 'Yes*', 'Comma-separated worker names. *Required unless Purpose/Notes explains a solo trip.'],
     ['Engineer Information', 'No', 'Engineer responsible for the trip / project.'],
     ['Vehicle Number', 'No', 'Optional preferred vehicle. Dispatcher may reassign.'],
     ['Driver Name', 'No', 'Auto-fills from vehicle if left blank.'],
-    ['Execution Order', 'No', 'Sequence number; lower runs first. Defaults to row order.'],
-    ['Notes', 'No', 'Required only when no passengers are listed (reason for solo trip).'],
+    ['Purpose of Trip', 'Yes*', 'Reason for the trip (e.g. installation, inspection, material pickup). Required when no passengers listed.'],
+    ['Notes', 'No', 'Any additional remarks for the dispatcher.'],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(instructions);
   ws2['!cols'] = [{ wch: 22 }, { wch: 10 }, { wch: 78 }];
