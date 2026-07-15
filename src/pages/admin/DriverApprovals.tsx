@@ -173,7 +173,7 @@ export default function DriverApprovals() {
 
             {filteredDir.length === 0 ? (
               <div className="kpi-card text-center py-6 text-sm text-muted-foreground">
-                No matching {roleLabel.toLowerCase()} accounts.
+                No matching {tabNoun}.
               </div>
             ) : (
               <div className="kpi-card p-0 overflow-hidden">
