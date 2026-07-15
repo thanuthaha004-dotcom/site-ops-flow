@@ -90,6 +90,11 @@ export default function MyTrips() {
                   className="kpi-card flex items-start gap-3 hover:border-accent transition-colors group">
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {trip.execution_order != null && (
+                        <span className="inline-flex items-center justify-center h-6 min-w-[2rem] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                          #{trip.execution_order}
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" /> {trip.time_slot}
                       </span>
