@@ -19,23 +19,35 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'engineer', label: 'Engineers' },
 ];
 
+type PendingItem = PendingDriver & { role: ApprovableRole };
+type DirItem = DirectoryUser & { role: ApprovableRole };
+
 export default function DriverApprovals() {
-  const [tab, setTab] = useState<ApprovableRole>('driver');
-  const [pendingList, setPendingList] = useState<PendingDriver[]>([]);
-  const [directory, setDirectory] = useState<DirectoryUser[]>([]);
+  const [tab, setTab] = useState<TabKey>('all');
+  const [pendingList, setPendingList] = useState<PendingItem[]>([]);
+  const [directory, setDirectory] = useState<DirItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  const load = async (role: ApprovableRole) => {
+  const load = async (t: TabKey) => {
     setLoading(true);
     try {
-      const [pend, all] = await Promise.all([
-        fetchPendingApprovals(role),
-        fetchAllUsersByRole(role),
-      ]);
-      setPendingList(pend);
-      setDirectory(all);
+      const roles: ApprovableRole[] = t === 'all' ? ['driver', 'engineer'] : [t];
+      const results = await Promise.all(roles.map(async r => {
+        const [pend, all] = await Promise.all([
+          fetchPendingApprovals(r),
+          fetchAllUsersByRole(r),
+        ]);
+        return {
+          pend: pend.map(p => ({ ...p, role: r })),
+          all: all.map(u => ({ ...u, role: r })),
+        };
+      }));
+      setPendingList(results.flatMap(r => r.pend));
+      setDirectory(
+        results.flatMap(r => r.all).sort((a, b) => a.full_name.localeCompare(b.full_name))
+      );
     } catch (e: any) {
       toast({ title: 'Failed to load', description: e.message, variant: 'destructive' });
     } finally {
@@ -72,12 +84,14 @@ export default function DriverApprovals() {
     }
   };
 
-  const roleLabel = tab === 'driver' ? 'Driver' : 'Engineer';
+  const roleLabel = (r: ApprovableRole) => r === 'driver' ? 'Driver' : 'Engineer';
+  const tabNoun = tab === 'all' ? 'users' : tab === 'driver' ? 'drivers' : 'engineers';
   const q = search.trim().toLowerCase();
   const filteredDir = q
     ? directory.filter(u =>
         u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
     : directory;
+
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
