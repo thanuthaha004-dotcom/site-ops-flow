@@ -152,8 +152,8 @@ export async function parseTripRequestsExcel(file: File): Promise<TripRequestRow
       engineer: pick(r, 'Engineer Information', 'Engineer', 'engineer', 'Engineer Name'),
       vehicle_number: pick(r, 'Vehicle Number', 'Vehicle No', 'Vehicle No.', 'Vehicle_No', 'VehicleNo', 'Vehicle #', 'vehicle_number', 'Vehicle', 'Vehicle Reg', 'Vehicle Registration', 'Reg No'),
       driver_name: pick(r, 'Driver Name', 'DriverName', 'Driver_Name', 'Driver', 'driver', 'driver_name', 'Assigned Driver'),
-      notes: pick(r, 'Notes', 'notes', 'Remarks'),
-      execution_order: Number(pick(r, 'Execution Order', 'execution_order', 'Order', 'Sequence')) || (i + 1),
+      notes: pick(r, 'Purpose of Trip', 'Trip Purpose', 'Purpose', 'purpose', 'purpose_of_trip', 'Notes', 'notes', 'Remarks'),
+      execution_order: Number(pick(r, 'Trip No', 'Trip No.', 'Trip Number', 'trip_no', 'trip_number', 'Execution Order', 'execution_order', 'Order', 'Sequence')) || (i + 1),
     }))
     .filter(r => r.project || r.workers.length > 0 || r.notes);
 }
