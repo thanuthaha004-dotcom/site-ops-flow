@@ -48,6 +48,13 @@ export default function MyTrips() {
     (acc[t.trip_date] ||= []).push(t);
     return acc;
   }, {});
+  // Sort each date's trips by Trip No (engineer's execution order), falling back to time slot.
+  Object.values(grouped).forEach(list => list.sort((a, b) => {
+    const ao = a.execution_order ?? 9999;
+    const bo = b.execution_order ?? 9999;
+    if (ao !== bo) return ao - bo;
+    return (a.time_slot || '').localeCompare(b.time_slot || '');
+  }));
   const dates = Object.keys(grouped).sort();
 
   return (
