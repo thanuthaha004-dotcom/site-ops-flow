@@ -158,6 +158,7 @@ export default function TripPlanning() {
             notes: r.notes || '',
             noPersonnel: isPlaceholder,
             requestedVehicleNumber: r.vehicle_number || null,
+            executionOrder: (r as any).execution_order ?? null,
           }));
           if (existing) {
             existing.workers.push(...rowWorkers);
