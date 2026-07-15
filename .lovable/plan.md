@@ -1,43 +1,67 @@
-# Zone Management (Admin)
 
-Goal: Give admins one screen to see every zone, the locations under each, and map any new/unrecognised location to a zone. New mappings take effect immediately across Trip Planning.
+## Goal
+When an unexpected trip comes in, the admin enters a destination and the app returns a **ranked list of nearest vehicles** using live GPS positions pulled from your existing locator (`pro.mylocatorplus.com`).
 
-## What the admin sees
+## Prerequisite (must confirm before build)
+MyLocatorPlus is a third-party GPS platform. To read live positions, we need one of:
 
-New sidebar item **"Zones"** (admin only), route `/zones`.
+1. **API access from MyLocatorPlus** — the account owner requests API credentials (username/password, API key, or token) from MyLocatorPlus support. Most platforms of this type expose a REST endpoint that returns `{vehicle, lat, lng, speed, last_update}`.
+2. **If no API is offered** — MyLocatorPlus won't work; we'd fall back to drivers' phones sending GPS from the driver PWA (separate feature).
 
-Page layout:
-1. **Unmapped Locations** panel at the top — every distinct site that has appeared in trip requests / schedules but currently falls back to "Other" (or wasn't matched to a zone keyword). Each row has a **zone dropdown** + Save button.
-2. **Zones** grid below — one card per zone (Zone 1–4, Hub - Al Quoz Camp, Sharjah, Ajman, Al Ain, Abu Dhabi). Each card lists its locations with:
-   - Built-in keywords (read-only, tagged "default")
-   - Admin-added locations (removable)
-   - "+ Add location" input to attach a new location manually
+Please contact MyLocatorPlus and ask: *"Do you provide a REST API or data feed for live vehicle positions? If yes, please share the API documentation and credentials."*
+Once you have those, I'll wire it in. The plan below assumes option 1.
 
-## How it works
+## What we'll build
 
-- Store admin-added mappings in a new `zone_locations` table: `{ id, zone, location_keyword, created_by, created_at }`.
-- `getAreaCluster()` in `src/lib/tripPlanning.ts` gets a new optional parameter `customMappings` (Map of uppercased keyword → zone). It checks custom mappings first (exact/substring), then falls back to today's hardcoded list + fuzzy match.
-- On app load (for admin + when trip planning runs), fetch `zone_locations` once and cache. Trip planning + Zones page both use it.
-- "Unmapped Locations" is computed by pulling distinct `site` values from `daily_trip_requests` (last 60 days) and filtering to ones that resolve to `"Other"` or don't hit any zone keyword.
+### 1. Store locator credentials securely
+- Save the MyLocatorPlus API base URL + token as backend secrets (never in frontend code).
 
-## Technical details
+### 2. Vehicle ↔ tracker mapping
+- Add a `locator_device_id` field on the `vehicles` table so each Lovable vehicle links to its tracker unit in MyLocatorPlus.
+- Admin edits this once per vehicle in Fleet page.
 
-**New table** `zone_locations`
-- `zone text not null` (one of the 9 zone names)
-- `location_keyword text not null` (uppercased, unique)
-- `created_by uuid`, timestamps
-- RLS: admins full access; authenticated read (trip planning needs it)
-- GRANT SELECT to authenticated, ALL to service_role
+### 3. Backend function: `get-live-positions`
+- Edge function calls MyLocatorPlus API, returns `[{vehicle_number, lat, lng, last_update, speed}]`.
+- Cached ~30s to avoid hammering the provider.
 
-**Files changed**
-- `supabase/migrations/*` — new table + policies
-- `src/lib/tripPlanning.ts` — accept custom mappings, check them first
-- `src/lib/zoneMappings.ts` (new) — fetch + cache helper
-- `src/pages/admin/ZoneManagement.tsx` (new)
-- `src/App.tsx` — add `/zones` route (admin)
-- `src/components/layout/AppSidebar.tsx` — add nav link
-- `src/pages/TripPlanning.tsx` — load custom mappings before grouping
+### 4. Backend function: `find-nearest-vehicles`
+- Input: destination address or lat/lng, optional required headcount.
+- Steps:
+  a. Geocode destination (using existing Google Maps connector if present, else Mapbox).
+  b. Pull live positions via `get-live-positions`.
+  c. Compute **road distance & ETA** to destination for each vehicle (Google/Mapbox Distance Matrix).
+  d. Return top 5 sorted by ETA with: vehicle number, current driver, distance km, ETA min, last GPS update age, current status flag (on-trip / idle — informational only, per your choice all vehicles are eligible).
 
-**Out of scope** (unless you want it): editing the built-in zone keywords, renaming zones, creating new zones.
+### 5. Admin UI: "Unexpected Trip" page
+- New route `/trip-planning/unexpected` (also entry point from Trip Planning header).
+- Form: destination (address autocomplete + map pin), optional headcount, notes.
+- On submit → shows ranked list card view:
+  ```text
+  #1  K 41732  •  Habeeb        •  4.2 km  •  ~9 min  •  updated 12s ago  •  [Assign]
+  #2  D 22984  •  Rashid         •  7.8 km  •  ~15 min •  updated 40s ago  •  [Assign]
+  ...
+  ```
+- "Assign" button creates a `trip_schedules` row for that vehicle + notifies the driver (visible in their Dashboard immediately).
+- Small live map showing all vehicle pins + the destination pin.
 
-Confirm and I'll implement.
+### 6. Reuse on existing planning page
+- Add an "Live positions" toggle on the main Trip Planning map so admin can always see where each vehicle currently is.
+
+## Technical section
+- **Tables**: `ALTER vehicles ADD locator_device_id text`.
+- **Secrets**: `MYLOCATORPLUS_BASE_URL`, `MYLOCATORPLUS_TOKEN` (via add_secret after you share).
+- **Edge functions**: `get-live-positions`, `find-nearest-vehicles`, `create-unexpected-trip`.
+- **Distance**: prefer Google Maps Distance Matrix (Lovable-managed connector — 1-click, no key). Falls back to haversine straight-line if quota/error.
+- **Caching**: in-memory 30s on positions; per-request on distance matrix.
+- **Auth**: admin-only RLS on the assignment endpoint.
+- **Realtime**: subscribe the Unexpected Trip page to positions every 30s.
+
+## Out of scope (unless you ask)
+- Auto-assignment (you chose "suggest ranked list").
+- Historical playback of vehicle routes.
+- Geofence alerts.
+
+## Next step
+Reply with either:
+- **"Go ahead"** — I'll build steps 1–6 in build mode, and pause to request the MyLocatorPlus credentials via the secure secret form once the code is ready.
+- Or share the MyLocatorPlus API doc link now so I can tailor the position fetcher exactly to their response shape.
