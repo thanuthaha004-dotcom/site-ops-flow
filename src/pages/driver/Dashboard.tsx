@@ -5,6 +5,8 @@ import { fetchDriverTrips, tripActiveSeconds, formatDuration, type DriverTrip } 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import TripCard from '@/components/driver/TripCard';
 import DaySelector from '@/components/driver/DaySelector';
+import LocationPermissionCard from '@/components/driver/LocationPermissionCard';
+import { useDriverLocationBroadcast } from '@/hooks/useDriverLocationBroadcast';
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -30,6 +32,7 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(dateKey(new Date()));
+  const location = useDriverLocationBroadcast(true);
 
   useEffect(() => {
     fetchDriverTrips()
@@ -80,6 +83,18 @@ export default function DriverDashboard() {
         </h1>
         <p className="text-sm text-muted-foreground">{todayLabel}</p>
       </header>
+
+      {/* Location sharing */}
+      <LocationPermissionCard
+        status={location.status}
+        lastSentAt={location.lastSentAt}
+        lastError={location.lastError}
+        dismissed={location.dismissed}
+        onEnable={location.requestPermission}
+        onDismiss={location.dismiss}
+      />
+
+
 
       {/* KPI cards */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">

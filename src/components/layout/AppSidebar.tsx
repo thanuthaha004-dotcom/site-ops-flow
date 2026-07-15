@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, CalendarDays, Truck, Users, Menu, X,
-  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut, ShieldCheck, ListChecks, MapPin,
+  ChevronRight, Flame, ClipboardCheck, Route, UserCog, Send, LogOut, ShieldCheck, ListChecks, MapPin, Navigation, Radio,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -11,9 +11,11 @@ const adminNavItems = [
   { path: '/projects', label: 'Projects', icon: FolderKanban },
   { path: '/schedule', label: 'Schedule', icon: CalendarDays },
   { path: '/fleet', label: 'Fleet', icon: Truck },
+  { path: '/fleet/live', label: 'Live Fleet', icon: Radio },
   { path: '/workforce', label: 'Workforce', icon: Users },
   { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
   { path: '/trips', label: 'Trip Planning', icon: Route },
+  { path: '/trips/unexpected', label: 'Unexpected Trip', icon: Navigation },
   { path: '/engineers', label: 'Engineers', icon: UserCog },
   { path: '/zones', label: 'Zones', icon: MapPin },
   { path: '/driver-approvals', label: 'User Approvals', icon: ShieldCheck },

@@ -26,6 +26,8 @@ const MyTrips = lazy(() => import("./pages/driver/MyTrips"));
 const TripDetail = lazy(() => import("./pages/driver/TripDetail"));
 const DriverApprovals = lazy(() => import("./pages/admin/DriverApprovals"));
 const ZoneManagement = lazy(() => import("./pages/admin/ZoneManagement"));
+const LiveFleet = lazy(() => import("./pages/admin/LiveFleet"));
+const UnexpectedTrip = lazy(() => import("./pages/admin/UnexpectedTrip"));
 
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -70,9 +72,12 @@ function ProtectedRoutes() {
               <Route path="/workforce" element={<Workforce />} />
               <Route path="/attendance" element={<Attendance />} />
               <Route path="/trips" element={<TripPlanning />} />
+              <Route path="/trips/unexpected" element={<UnexpectedTrip />} />
+              <Route path="/fleet/live" element={<LiveFleet />} />
               <Route path="/engineers" element={<Engineers />} />
               <Route path="/zones" element={<ZoneManagement />} />
               <Route path="/driver-approvals" element={<DriverApprovals />} />
+
 
             </>
           ) : role === 'driver' ? (
