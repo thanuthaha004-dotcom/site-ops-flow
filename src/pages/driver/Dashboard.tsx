@@ -5,6 +5,8 @@ import { fetchDriverTrips, tripActiveSeconds, formatDuration, type DriverTrip } 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import TripCard from '@/components/driver/TripCard';
 import DaySelector from '@/components/driver/DaySelector';
+import LocationPermissionCard from '@/components/driver/LocationPermissionCard';
+import { useDriverLocationBroadcast } from '@/hooks/useDriverLocationBroadcast';
 
 function dateKey(d: Date): string {
   const y = d.getFullYear();
