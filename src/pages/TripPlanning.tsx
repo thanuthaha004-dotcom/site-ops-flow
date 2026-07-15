@@ -131,6 +131,7 @@ export default function TripPlanning() {
             noPersonnel: isPlaceholder,
             requestedVehicleNumber: r.vehicle_number || null,
             requestedDriver: (r as any).driver_name || null,
+            executionOrder: (r as any).execution_order ?? null,
           }));
         });
         const groupMap = new Map<string, TripGroup>();
