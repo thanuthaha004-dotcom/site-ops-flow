@@ -12,7 +12,9 @@ import {
   type DirectoryUser,
 } from '@/lib/driverData';
 
-const TABS: { key: ApprovableRole; label: string }[] = [
+type TabKey = ApprovableRole | 'all';
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'driver', label: 'Drivers' },
   { key: 'engineer', label: 'Engineers' },
 ];
