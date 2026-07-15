@@ -182,6 +182,7 @@ export default function DriverApprovals() {
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
                         <th className="text-left px-3 py-2 font-medium">Name</th>
+                        <th className="text-left px-3 py-2 font-medium">Role</th>
                         <th className="text-left px-3 py-2 font-medium">Email (login ID)</th>
                         <th className="text-left px-3 py-2 font-medium">Status</th>
                         <th className="text-right px-3 py-2 font-medium">Actions</th>
@@ -191,6 +192,11 @@ export default function DriverApprovals() {
                       {filteredDir.map(u => (
                         <tr key={u.role_id} className="border-t border-border/50 hover:bg-muted/20">
                           <td className="px-3 py-2 font-medium">{u.full_name || <span className="text-muted-foreground italic">(no name)</span>}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.role === 'driver' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'}`}>
+                              {roleLabel(u.role)}
+                            </span>
+                          </td>
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-1.5">
                               <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
