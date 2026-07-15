@@ -1424,62 +1424,89 @@ export default function TripPlanning() {
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    {/* Per-worker details: project, site, engineer, pickup, notes + reassign */}
+                    {/* Per-site grouping: one row per site with all its workers as a single unit */}
                     <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                      {g.workers.map(w => {
+                      {(() => {
                         const canMove = g.status !== 'dispatched' && g.status !== 'in_progress' && g.status !== 'completed';
                         const moveTargets = tripGroups.filter(t =>
                           t.id !== g.id &&
                           t.timeSlot === g.timeSlot &&
                           t.status !== 'dispatched' && t.status !== 'in_progress' && t.status !== 'completed'
                         );
-                        return (
-                          <div key={w.id} className="rounded border border-border/60 bg-background/40 px-2 py-1.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-semibold truncate">{w.name}</p>
-                                {w.projectName && (
-                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
-                                    <FolderKanban className="h-2.5 w-2.5 shrink-0" />
-                                    <span className="truncate">{w.projectName}</span>
+                        // Group workers by site (preserve first-seen order)
+                        const bySite = new Map<string, TripWorker[]>();
+                        g.workers.forEach(w => {
+                          const key = w.site || 'Unassigned';
+                          if (!bySite.has(key)) bySite.set(key, []);
+                          bySite.get(key)!.push(w);
+                        });
+                        return Array.from(bySite.entries()).map(([site, ws]) => {
+                          const projects = [...new Set(ws.map(w => w.projectName).filter(Boolean))];
+                          const engineers = [...new Set(ws.map(w => w.engineerName).filter(Boolean))];
+                          const pickups = [...new Set(ws.map(w => w.pickupLocation).filter(p => p && p !== 'Al Quoz Labour Camp'))];
+                          const notes = [...new Set(ws.map(w => w.notes).filter(Boolean))];
+                          const workerNames = ws.filter(w => !w.noPersonnel).map(w => w.name);
+                          const allNoPersonnel = ws.every(w => w.noPersonnel);
+                          const workerLabel = allNoPersonnel ? 'No personnel' : `${workerNames.length} labour${workerNames.length === 1 ? '' : 's'}`;
+                          const namesTitle = workerNames.join(', ');
+                          const moveAll = (toGroupId: string) => {
+                            ws.forEach(w => handleMoveWorker(g.id, w.id, toGroupId));
+                          };
+                          return (
+                            <div key={site} className="rounded border border-border/60 bg-background/40 px-2 py-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold flex items-center gap-1 truncate">
+                                    <MapPin className="h-3 w-3 text-accent shrink-0" />
+                                    <span className="truncate">{site}</span>
+                                    <span className="ml-1 shrink-0 px-1.5 py-0 rounded-full bg-accent/10 text-accent text-[10px]">{workerLabel}</span>
                                   </p>
-                                )}
-                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
-                                  <MapPin className="h-2.5 w-2.5 shrink-0" />
-                                  <span className="truncate">{w.site}</span>
-                                </p>
-                                {w.engineerName && (
-                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
-                                    <UserCog className="h-2.5 w-2.5 shrink-0" />
-                                    <span className="truncate">{w.engineerName}</span>
-                                  </p>
-                                )}
-                                {w.pickupLocation && w.pickupLocation !== 'Al Quoz Labour Camp' && (
-                                  <p className="text-[10px] text-muted-foreground truncate">Pickup: {w.pickupLocation}</p>
-                                )}
-                                {w.notes && (
-                                  <p className="text-[10px] text-warning truncate" title={w.notes}>📝 {w.notes}</p>
+                                  {!allNoPersonnel && workerNames.length > 0 && (
+                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate" title={namesTitle}>
+                                      <Users className="h-2.5 w-2.5 shrink-0" />
+                                      <span className="truncate">{namesTitle}</span>
+                                    </p>
+                                  )}
+                                  {projects.length > 0 && (
+                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate" title={projects.join(', ')}>
+                                      <FolderKanban className="h-2.5 w-2.5 shrink-0" />
+                                      <span className="truncate">{projects.join(', ')}</span>
+                                    </p>
+                                  )}
+                                  {engineers.length > 0 && (
+                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate" title={engineers.join(', ')}>
+                                      <UserCog className="h-2.5 w-2.5 shrink-0" />
+                                      <span className="truncate">{engineers.join(', ')}</span>
+                                    </p>
+                                  )}
+                                  {pickups.length > 0 && (
+                                    <p className="text-[10px] text-muted-foreground truncate" title={pickups.join(', ')}>Pickup: {pickups.join(', ')}</p>
+                                  )}
+                                  {notes.length > 0 && (
+                                    <p className="text-[10px] text-warning truncate" title={notes.join(' | ')}>📝 {notes.join(' | ')}</p>
+                                  )}
+                                </div>
+                                {canMove && (
+                                  <select
+                                    value=""
+                                    onChange={e => { if (e.target.value) moveAll(e.target.value); }}
+                                    className="shrink-0 px-1 py-0.5 rounded border border-input bg-background text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
+                                    title="Move all labours for this site to another trip in same time slot"
+                                  >
+                                    <option value="">Move site…</option>
+                                    {moveTargets.map(t => (
+                                      <option key={t.id} value={t.id}>→ {t.area} ({t.workers.length})</option>
+                                    ))}
+                                    <option value="__new__">→ New trip</option>
+                                  </select>
                                 )}
                               </div>
-                              {canMove && (
-                                <select
-                                  value=""
-                                  onChange={e => { if (e.target.value) handleMoveWorker(g.id, w.id, e.target.value); }}
-                                  className="shrink-0 px-1 py-0.5 rounded border border-input bg-background text-[10px] focus:outline-none focus:ring-1 focus:ring-ring"
-                                  title="Reassign to another trip in same time slot"
-                                >
-                                  <option value="">Move…</option>
-                                  {moveTargets.map(t => (
-                                    <option key={t.id} value={t.id}>→ {t.area} ({t.workers.length})</option>
-                                  ))}
-                                  <option value="__new__">→ New trip</option>
-                                </select>
-                              )}
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
+
 
                     {/* Vehicle assignment from real fleet */}
                     <div className="space-y-1.5 bg-muted/20 px-2 py-2 rounded">
