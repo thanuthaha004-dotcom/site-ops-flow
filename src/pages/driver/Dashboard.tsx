@@ -32,6 +32,7 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(dateKey(new Date()));
+  const location = useDriverLocationBroadcast(true);
 
   useEffect(() => {
     fetchDriverTrips()
