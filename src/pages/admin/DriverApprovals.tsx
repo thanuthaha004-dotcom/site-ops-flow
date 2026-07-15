@@ -126,7 +126,7 @@ export default function DriverApprovals() {
             </h2>
             {pendingList.length === 0 ? (
               <div className="kpi-card text-center py-6 text-sm text-muted-foreground">
-                No {roleLabel.toLowerCase()}s awaiting approval.
+                No {tabNoun} awaiting approval.
               </div>
             ) : (
               <div className="space-y-2">
