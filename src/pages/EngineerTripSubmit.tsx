@@ -555,10 +555,10 @@ export default function EngineerTripSubmit() {
                     </div>
 
 
-                    {/* Execution order # */}
+                    {/* Trip No (drives driver execution order) */}
                     <div>
                       <label className="text-xs font-medium text-muted-foreground block mb-1">
-                        Execution Order
+                        Trip No
                       </label>
                       <input
                         type="number"
@@ -566,7 +566,7 @@ export default function EngineerTripSubmit() {
                         max={drafts.length}
                         value={idx + 1}
                         onChange={e => setOrder(d.tempId, e.target.value)}
-                        title="Lower number runs first. Drivers will follow this sequence."
+                        title="Lower Trip No runs first. Drivers follow this sequence."
                         className="w-full text-sm rounded-md border border-input bg-background px-3 py-2"
                       />
                     </div>

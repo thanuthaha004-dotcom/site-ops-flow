@@ -48,6 +48,13 @@ export default function MyTrips() {
     (acc[t.trip_date] ||= []).push(t);
     return acc;
   }, {});
+  // Sort each date's trips by Trip No (engineer's execution order), falling back to time slot.
+  Object.values(grouped).forEach(list => list.sort((a, b) => {
+    const ao = a.execution_order ?? 9999;
+    const bo = b.execution_order ?? 9999;
+    if (ao !== bo) return ao - bo;
+    return (a.time_slot || '').localeCompare(b.time_slot || '');
+  }));
   const dates = Object.keys(grouped).sort();
 
   return (
@@ -83,6 +90,11 @@ export default function MyTrips() {
                   className="kpi-card flex items-start gap-3 hover:border-accent transition-colors group">
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {trip.execution_order != null && (
+                        <span className="inline-flex items-center justify-center h-6 min-w-[2rem] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                          #{trip.execution_order}
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" /> {trip.time_slot}
                       </span>

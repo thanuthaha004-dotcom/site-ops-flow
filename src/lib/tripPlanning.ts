@@ -25,6 +25,8 @@ export interface TripWorker {
   requestedVehicleNumber?: string | null;
   /** Driver name the engineer pre-selected on the request (dispatcher may override). */
   requestedDriver?: string | null;
+  /** Trip No from the engineer's submission — drives driver execution order. */
+  executionOrder?: number | null;
 }
 
 export interface TripGroup {

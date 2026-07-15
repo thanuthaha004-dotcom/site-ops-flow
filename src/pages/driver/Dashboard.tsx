@@ -55,9 +55,12 @@ export default function DriverDashboard() {
   const pendingToday = todaysTrips.filter(t => t.status !== 'completed');
   const totalSecondsToday = todaysTrips.reduce((sum, t) => sum + tripActiveSeconds(t), 0);
 
-  const selectedTrips = (tripsByDate[selectedDate] || []).slice().sort((a, b) =>
-    a.time_slot.localeCompare(b.time_slot)
-  );
+  const selectedTrips = (tripsByDate[selectedDate] || []).slice().sort((a, b) => {
+    const ao = a.execution_order ?? 9999;
+    const bo = b.execution_order ?? 9999;
+    if (ao !== bo) return ao - bo;
+    return a.time_slot.localeCompare(b.time_slot);
+  });
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;

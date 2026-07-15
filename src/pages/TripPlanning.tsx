@@ -131,6 +131,7 @@ export default function TripPlanning() {
             noPersonnel: isPlaceholder,
             requestedVehicleNumber: r.vehicle_number || null,
             requestedDriver: (r as any).driver_name || null,
+            executionOrder: (r as any).execution_order ?? null,
           }));
         });
         const groupMap = new Map<string, TripGroup>();
@@ -157,6 +158,7 @@ export default function TripPlanning() {
             notes: r.notes || '',
             noPersonnel: isPlaceholder,
             requestedVehicleNumber: r.vehicle_number || null,
+            executionOrder: (r as any).execution_order ?? null,
           }));
           if (existing) {
             existing.workers.push(...rowWorkers);
@@ -431,6 +433,7 @@ export default function TripPlanning() {
         notes: w.notes || '',
         vehicle_type: null,
         vehicle_number: null,
+        execution_order: w.executionOrder ?? null,
       }));
       await saveTripAssignments(toDateStr(selectedDate), assignments);
       setSaved(true);
@@ -479,6 +482,7 @@ export default function TripPlanning() {
       urgent: boolean;
       names: string[];
       notes: string[];
+      execution_order: number | null;
     };
     const buckets = new Map<string, Bucket>();
 
@@ -501,6 +505,12 @@ export default function TripPlanning() {
           if (!w.noPersonnel && !bucket.names.includes(w.name)) bucket.names.push(w.name);
           if (w.urgent) bucket.urgent = true;
           if (w.notes && !bucket.notes.includes(w.notes)) bucket.notes.push(w.notes);
+          // Bucket inherits the LOWEST Trip No — that trip runs first for the driver.
+          if (w.executionOrder != null) {
+            bucket.execution_order = bucket.execution_order == null
+              ? w.executionOrder
+              : Math.min(bucket.execution_order, w.executionOrder);
+          }
         } else {
           buckets.set(key, {
             site: w.site,
@@ -517,6 +527,7 @@ export default function TripPlanning() {
             urgent: !!w.urgent,
             names: w.noPersonnel ? [] : [w.name],
             notes: w.notes ? [w.notes] : [],
+            execution_order: w.executionOrder ?? null,
           });
         }
       });
@@ -538,6 +549,7 @@ export default function TripPlanning() {
       notes: b.notes.join(' | '),
       vehicle_type: b.vehicle_type,
       vehicle_number: b.vehicle_number,
+      execution_order: b.execution_order,
     }));
 
     await saveDispatchedTripAssignments(toDateStr(selectedDate), assignments);
@@ -826,6 +838,7 @@ export default function TripPlanning() {
           noPersonnel: true,
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
+          executionOrder: req.execution_order ?? null,
         });
         return;
       }
@@ -851,6 +864,7 @@ export default function TripPlanning() {
           notes: req.notes || '',
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
+          executionOrder: req.execution_order ?? null,
         });
       });
     });
