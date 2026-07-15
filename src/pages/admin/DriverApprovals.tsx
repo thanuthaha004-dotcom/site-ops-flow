@@ -100,7 +100,7 @@ export default function DriverApprovals() {
         <h1 className="text-2xl font-bold tracking-tight">Users & Approvals</h1>
       </div>
       <p className="text-sm text-muted-foreground">
-        Approve new sign-ups and view all registered {tab === 'driver' ? 'drivers' : 'engineers'}.
+        Approve new sign-ups and view all registered {tabNoun}.
         Passwords are securely hashed and cannot be shown — use <span className="font-medium">Reset password</span> to email a reset link if a user forgets theirs.
       </p>
 
