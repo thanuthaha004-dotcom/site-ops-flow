@@ -12,28 +12,42 @@ import {
   type DirectoryUser,
 } from '@/lib/driverData';
 
-const TABS: { key: ApprovableRole; label: string }[] = [
+type TabKey = ApprovableRole | 'all';
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'driver', label: 'Drivers' },
   { key: 'engineer', label: 'Engineers' },
 ];
 
+type PendingItem = PendingDriver & { role: ApprovableRole };
+type DirItem = DirectoryUser & { role: ApprovableRole };
+
 export default function DriverApprovals() {
-  const [tab, setTab] = useState<ApprovableRole>('driver');
-  const [pendingList, setPendingList] = useState<PendingDriver[]>([]);
-  const [directory, setDirectory] = useState<DirectoryUser[]>([]);
+  const [tab, setTab] = useState<TabKey>('all');
+  const [pendingList, setPendingList] = useState<PendingItem[]>([]);
+  const [directory, setDirectory] = useState<DirItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  const load = async (role: ApprovableRole) => {
+  const load = async (t: TabKey) => {
     setLoading(true);
     try {
-      const [pend, all] = await Promise.all([
-        fetchPendingApprovals(role),
-        fetchAllUsersByRole(role),
-      ]);
-      setPendingList(pend);
-      setDirectory(all);
+      const roles: ApprovableRole[] = t === 'all' ? ['driver', 'engineer'] : [t];
+      const results = await Promise.all(roles.map(async r => {
+        const [pend, all] = await Promise.all([
+          fetchPendingApprovals(r),
+          fetchAllUsersByRole(r),
+        ]);
+        return {
+          pend: pend.map(p => ({ ...p, role: r })),
+          all: all.map(u => ({ ...u, role: r })),
+        };
+      }));
+      setPendingList(results.flatMap(r => r.pend));
+      setDirectory(
+        results.flatMap(r => r.all).sort((a, b) => a.full_name.localeCompare(b.full_name))
+      );
     } catch (e: any) {
       toast({ title: 'Failed to load', description: e.message, variant: 'destructive' });
     } finally {
@@ -70,12 +84,14 @@ export default function DriverApprovals() {
     }
   };
 
-  const roleLabel = tab === 'driver' ? 'Driver' : 'Engineer';
+  const roleLabel = (r: ApprovableRole) => r === 'driver' ? 'Driver' : 'Engineer';
+  const tabNoun = tab === 'all' ? 'users' : tab === 'driver' ? 'drivers' : 'engineers';
   const q = search.trim().toLowerCase();
   const filteredDir = q
     ? directory.filter(u =>
         u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
     : directory;
+
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
@@ -84,7 +100,7 @@ export default function DriverApprovals() {
         <h1 className="text-2xl font-bold tracking-tight">Users & Approvals</h1>
       </div>
       <p className="text-sm text-muted-foreground">
-        Approve new sign-ups and view all registered {tab === 'driver' ? 'drivers' : 'engineers'}.
+        Approve new sign-ups and view all registered {tabNoun}.
         Passwords are securely hashed and cannot be shown — use <span className="font-medium">Reset password</span> to email a reset link if a user forgets theirs.
       </p>
 
@@ -110,7 +126,7 @@ export default function DriverApprovals() {
             </h2>
             {pendingList.length === 0 ? (
               <div className="kpi-card text-center py-6 text-sm text-muted-foreground">
-                No {roleLabel.toLowerCase()}s awaiting approval.
+                No {tabNoun} awaiting approval.
               </div>
             ) : (
               <div className="space-y-2">
@@ -122,12 +138,12 @@ export default function DriverApprovals() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button disabled={busy === d.role_id}
-                        onClick={() => act(d.role_id, () => approveUser(d.role_id), `${roleLabel} approved`)}
+                        onClick={() => act(d.role_id, () => approveUser(d.role_id), `${roleLabel(d.role)} approved`)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-50">
                         <Check className="h-3.5 w-3.5" /> Approve
                       </button>
                       <button disabled={busy === d.role_id}
-                        onClick={() => act(d.role_id, () => rejectUser(d.role_id), `${roleLabel} rejected`)}
+                        onClick={() => act(d.role_id, () => rejectUser(d.role_id), `${roleLabel(d.role)} rejected`)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-destructive/15 text-destructive text-xs font-semibold hover:bg-destructive/25 disabled:opacity-50">
                         <X className="h-3.5 w-3.5" /> Reject
                       </button>
@@ -142,7 +158,7 @@ export default function DriverApprovals() {
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                All registered {tab === 'driver' ? 'drivers' : 'engineers'} ({directory.length})
+                All registered {tabNoun} ({directory.length})
               </h2>
               <div className="relative">
                 <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -157,7 +173,7 @@ export default function DriverApprovals() {
 
             {filteredDir.length === 0 ? (
               <div className="kpi-card text-center py-6 text-sm text-muted-foreground">
-                No matching {roleLabel.toLowerCase()} accounts.
+                No matching {tabNoun}.
               </div>
             ) : (
               <div className="kpi-card p-0 overflow-hidden">
@@ -166,6 +182,7 @@ export default function DriverApprovals() {
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
                         <th className="text-left px-3 py-2 font-medium">Name</th>
+                        <th className="text-left px-3 py-2 font-medium">Role</th>
                         <th className="text-left px-3 py-2 font-medium">Email (login ID)</th>
                         <th className="text-left px-3 py-2 font-medium">Status</th>
                         <th className="text-right px-3 py-2 font-medium">Actions</th>
@@ -175,6 +192,11 @@ export default function DriverApprovals() {
                       {filteredDir.map(u => (
                         <tr key={u.role_id} className="border-t border-border/50 hover:bg-muted/20">
                           <td className="px-3 py-2 font-medium">{u.full_name || <span className="text-muted-foreground italic">(no name)</span>}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.role === 'driver' ? 'bg-accent/15 text-accent' : 'bg-primary/10 text-primary'}`}>
+                              {roleLabel(u.role)}
+                            </span>
+                          </td>
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-1.5">
                               <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
