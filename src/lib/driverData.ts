@@ -48,6 +48,7 @@ export async function fetchDriverTrips(): Promise<DriverTrip[]> {
     .gte('trip_date', start)
     .lte('trip_date', end)
     .order('trip_date', { ascending: false })
+    .order('execution_order', { ascending: true, nullsFirst: false })
     .order('time_slot', { ascending: true });
 
   if (error) throw error;
