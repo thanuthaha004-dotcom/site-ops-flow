@@ -318,6 +318,24 @@ export function groupWorkersByAreaAndTime(workers: TripWorker[]): TripGroup[] {
   return groups;
 }
 
+// Returns the most-requested vehicle number / driver name in a group (empty if none).
+function topRequestedVehicle(g: TripGroup): string {
+  const counts = new Map<string, number>();
+  g.workers.forEach(w => {
+    const n = (w.requestedVehicleNumber || '').trim();
+    if (n) counts.set(n, (counts.get(n) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+}
+function topRequestedDriver(g: TripGroup): string {
+  const counts = new Map<string, number>();
+  g.workers.forEach(w => {
+    const d = (w.requestedDriver || '').trim();
+    if (d) counts.set(d, (counts.get(d) || 0) + 1);
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+}
+
 export function mergeNearbyTrips(groups: TripGroup[]): TripGroup[] {
   const result: TripGroup[] = [];
   const merged = new Set<number>();
@@ -332,6 +350,16 @@ export function mergeNearbyTrips(groups: TripGroup[]): TripGroup[] {
       if (groups[j].timeSlot !== current.timeSlot) continue;
       // Hub (Al Quoz Camp) stays its own trip — never auto-merge with zones
       if (current.area.startsWith('Hub') || groups[j].area.startsWith('Hub')) continue;
+
+      // Engineer intent wins: if either side has an engineer-picked vehicle or driver
+      // and they don't match the other side, keep the trips separate. Also block when
+      // only one side has a request — merging would silently override the engineer.
+      const vA = topRequestedVehicle(current);
+      const vB = topRequestedVehicle(groups[j]);
+      const dA = topRequestedDriver(current);
+      const dB = topRequestedDriver(groups[j]);
+      if ((vA || vB) && vA !== vB) continue;
+      if ((dA || dB) && dA !== dB) continue;
 
       // Merge if combined workers still fit in a 13-seater
       const combined = current.workers.length + groups[j].workers.length;
