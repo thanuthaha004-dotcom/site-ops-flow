@@ -452,6 +452,20 @@ export default function EngineerTripSubmit() {
         </div>
       ) : (
         <>
+          {priorCount > 0 && drafts.length === 0 && (
+            <div className="kpi-card flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row border-l-4 border-l-accent">
+              <div className="text-sm">
+                <p className="font-medium">You've already submitted {priorCount} trip{priorCount === 1 ? '' : 's'} for {format(selectedDate, 'MMM d, yyyy')}.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">The form below is blank so you can add new trips. Loading previous submissions will let you edit them instead.</p>
+              </div>
+              <button
+                onClick={() => loadExisting(true)}
+                className="text-xs px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 whitespace-nowrap">
+                Load previous submissions to edit
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-sm text-muted-foreground">
               {drafts.length} trip{drafts.length === 1 ? '' : 's'} • {totalWorkers} worker{totalWorkers === 1 ? '' : 's'}
