@@ -266,6 +266,12 @@ export default function EngineerTripSubmit() {
       await submitTripRequests(dateStr, user.id, profileName || user.email || '', payload);
       setSubmitted(true);
       toast({ title: `Submitted ${payload.length} trip${payload.length === 1 ? '' : 's'} for ${format(selectedDate, 'MMM d, yyyy')}` });
+      // Clear the form so the next set of "new" trips starts blank; refresh
+      // the prior-count banner to reflect what's now in the DB.
+      setDrafts([]);
+      setCustomNameInputs({});
+      loadExisting(false);
+
     } catch {
       toast({ title: 'Failed to submit', variant: 'destructive' });
     } finally {
