@@ -79,17 +79,18 @@ export default function EngineerTripSubmit() {
   // date — so each new date independently hydrates with whatever was submitted.
   useEffect(() => { setFormCleared(false); }, [dateStr]);
 
-  // Hydrate existing submissions for this date as editable drafts.
-  // Skipped when the engineer has explicitly cleared the form for this date
-  // (so the page opens blank for a new entry while the underlying history is preserved).
-  const loadExisting = useCallback(async () => {
+  // Count previously-submitted requests for this date (shown as an info banner).
+  // The form does NOT auto-hydrate them anymore — engineers open the page with
+  // a blank slate for new entries, and click "Load previous submissions" if
+  // they explicitly want to edit them.
+  const [priorCount, setPriorCount] = useState(0);
+  const loadExisting = useCallback(async (hydrate = false) => {
     if (!user) return;
-    if (formCleared) { setLoading(false); return; }
     setLoading(true);
     try {
       const existing = await fetchMyTripRequests(dateStr, user.id);
-      if (existing.length > 0) {
-        // Sort by execution_order so the engineer sees the same sequence they submitted
+      setPriorCount(existing.length);
+      if (hydrate && existing.length > 0) {
         const ordered = [...existing].sort((a, b) =>
           (a.execution_order ?? 9999) - (b.execution_order ?? 9999),
         );
@@ -106,7 +107,6 @@ export default function EngineerTripSubmit() {
             driver_name: r.driver_name || '',
             notes: r.notes || '',
             pickup_location: pickup,
-            // Treat as "custom" if it isn't the default and isn't a known site (sites loaded async; safe to default false here, dropdown will pick it up if it matches)
             pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
             custom_project_name: hasProject ? undefined : (r.project_name || ''),
             custom_site: hasProject ? undefined : (r.site || ''),
@@ -114,18 +114,22 @@ export default function EngineerTripSubmit() {
           };
         }));
         setSubmitted(true);
-      } else {
-        setDrafts([]);
-        setSubmitted(false);
       }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [dateStr, user, formCleared]);
+  }, [dateStr, user, projects]);
 
-  useEffect(() => { loadExisting(); }, [loadExisting]);
+  // On date change: clear drafts and just refresh the "prior count" banner.
+  useEffect(() => {
+    setDrafts([]);
+    setSubmitted(false);
+    setCustomNameInputs({});
+    loadExisting(false);
+  }, [dateStr, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const updateDraft = (id: string, patch: Partial<TripDraft>) => {
     setDrafts(prev => prev.map(d => d.tempId === id ? { ...d, ...patch } : d));
