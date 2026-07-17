@@ -73,9 +73,8 @@ export default function EngineerTripSubmit() {
     fetchVehicles().then(setVehicles).catch(() => {});
   }, []);
 
-  // Reset the "form cleared" flag whenever the engineer switches to a different
-  // date — so each new date independently hydrates with whatever was submitted.
-  useEffect(() => { setFormCleared(false); }, [dateStr]);
+
+
 
   // Count previously-submitted requests for this date (shown as an info banner).
   // The form does NOT auto-hydrate them anymore — engineers open the page with
