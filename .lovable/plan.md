@@ -1,51 +1,34 @@
-# Where Habeeb's "missing" trip went
+# Fix: Habeeb's missing 16 July trips
 
-## What the data shows (2026-07-16)
+## Diagnosis
+Habeeb drives **K 41732**. On 2026-07-16 only 1 trip (MUHAISNAH FOURTH 07:00) is saved under K 41732. His two engineer-requested 05:30 trips (AL RAFFA, NADD AL SHEBA) were dispatched under **EE 38105** because the admin ran Optimize→Dispatch *before* the previous merge-fix landed — the old merger combined all 05:30 requests into one EE 38105 trip.
 
-The engineer submitted **3 requests for Habeeb / vehicle K 41732**:
+The driver read-policy is working correctly. This is a stale data issue, not a code issue.
 
-| Trip No | Time  | Site             | Workers               |
-|---------|-------|------------------|-----------------------|
-| 6       | 05:30 | AL RAFFA         | Vengatesan, Elankoven |
-| 7       | 05:30 | NADD AL SHEBA    | Unni, Thahir          |
-| 15      | 07:00 | MUHAISNAH FOURTH | Vishal, Niranjan      |
+## Fix (chosen: reassign in place — least disruptive)
 
-In admin **Optimize**, Habeeb shows only **1 trip at 05:30 and 1 at 07:00** — the two 05:30 requests were silently combined into one.
+Run a data update to move the two 05:30 rows back onto Habeeb's vehicle. No admin action required, Habeeb sees the trips as soon as his phone refreshes.
 
-## Why this happens
+```sql
+UPDATE public.trip_schedules
+SET vehicle_number = ' K 41732'
+WHERE trip_date = '2026-07-16'
+  AND time_slot = '5:30 AM'
+  AND site IN ('AL RAFFA', 'NADD AL SHEBA');
+```
 
-`src/lib/tripPlanning.ts` runs two passes:
-
-1. `groupWorkersByAreaAndTime` — groups by **zone + time slot**.
-   - AL RAFFA → Zone 4, NADD AL SHEBA → Zone 3. Two separate groups. ✅
-2. `mergeNearbyTrips` — for any group with utilization < 70%, it merges with **any other same-time-slot group** as long as combined workers ≤ 12 and neither is the Al Quoz Hub.
-   - Both 05:30 groups have 2 workers each (2 / 13 ≈ 15%) → inefficient → **auto-merged into one "Zone 4 + Zone 3" trip**.
-
-The merger ignores the fact that the engineer already picked specific vehicles/drivers per trip. The workers still appear (nothing is lost), but they're stacked onto a single trip card, so it looks like one of Habeeb's trips vanished.
-
-## The fix
-
-Change `mergeNearbyTrips` so it **never merges two groups when either side carries an engineer-specified vehicle number or driver name that differs from the other side**. Engineer intent wins over utilization optimization.
-
-Rules after the fix:
-- Same requested vehicle **and** same requested driver → allowed to merge (still one physical trip).
-- Different requested vehicle **or** different requested driver → keep as separate trips, even if inefficient.
-- No engineer selection on either side → current behavior (merge if it fits).
-- Hub-Al Quoz exclusion stays.
-
-Also add a small "Requested separately by engineer" hint on trip cards that were kept apart because of this rule, so dispatchers understand why utilization looks low.
-
-## Files to change
-
-- `src/lib/tripPlanning.ts` — update `mergeNearbyTrips` with the compatibility check (compare top `requestedVehicleNumber` and `requestedDriver` per group).
-- `src/pages/TripPlanning.tsx` — show the "kept separate — engineer request" badge on trip cards in the Optimize step.
-
-## Out of scope
-
-- No DB changes.
-- No change to zone clustering (Zone 3 vs Zone 4 stays as-is).
-- No change to Hub / Al Quoz behavior.
+Vehicle string uses the same ` K 41732` format (leading space) already present in the other K 41732 row for consistency.
 
 ## Verification
+```sql
+SELECT time_slot, site, vehicle_number
+FROM trip_schedules
+WHERE trip_date='2026-07-16' AND vehicle_number ILIKE '%41732%'
+ORDER BY time_slot;
+```
+Expect 3 rows: AL RAFFA (5:30), NADD AL SHEBA (5:30), MUHAISNAH FOURTH (7:00).
 
-After the change, reload Optimize for 2026-07-16 → Habeeb should show **3 trip cards** (AL RAFFA 05:30, NADD AL SHEBA 05:30, MUHAISNAH FOURTH 07:00), each on K 41732.
+## Not in scope
+- The two rows still sit under EE 38105 in the merged 05:30 dispatch — after the reassignment, that EE 38105 group drops from 10 workers to 6, still within capacity. No other row changes needed.
+- Prior dates dispatched under the old merger (e.g. 15 Jul) are left alone. Say the word if you want them audited too.
+- No code changes — the merge logic is already correct for future dispatches.
