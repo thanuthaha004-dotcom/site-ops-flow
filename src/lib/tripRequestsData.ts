@@ -68,10 +68,10 @@ export async function submitTripRequests(
   engineerName: string,
   requests: TripRequestInput[]
 ): Promise<void> {
-  // Fetch existing requests so we can determine which are already linked to a
-  // dispatched / in-progress / completed trip. Those must NOT be deleted —
-  // the admin needs full visibility (Pending, In Progress, Completed) on the
-  // Smart Trip Planning board even if the engineer resubmits the form.
+  // APPEND semantics: keep every previously-submitted request for this
+  // engineer + date (regardless of status), and add the new rows on top.
+  // The engineer's form always starts blank, so submitting only ever adds
+  // trips — it never silently deletes prior pending entries.
   const { data: existing } = await supabase
     .from('daily_trip_requests')
     .select('*')
@@ -79,37 +79,15 @@ export async function submitTripRequests(
     .eq('engineer_id', engineerId);
 
   const existingRows = (existing || []) as DailyTripRequest[];
-  let preservedIds = new Set<string>();
-  if (existingRows.length > 0) {
-    try {
-      const live = await fetchRequestLiveStatuses(date, existingRows);
-      existingRows.forEach(r => {
-        const s = live.get(r.id)?.status;
-        if (s === 'assigned' || s === 'in_progress' || s === 'completed') {
-          preservedIds.add(r.id);
-        }
-      });
-    } catch { /* ignore — fall back to delete-all behaviour */ }
-  }
-
-  // Delete only requests that have NOT yet been dispatched.
-  const idsToDelete = existingRows.filter(r => !preservedIds.has(r.id)).map(r => r.id);
-  if (idsToDelete.length > 0) {
-    await supabase
-      .from('daily_trip_requests')
-      .delete()
-      .in('id', idsToDelete);
-  }
 
   if (requests.length === 0) return;
 
-  // Skip new rows that duplicate a preserved (already-dispatched) row.
-  // Match on project + site + overlapping workers.
+  // Skip new rows that exactly duplicate an existing row (same project + site +
+  // overlapping workers) so accidental re-submits don't create dupes.
   const norm = (s: string) => (s || '').trim().toUpperCase();
-  const preservedRows = existingRows.filter(r => preservedIds.has(r.id));
-  const isDuplicateOfPreserved = (r: TripRequestInput) => {
+  const isDuplicate = (r: TripRequestInput) => {
     const newWorkers = new Set((r.worker_names || []).map(norm).filter(Boolean));
-    return preservedRows.some(p => {
+    return existingRows.some(p => {
       if (norm(p.site) !== norm(r.site)) return false;
       const projMatches = r.project_id ? p.project_id === r.project_id : norm(p.project_name) === norm(r.project_name);
       if (!projMatches) return false;
@@ -120,8 +98,14 @@ export async function submitTripRequests(
     });
   };
 
+  // Continue numbering after the highest existing execution_order.
+  const nextOrder = existingRows.reduce(
+    (max, r) => Math.max(max, r.execution_order ?? 0),
+    0,
+  );
+
   const rows = requests
-    .filter(r => !isDuplicateOfPreserved(r))
+    .filter(r => !isDuplicate(r))
     .map((r, idx) => ({
       trip_date: date,
       engineer_id: engineerId,
@@ -140,13 +124,14 @@ export async function submitTripRequests(
       vehicle_type: r.vehicle_type || null,
       driver_name: r.driver_name || null,
       pickup_location: r.pickup_location || 'Al Quoz Labour Camp',
-      execution_order: r.execution_order ?? preservedRows.length + idx + 1,
+      execution_order: r.execution_order ?? nextOrder + idx + 1,
     }));
 
   if (rows.length === 0) return;
   const { error } = await supabase.from('daily_trip_requests').insert(rows);
   if (error) throw error;
 }
+
 
 export interface RequestLiveStatus {
   status: 'pending' | 'assigned' | 'in_progress' | 'completed';
