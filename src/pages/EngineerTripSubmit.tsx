@@ -279,7 +279,8 @@ export default function EngineerTripSubmit() {
     setDrafts([]);
     setCustomNameInputs({});
     setSubmitted(false);
-    setFormCleared(true);
+
+
     toast({ title: 'Form reset — ready for a new entry' });
   };
 
