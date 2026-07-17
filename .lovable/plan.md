@@ -1,34 +1,44 @@
-# Fix: Habeeb's missing 16 July trips
-
 ## Diagnosis
-Habeeb drives **K 41732**. On 2026-07-16 only 1 trip (MUHAISNAH FOURTH 07:00) is saved under K 41732. His two engineer-requested 05:30 trips (AL RAFFA, NADD AL SHEBA) were dispatched under **EE 38105** because the admin ran Optimize→Dispatch *before* the previous merge-fix landed — the old merger combined all 05:30 requests into one EE 38105 trip.
 
-The driver read-policy is working correctly. This is a stale data issue, not a code issue.
+Saeed Ullah has **two driver accounts** in the system:
 
-## Fix (chosen: reassign in place — least disruptive)
+| Profile | Email | Vehicle linked? |
+|---|---|---|
+| `SAEED ULLAH` (uppercase) | transport@hwgas.ae | ✅ EE 38105 |
+| `saeed ullah` (lowercase) | saeedullah@petrosafe.com | ❌ None |
 
-Run a data update to move the two 05:30 rows back onto Habeeb's vehicle. No admin action required, Habeeb sees the trips as soon as his phone refreshes.
+Vehicle **EE 38105** has 6 trips scheduled for today (17 July 2026) — 3 at 5:30 AM, 2 at 7:00 AM, 1 at 9:30 AM. All are assigned, none started.
+
+The driver read-policy (`current_user_drives_vehicle`) only returns trips for the vehicle whose `driver_user_id` matches the logged-in user. Since Saeed is almost certainly signing in with `saeedullah@petrosafe.com` (the newer, personal-looking address), that account is not linked to any vehicle, so his dashboard shows zero trips.
+
+No `driver_locations` rows exist for either profile, so we can't yet confirm from telemetry which account he last used — but the mismatch alone fully explains the symptom.
+
+## Recommended fix
+
+**Consolidate onto the account Saeed actually logs in with** and remove the duplicate. Please confirm which of the following you want before I execute anything:
+
+### Option A — Keep `saeedullah@petrosafe.com` (recommended if that's his real login)
+1. Repoint vehicle `EE 38105`: set `vehicles.driver_user_id = ddaa4bfd-d60a-48dd-bbb5-0702c5d55b6d`.
+2. Optionally normalise `vehicles.driver` text to `SAEED ULLAH`.
+3. Remove the stale `transport@hwgas.ae` profile + `user_roles` row (or leave it disabled) so it can't accidentally be used again.
+
+### Option B — Keep `transport@hwgas.ae`
+1. Tell Saeed to sign out and log in with `transport@hwgas.ae`.
+2. Remove the `saeedullah@petrosafe.com` profile + role.
+
+### Option C — Just make today work, decide later
+Only run step A.1 (repoint the vehicle to `saeedullah@petrosafe.com`). Leaves both profiles in place; we clean up duplicates later.
+
+## Verification after fix
 
 ```sql
-UPDATE public.trip_schedules
-SET vehicle_number = ' K 41732'
-WHERE trip_date = '2026-07-16'
-  AND time_slot = '5:30 AM'
-  AND site IN ('AL RAFFA', 'NADD AL SHEBA');
+SELECT * FROM trip_schedules
+WHERE trip_date = CURRENT_DATE AND vehicle_number = 'EE 38105';
+-- Should return 6 rows, and Saeed's dashboard (after refresh) should show them.
 ```
 
-Vehicle string uses the same ` K 41732` format (leading space) already present in the other K 41732 row for consistency.
+## Notes
+- No app code changes needed — this is purely a data linkage problem.
+- Root cause going forward: the "Add Vehicle" / driver-approval flow should prevent creating a second driver profile with the same name. That's a separate hardening ticket; flag if you want it in this plan.
 
-## Verification
-```sql
-SELECT time_slot, site, vehicle_number
-FROM trip_schedules
-WHERE trip_date='2026-07-16' AND vehicle_number ILIKE '%41732%'
-ORDER BY time_slot;
-```
-Expect 3 rows: AL RAFFA (5:30), NADD AL SHEBA (5:30), MUHAISNAH FOURTH (7:00).
-
-## Not in scope
-- The two rows still sit under EE 38105 in the merged 05:30 dispatch — after the reassignment, that EE 38105 group drops from 10 workers to 6, still within capacity. No other row changes needed.
-- Prior dates dispatched under the old merger (e.g. 15 Jul) are left alone. Say the word if you want them audited too.
-- No code changes — the merge logic is already correct for future dispatches.
+**Which option should I execute — A, B, or C?**
