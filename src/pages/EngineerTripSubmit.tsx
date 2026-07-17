@@ -362,7 +362,7 @@ export default function EngineerTripSubmit() {
 
       setDrafts(newDrafts);
       setSubmitted(false);
-      setFormCleared(true);
+
       toast({
         title: `Loaded ${newDrafts.length} trip${newDrafts.length === 1 ? '' : 's'} from Excel`,
         description: newProjectCount > 0
