@@ -55,10 +55,8 @@ export default function EngineerTripSubmit() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  // When true, skip auto-hydrating the form with previously-submitted requests
-  // for the currently-selected date. Reset whenever the date changes or after
-  // a fresh submit, so engineers can still review prior entries by reloading.
-  const [formCleared, setFormCleared] = useState(false);
+  // (formCleared removed — the form no longer auto-hydrates prior submissions.)
+
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
