@@ -18,6 +18,23 @@ import { toast } from '@/hooks/use-toast';
 
 const DEFAULT_PICKUP = 'Al Quoz Labour Camp';
 
+const DEFAULT_MATERIAL_CATEGORIES = [
+  'Fire Fighting',
+  'Fire Alarm and Panel',
+  'Pipes',
+  'Fittings',
+  'Consumables',
+  'Gas Meters and Detectors',
+  'Cables',
+  'Extinguishers',
+  'Sprinklers',
+  'PVC Conduits and Fittings',
+  'Machine Transfer',
+  'Others',
+];
+
+const MATERIAL_TAG_RE = /^\s*\[MATERIAL:(PICKUP|DELIVERY)\]\s*/i;
+
 type TripDraft = {
   tempId: string;
   project_id: string;
@@ -29,6 +46,10 @@ type TripDraft = {
   notes: string;
   pickup_location: string;
   pickup_custom: boolean; // when true, pickup_location is free text
+  // Transport type: staff (workers) vs material (category + direction)
+  transport_type: 'staff' | 'material';
+  material_category?: string;
+  material_direction?: 'pickup' | 'delivery';
   // Free-text overrides used when the row came from an Excel upload with a
   // project name that doesn't match any existing project. When set, project_id
   // is left blank and these values are submitted verbatim.
@@ -48,7 +69,10 @@ const newDraft = (): TripDraft => ({
   notes: '',
   pickup_location: DEFAULT_PICKUP,
   pickup_custom: false,
+  transport_type: 'staff',
+  material_direction: 'pickup',
 });
+
 
 export default function EngineerTripSubmit() {
   const { user, profileName } = useAuth();
