@@ -197,6 +197,8 @@ export function downloadTripRequestsTemplate() {
       'Pickup Location': 'Al Quoz Labour Camp',
       'Drop-off Location': 'Marina Heights Tower B',
       'Pickup Time': '08:30',
+      'Expected Completion Time': '',
+      'Urgent': 'Yes',
       'Passenger Details': 'Suresh, Imran',
       'Engineer Information': 'Eng. Rahul Verma',
       'Vehicle Number': '',
