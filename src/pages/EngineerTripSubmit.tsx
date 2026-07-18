@@ -550,7 +550,22 @@ export default function EngineerTripSubmit() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Project */}
                     <div className="md:col-span-2">
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
+                      {(() => {
+                        const site = d.custom_project_name !== undefined
+                          ? (d.custom_site || '')
+                          : (projects.find(p => p.id === d.project_id)?.site || '');
+                        const zone = site ? getAreaCluster(site) : '';
+                        return (
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <label className="text-xs font-medium text-muted-foreground">Project</label>
+                            {zone && zone !== 'Other' && (
+                              <Badge variant="outline" className="text-[10px] font-normal gap-1" title="Auto-detected zone (managed by admin)">
+                                <MapPin className="h-3 w-3" /> {zone}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {(d.custom_project_name !== undefined) ? (
                         <div className="flex gap-2">
                           <input
