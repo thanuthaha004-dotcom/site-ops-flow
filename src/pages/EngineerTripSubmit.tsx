@@ -261,16 +261,21 @@ export default function EngineerTripSubmit() {
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
       const hasCustomProject = (d.custom_project_name || '').trim().length > 0;
-      if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
       if (d.transport_type === 'material') {
+        if (!d.delivery_point || !d.delivery_point.trim()) {
+          return `Trip ${i + 1}: select or add a delivery point`;
+        }
         if (!d.material_category || !d.material_category.trim()) {
           return `Trip ${i + 1}: select a material category`;
         }
         if (d.material_direction !== 'pickup' && d.material_direction !== 'delivery') {
           return `Trip ${i + 1}: choose Material Pickup or Material Delivery`;
         }
-      } else if (d.worker_names.length === 0 && !d.notes.trim()) {
-        return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
+      } else {
+        if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
+        if (d.worker_names.length === 0 && !d.notes.trim()) {
+          return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
+        }
       }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
     }
