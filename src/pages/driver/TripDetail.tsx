@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, MapPin, Users, Truck, Play, Pause, CheckCircle2, AlertCircle, Clock,
-  Navigation, FolderKanban, UserCog, StickyNote, Package, AlertTriangle, Timer,
+  Navigation, FolderKanban, UserCog, StickyNote, Package, AlertTriangle, Timer, MessageSquareWarning,
 } from 'lucide-react';
 import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { toast } from '@/hooks/use-toast';
@@ -12,6 +12,8 @@ import {
   segmentActiveSeconds, tripActiveSeconds, formatDuration,
   type DriverTrip, type TripSegment,
 } from '@/lib/driverData';
+import ReportIssueDialog from '@/components/driver/ReportIssueDialog';
+import { fetchTripIssueNotes, type TripIssueNote } from '@/lib/tripIssueNotes';
 
 function segStatusPill(s: TripSegment['status']) {
   const map = {
