@@ -172,6 +172,8 @@ export default function EngineerTripSubmit() {
             custom_project_name: hasProject || isMaterial ? undefined : (r.project_name || ''),
             custom_site: hasProject || isMaterial ? undefined : (r.site || ''),
             custom_work_type: hasProject || isMaterial ? undefined : (r.work_type || ''),
+            expected_completion_time: r.expected_completion_time || '',
+            is_urgent: !!r.is_urgent,
           };
         }));
 
