@@ -159,9 +159,10 @@ export default function EngineerTripSubmit() {
             material_direction: isMaterial
               ? (materialMatch![1].toUpperCase() === 'DELIVERY' ? 'delivery' : 'pickup')
               : 'pickup',
-            custom_project_name: hasProject ? undefined : (r.project_name || ''),
-            custom_site: hasProject ? undefined : (r.site || ''),
-            custom_work_type: hasProject ? undefined : (r.work_type || ''),
+            delivery_point: isMaterial ? (r.site || '') : undefined,
+            custom_project_name: hasProject || isMaterial ? undefined : (r.project_name || ''),
+            custom_site: hasProject || isMaterial ? undefined : (r.site || ''),
+            custom_work_type: hasProject || isMaterial ? undefined : (r.work_type || ''),
           };
         }));
 
