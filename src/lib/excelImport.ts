@@ -210,7 +210,7 @@ export function downloadTripRequestsTemplate() {
   const ws = XLSX.utils.json_to_sheet(example, { header: headers });
   ws['!cols'] = [
     { wch: 8 }, { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 24 },
-    { wch: 22 }, { wch: 26 }, { wch: 11 }, { wch: 36 },
+    { wch: 22 }, { wch: 26 }, { wch: 11 }, { wch: 22 }, { wch: 10 }, { wch: 36 },
     { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 32 }, { wch: 28 },
   ];
   const wb = XLSX.utils.book_new();
