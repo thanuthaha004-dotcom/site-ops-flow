@@ -87,6 +87,8 @@ export type TripRequestRow = {
   driver_name: string;
   notes: string;
   execution_order?: number;
+  expected_completion_time?: string;
+  is_urgent?: boolean;
 };
 
 const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
