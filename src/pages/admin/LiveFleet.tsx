@@ -55,6 +55,15 @@ export default function LiveFleet() {
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { rows: occupancyRows } = useAllOccupancy();
+  const occByVehicle = new Map(occupancyRows.map(o => [o.vehicle_number, o]));
+  const [vehCaps, setVehCaps] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    supabase.from('vehicles').select('number, capacity').then(({ data }) => {
+      if (data) setVehCaps(new Map(data.map((v: any) => [v.number, v.capacity ?? 0])));
+    });
+  }, []);
 
   const refresh = () => {
     fetchAllDriverLocations().then(setLocations).catch((e) => setError(e.message)).finally(() => setLoading(false));
