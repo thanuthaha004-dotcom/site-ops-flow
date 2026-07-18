@@ -54,6 +54,7 @@ export default function TripDetail() {
       .then(t => { setTrip(t); if (!t) setError('Trip not found or access denied.'); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
+    reloadNotes();
   }, [id]);
 
   // Live timer tick
