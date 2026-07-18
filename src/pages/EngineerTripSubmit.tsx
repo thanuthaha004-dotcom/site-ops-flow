@@ -6,6 +6,7 @@ import ZoneReferenceDialog from '@/components/zones/ZoneReferenceDialog';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
 import { loadZoneMappings } from '@/lib/zoneMappings';
+import { fetchDeliveryPoints, addDeliveryPoint, type DeliveryPoint } from '@/lib/deliveryPoints';
 import { getAreaCluster } from '@/lib/tripPlanning';
 import type { Project, Vehicle, Worker } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
@@ -50,6 +51,8 @@ type TripDraft = {
   transport_type: 'staff' | 'material';
   material_category?: string;
   material_direction?: 'pickup' | 'delivery';
+  // For material transport: chosen delivery point (project site or saved custom point)
+  delivery_point?: string;
   // Free-text overrides used when the row came from an Excel upload with a
   // project name that doesn't match any existing project. When set, project_id
   // is left blank and these values are submitted verbatim.
@@ -85,6 +88,10 @@ export default function EngineerTripSubmit() {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [newCategoryInputs, setNewCategoryInputs] = useState<Record<string, string>>({});
   const [showAddCategory, setShowAddCategory] = useState<Record<string, boolean>>({});
+  const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+  const [newDeliveryInputs, setNewDeliveryInputs] = useState<Record<string, string>>({});
+  const [showAddDelivery, setShowAddDelivery] = useState<Record<string, boolean>>({});
+  const [addingDelivery, setAddingDelivery] = useState<Record<string, boolean>>({});
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -108,6 +115,7 @@ export default function EngineerTripSubmit() {
     }).catch(() => {});
     fetchVehicles().then(setVehicles).catch(() => {});
     fetchWorkers().then(setWorkforce).catch(() => {});
+    fetchDeliveryPoints().then(setDeliveryPoints).catch(() => {});
   }, []);
 
 
@@ -151,9 +159,10 @@ export default function EngineerTripSubmit() {
             material_direction: isMaterial
               ? (materialMatch![1].toUpperCase() === 'DELIVERY' ? 'delivery' : 'pickup')
               : 'pickup',
-            custom_project_name: hasProject ? undefined : (r.project_name || ''),
-            custom_site: hasProject ? undefined : (r.site || ''),
-            custom_work_type: hasProject ? undefined : (r.work_type || ''),
+            delivery_point: isMaterial ? (r.site || '') : undefined,
+            custom_project_name: hasProject || isMaterial ? undefined : (r.project_name || ''),
+            custom_site: hasProject || isMaterial ? undefined : (r.site || ''),
+            custom_work_type: hasProject || isMaterial ? undefined : (r.work_type || ''),
           };
         }));
 
@@ -234,6 +243,48 @@ export default function EngineerTripSubmit() {
     return [DEFAULT_PICKUP, ...sites];
   }, [projects]);
 
+  // Delivery Point options for Material Transport: unique project sites + saved custom delivery points
+  const deliveryPointOptions = useMemo(() => {
+    const sites = projects.map(p => (p.site || '').trim()).filter(Boolean);
+    const customs = deliveryPoints.map(dp => dp.name.trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    [...sites, ...customs].forEach(name => {
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(name);
+    });
+    return merged.sort((a, b) => a.localeCompare(b));
+  }, [projects, deliveryPoints]);
+
+  const handleAddDeliveryPoint = async (draftId: string) => {
+    const raw = (newDeliveryInputs[draftId] || '').trim();
+    if (!raw) return;
+    if (!user) return;
+    const existsAlready = deliveryPointOptions.some(o => o.toLowerCase() === raw.toLowerCase());
+    if (existsAlready) {
+      updateDraft(draftId, { delivery_point: raw });
+      setNewDeliveryInputs(prev => ({ ...prev, [draftId]: '' }));
+      setShowAddDelivery(prev => ({ ...prev, [draftId]: false }));
+      return;
+    }
+    setAddingDelivery(prev => ({ ...prev, [draftId]: true }));
+    try {
+      const created = await addDeliveryPoint(raw, user.id);
+      setDeliveryPoints(prev => [...prev, created]);
+      updateDraft(draftId, { delivery_point: created.name });
+      setNewDeliveryInputs(prev => ({ ...prev, [draftId]: '' }));
+      setShowAddDelivery(prev => ({ ...prev, [draftId]: false }));
+      toast({ title: `Added delivery point "${created.name}"` });
+    } catch (err: any) {
+      toast({ title: 'Could not save delivery point', description: err?.message || '', variant: 'destructive' });
+    } finally {
+      setAddingDelivery(prev => ({ ...prev, [draftId]: false }));
+    }
+  };
+
+
   // Map worker name -> count of trips it appears on (for duplicate warnings)
   const workerOccurrences = useMemo(() => {
     const map = new Map<string, number>();
@@ -252,16 +303,21 @@ export default function EngineerTripSubmit() {
     for (let i = 0; i < drafts.length; i++) {
       const d = drafts[i];
       const hasCustomProject = (d.custom_project_name || '').trim().length > 0;
-      if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
       if (d.transport_type === 'material') {
+        if (!d.delivery_point || !d.delivery_point.trim()) {
+          return `Trip ${i + 1}: select or add a delivery point`;
+        }
         if (!d.material_category || !d.material_category.trim()) {
           return `Trip ${i + 1}: select a material category`;
         }
         if (d.material_direction !== 'pickup' && d.material_direction !== 'delivery') {
           return `Trip ${i + 1}: choose Material Pickup or Material Delivery`;
         }
-      } else if (d.worker_names.length === 0 && !d.notes.trim()) {
-        return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
+      } else {
+        if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
+        if (d.worker_names.length === 0 && !d.notes.trim()) {
+          return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
+        }
       }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
     }
@@ -303,9 +359,13 @@ export default function EngineerTripSubmit() {
           ? `[MATERIAL:${(d.material_direction || 'pickup').toUpperCase()}] `
           : '';
         return {
-          project_id: d.project_id || '',
-          project_name: p?.name || d.custom_project_name || '',
-          site: p?.site || d.custom_site || '',
+          project_id: isMaterial ? '' : (d.project_id || ''),
+          project_name: isMaterial
+            ? 'Material Transport'
+            : (p?.name || d.custom_project_name || ''),
+          site: isMaterial
+            ? (d.delivery_point || '')
+            : (p?.site || d.custom_site || ''),
           worker_names: isMaterial ? [] : d.worker_names,
           work_type: isMaterial
             ? (d.material_category || '')
@@ -605,16 +665,21 @@ export default function EngineerTripSubmit() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Project */}
+                    {/* Project OR Delivery Point (for Material Transport) */}
                     <div className="md:col-span-2">
                       {(() => {
-                        const site = d.custom_project_name !== undefined
-                          ? (d.custom_site || '')
-                          : (projects.find(p => p.id === d.project_id)?.site || '');
+                        const isMaterial = d.transport_type === 'material';
+                        const site = isMaterial
+                          ? (d.delivery_point || '')
+                          : d.custom_project_name !== undefined
+                            ? (d.custom_site || '')
+                            : (projects.find(p => p.id === d.project_id)?.site || '');
                         const zone = site ? getAreaCluster(site) : '';
                         return (
                           <div className="flex items-center justify-between mb-1 gap-2">
-                            <label className="text-xs font-medium text-muted-foreground">Project</label>
+                            <label className="text-xs font-medium text-muted-foreground">
+                              {isMaterial ? 'Delivery Point' : 'Project'}
+                            </label>
                             {zone && zone !== 'Other' && (
                               <Badge variant="outline" className="text-[10px] font-normal gap-1" title="Auto-detected zone (managed by admin)">
                                 <MapPin className="h-3 w-3" /> {zone}
@@ -623,7 +688,60 @@ export default function EngineerTripSubmit() {
                           </div>
                         );
                       })()}
-                      {(d.custom_project_name !== undefined) ? (
+                      {d.transport_type === 'material' ? (
+                        <>
+                          <select
+                            value={
+                              d.delivery_point && deliveryPointOptions.some(o => o.toLowerCase() === d.delivery_point!.toLowerCase())
+                                ? deliveryPointOptions.find(o => o.toLowerCase() === d.delivery_point!.toLowerCase())!
+                                : (d.delivery_point ? '__existing__' : '')
+                            }
+                            onChange={e => {
+                              const v = e.target.value;
+                              if (v === '__add__') {
+                                setShowAddDelivery(prev => ({ ...prev, [d.tempId]: true }));
+                              } else if (v === '__existing__') {
+                                // no-op: rehydrated value not in list; keep as is
+                              } else {
+                                updateDraft(d.tempId, { delivery_point: v });
+                              }
+                            }}
+                            className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                            <option value="">Select delivery point…</option>
+                            {d.delivery_point && !deliveryPointOptions.some(o => o.toLowerCase() === d.delivery_point!.toLowerCase()) && (
+                              <option value="__existing__">{d.delivery_point}</option>
+                            )}
+                            {deliveryPointOptions.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                            <option value="__add__">➕ Add new delivery point…</option>
+                          </select>
+                          {showAddDelivery[d.tempId] && (
+                            <div className="flex gap-2 mt-2">
+                              <input
+                                type="text"
+                                value={newDeliveryInputs[d.tempId] || ''}
+                                onChange={e => setNewDeliveryInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
+                                placeholder="e.g. Petrosafe Store, Supplier A…"
+                                className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                              />
+                              <button
+                                type="button"
+                                disabled={!!addingDelivery[d.tempId]}
+                                onClick={() => handleAddDeliveryPoint(d.tempId)}
+                                className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50">
+                                {addingDelivery[d.tempId] ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowAddDelivery(prev => ({ ...prev, [d.tempId]: false }))}
+                                className="text-xs px-3 py-2 rounded-md bg-muted text-muted-foreground hover:bg-muted/80">
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (d.custom_project_name !== undefined) ? (
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -657,6 +775,7 @@ export default function EngineerTripSubmit() {
                         </select>
                       )}
                     </div>
+
 
 
                     {/* Trip No (drives driver execution order) */}
