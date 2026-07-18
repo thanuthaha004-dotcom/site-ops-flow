@@ -391,6 +391,8 @@ export default function EngineerTripSubmit() {
           driver_name: d.driver_name || null,
           pickup_location: d.pickup_location || DEFAULT_PICKUP,
           execution_order: idx + 1,
+          expected_completion_time: d.expected_completion_time || null,
+          is_urgent: !!d.is_urgent,
         };
       });
 
