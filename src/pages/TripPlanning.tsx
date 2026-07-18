@@ -6,7 +6,7 @@ import {
 } from '@/lib/tripPlanning';
 import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, saveDispatchedTripAssignments, getRecentTripDates,
-  fetchDriverAreaDefaults, upsertDriverAreaDefaults,
+  fetchDriverAreaDefaults, upsertDriverAreaDefaults, reassignDispatchedTripVehicle,
 } from '@/lib/supabaseData';
 import { fetchTripRequestsByDate, fetchRequestLiveStatuses, fetchCompletedWorkerKeys, buildCompletedWorkerKey, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
@@ -621,6 +621,39 @@ export default function TripPlanning() {
     } catch {
       setStep('dispatch');
       toast({ title: 'Dispatched locally but failed to save to database', variant: 'destructive' });
+    }
+  };
+
+  // Reassign a dispatched (not-yet-started) trip to a different vehicle+driver.
+  const handleReassignDispatched = async (groupId: string, newVehicleId: string) => {
+    const group = tripGroups.find(g => g.id === groupId);
+    if (!group || !group.suggestedVehicle) return;
+    if (group.status !== 'dispatched') {
+      toast({ title: 'Cannot reassign', description: 'This trip has already started or completed.', variant: 'destructive' });
+      return;
+    }
+    const newVeh = vehicleList.find(v => v.id === newVehicleId);
+    if (!newVeh) return;
+    if (newVeh.number === group.suggestedVehicle.number) return;
+    try {
+      const updatedCount = await reassignDispatchedTripVehicle(
+        toDateStr(selectedDate),
+        group.suggestedVehicle.number,
+        group.timeSlot,
+        group.sites,
+        { number: newVeh.number, type: newVeh.type },
+      );
+      if (updatedCount === 0) {
+        toast({ title: 'Nothing reassigned', description: 'The trip may have already started.', variant: 'destructive' });
+        return;
+      }
+      setTripGroups(prev => prev.map(g => g.id === groupId
+        ? { ...g, suggestedVehicle: { id: newVeh.id, number: newVeh.number, type: newVeh.type, capacity: newVeh.capacity, driver: newVeh.driver || '' } }
+        : g
+      ));
+      toast({ title: `Reassigned to ${newVeh.number}${newVeh.driver ? ` · ${newVeh.driver}` : ''}` });
+    } catch (e: any) {
+      toast({ title: 'Failed to reassign', description: e?.message, variant: 'destructive' });
     }
   };
 
@@ -1749,6 +1782,30 @@ export default function TripPlanning() {
                           <span className="font-medium truncate">{g.sites.join(', ')}</span>
                         </div>
                       </div>
+
+                      {g.status === 'dispatched' && (
+                        <div className="mb-2 p-2 rounded border border-accent/30 bg-accent/5">
+                          <label className="text-[10px] font-bold uppercase tracking-wide text-accent flex items-center gap-1 mb-1">
+                            <UserCog className="h-3 w-3" /> Reassign driver / vehicle
+                          </label>
+                          <select
+                            className="w-full text-xs bg-background border border-border rounded px-2 py-1"
+                            value={vehicleList.find(v => v.number === g.suggestedVehicle?.number)?.id || ''}
+                            onChange={(e) => handleReassignDispatched(g.id, e.target.value)}
+                          >
+                            <option value="" disabled>Select a different driver…</option>
+                            {vehicleList.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.number} · {v.type}{v.driver ? ` · ${v.driver}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Only available until the driver starts the trip.
+                          </p>
+                        </div>
+                      )}
+
 
                       <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
                         {g.workers.map(w => (
