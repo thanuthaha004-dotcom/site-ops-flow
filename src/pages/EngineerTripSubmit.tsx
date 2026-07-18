@@ -18,6 +18,23 @@ import { toast } from '@/hooks/use-toast';
 
 const DEFAULT_PICKUP = 'Al Quoz Labour Camp';
 
+const DEFAULT_MATERIAL_CATEGORIES = [
+  'Fire Fighting',
+  'Fire Alarm and Panel',
+  'Pipes',
+  'Fittings',
+  'Consumables',
+  'Gas Meters and Detectors',
+  'Cables',
+  'Extinguishers',
+  'Sprinklers',
+  'PVC Conduits and Fittings',
+  'Machine Transfer',
+  'Others',
+];
+
+const MATERIAL_TAG_RE = /^\s*\[MATERIAL:(PICKUP|DELIVERY)\]\s*/i;
+
 type TripDraft = {
   tempId: string;
   project_id: string;
@@ -29,6 +46,10 @@ type TripDraft = {
   notes: string;
   pickup_location: string;
   pickup_custom: boolean; // when true, pickup_location is free text
+  // Transport type: staff (workers) vs material (category + direction)
+  transport_type: 'staff' | 'material';
+  material_category?: string;
+  material_direction?: 'pickup' | 'delivery';
   // Free-text overrides used when the row came from an Excel upload with a
   // project name that doesn't match any existing project. When set, project_id
   // is left blank and these values are submitted verbatim.
@@ -48,7 +69,10 @@ const newDraft = (): TripDraft => ({
   notes: '',
   pickup_location: DEFAULT_PICKUP,
   pickup_custom: false,
+  transport_type: 'staff',
+  material_direction: 'pickup',
 });
+
 
 export default function EngineerTripSubmit() {
   const { user, profileName } = useAuth();
@@ -58,6 +82,10 @@ export default function EngineerTripSubmit() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [drafts, setDrafts] = useState<TripDraft[]>([]);
   const [customNameInputs, setCustomNameInputs] = useState<Record<string, string>>({});
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [newCategoryInputs, setNewCategoryInputs] = useState<Record<string, string>>({});
+  const [showAddCategory, setShowAddCategory] = useState<Record<string, boolean>>({});
+
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -103,6 +131,10 @@ export default function EngineerTripSubmit() {
         setDrafts(ordered.map(r => {
           const pickup = r.pickup_location || DEFAULT_PICKUP;
           const hasProject = r.project_id && projects.some(p => p.id === r.project_id);
+          const rawNotes = r.notes || '';
+          const materialMatch = rawNotes.match(MATERIAL_TAG_RE);
+          const isMaterial = !!materialMatch;
+          const cleanNotes = isMaterial ? rawNotes.replace(MATERIAL_TAG_RE, '') : rawNotes;
           return {
             tempId: r.id,
             project_id: hasProject ? r.project_id : '',
@@ -111,14 +143,20 @@ export default function EngineerTripSubmit() {
             end_time: r.end_time || '',
             vehicle_number: r.vehicle_number || '',
             driver_name: r.driver_name || '',
-            notes: r.notes || '',
+            notes: cleanNotes,
             pickup_location: pickup,
             pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
+            transport_type: isMaterial ? 'material' : 'staff',
+            material_category: isMaterial ? (r.work_type || '') : undefined,
+            material_direction: isMaterial
+              ? (materialMatch![1].toUpperCase() === 'DELIVERY' ? 'delivery' : 'pickup')
+              : 'pickup',
             custom_project_name: hasProject ? undefined : (r.project_name || ''),
             custom_site: hasProject ? undefined : (r.site || ''),
             custom_work_type: hasProject ? undefined : (r.work_type || ''),
           };
         }));
+
         setSubmitted(true);
       }
     } catch {
@@ -215,15 +253,21 @@ export default function EngineerTripSubmit() {
       const d = drafts[i];
       const hasCustomProject = (d.custom_project_name || '').trim().length > 0;
       if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
-      if (d.worker_names.length === 0 && !d.notes.trim()) {
+      if (d.transport_type === 'material') {
+        if (!d.material_category || !d.material_category.trim()) {
+          return `Trip ${i + 1}: select a material category`;
+        }
+        if (d.material_direction !== 'pickup' && d.material_direction !== 'delivery') {
+          return `Trip ${i + 1}: choose Material Pickup or Material Delivery`;
+        }
+      } else if (d.worker_names.length === 0 && !d.notes.trim()) {
         return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
       }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
-      // End time is captured by the driver, not by the engineer, so no
-      // start/end ordering check is needed here.
     }
     return null;
   };
+
 
   const addCustomWorker = (id: string) => {
     const raw = (customNameInputs[id] || '').trim();
@@ -254,15 +298,21 @@ export default function EngineerTripSubmit() {
       const payload: TripRequestInput[] = drafts.map((d, idx) => {
         const p = projects.find(x => x.id === d.project_id);
         const v = vehicles.find(x => x.number === d.vehicle_number);
+        const isMaterial = d.transport_type === 'material';
+        const materialTag = isMaterial
+          ? `[MATERIAL:${(d.material_direction || 'pickup').toUpperCase()}] `
+          : '';
         return {
           project_id: d.project_id || '',
           project_name: p?.name || d.custom_project_name || '',
           site: p?.site || d.custom_site || '',
-          worker_names: d.worker_names,
-          work_type: p?.workType || d.custom_work_type || '',
+          worker_names: isMaterial ? [] : d.worker_names,
+          work_type: isMaterial
+            ? (d.material_category || '')
+            : (p?.workType || d.custom_work_type || ''),
           // Priority is now derived from execution order (lower # = higher priority)
           priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
-          notes: d.notes,
+          notes: `${materialTag}${d.notes}`.trim(),
           start_time: d.start_time || null,
           end_time: null, // captured by driver on trip completion
           vehicle_number: d.vehicle_number || null,
@@ -272,6 +322,7 @@ export default function EngineerTripSubmit() {
           execution_order: idx + 1,
         };
       });
+
       await submitTripRequests(dateStr, user.id, profileName || user.email || '', payload);
       setSubmitted(true);
       toast({ title: `Submitted ${payload.length} trip${payload.length === 1 ? '' : 's'} for ${format(selectedDate, 'MMM d, yyyy')}` });
@@ -344,6 +395,9 @@ export default function EngineerTripSubmit() {
               notes: row.notes,
               pickup_location: pickup,
               pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+              transport_type: 'staff',
+              material_direction: 'pickup',
+
             });
           } else {
             // Unknown project — accept the row as-is, using the Excel values verbatim.
@@ -359,6 +413,9 @@ export default function EngineerTripSubmit() {
               notes: row.notes,
               pickup_location: pickup,
               pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+              transport_type: 'staff',
+              material_direction: 'pickup',
+
               custom_project_name: row.project || '',
               custom_site: row.project_location || '',
               custom_work_type: row.department || '',
@@ -659,7 +716,113 @@ export default function EngineerTripSubmit() {
                     )}
                   </div>
 
-                  {/* Workers */}
+                  {/* Transport Type toggle */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Transport Type
+                    </label>
+                    <div className="inline-flex rounded-md border border-input overflow-hidden">
+                      {(['staff', 'material'] as const).map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => updateDraft(d.tempId, { transport_type: t })}
+                          className={`text-xs px-3 py-1.5 transition-colors ${
+                            d.transport_type === t
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background text-foreground hover:bg-muted'
+                          }`}>
+                          {t === 'staff' ? 'Staff Transport' : 'Material Transport'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {d.transport_type === 'material' ? (
+                    <>
+                      {/* Material Category */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground block mb-1">
+                          Material Category
+                        </label>
+                        <select
+                          value={d.material_category || ''}
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === '__add__') {
+                              setShowAddCategory(prev => ({ ...prev, [d.tempId]: true }));
+                            } else {
+                              updateDraft(d.tempId, { material_category: v });
+                            }
+                          }}
+                          className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                          <option value="">Select category…</option>
+                          {DEFAULT_MATERIAL_CATEGORIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          {customCategories.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="__add__">➕ Add custom category…</option>
+                        </select>
+                        {showAddCategory[d.tempId] && (
+                          <div className="flex gap-2 mt-2">
+                            <input
+                              type="text"
+                              value={newCategoryInputs[d.tempId] || ''}
+                              onChange={e => setNewCategoryInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
+                              placeholder="New category name…"
+                              className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const raw = (newCategoryInputs[d.tempId] || '').trim();
+                                if (!raw) return;
+                                const all = [...DEFAULT_MATERIAL_CATEGORIES, ...customCategories];
+                                if (!all.some(c => c.toLowerCase() === raw.toLowerCase())) {
+                                  setCustomCategories(prev => [...prev, raw]);
+                                }
+                                updateDraft(d.tempId, { material_category: raw });
+                                setNewCategoryInputs(prev => ({ ...prev, [d.tempId]: '' }));
+                                setShowAddCategory(prev => ({ ...prev, [d.tempId]: false }));
+                              }}
+                              className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                              Add
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddCategory(prev => ({ ...prev, [d.tempId]: false }))}
+                              className="text-xs px-3 py-2 rounded-md bg-muted text-muted-foreground hover:bg-muted/80">
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Direction: Pickup vs Delivery */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground block mb-1">
+                          Direction
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['pickup', 'delivery'] as const).map(dir => (
+                            <button
+                              key={dir}
+                              type="button"
+                              onClick={() => updateDraft(d.tempId, { material_direction: dir })}
+                              className={`text-sm py-2 rounded-md border transition-colors ${
+                                d.material_direction === dir
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-input bg-background text-foreground hover:bg-muted'
+                              }`}>
+                              {dir === 'pickup' ? 'Material Pickup' : 'Material Delivery'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground block mb-1">
                       Workers ({d.worker_names.length} selected{project ? ` • ${allWorkers.length} on project` : ''})
@@ -759,6 +922,8 @@ export default function EngineerTripSubmit() {
                       </p>
                     )}
                   </div>
+                  )}
+
 
                   {/* Start time (End time is captured by the driver on trip completion) */}
                   <div>
