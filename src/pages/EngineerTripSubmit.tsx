@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchProjects, fetchVehicles } from '@/lib/supabaseData';
+import { fetchProjects, fetchVehicles, fetchWorkers } from '@/lib/supabaseData';
+import WorkerAutocomplete from '@/components/forms/WorkerAutocomplete';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
 import type { Project, Vehicle } from '@/data/mockData';
