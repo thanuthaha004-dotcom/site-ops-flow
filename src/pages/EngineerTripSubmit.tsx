@@ -69,6 +69,8 @@ export default function EngineerTripSubmit() {
   // Load all active/scheduled projects across departments — any engineer can
   // submit trip requests for any project, regardless of which engineer "owns" it.
   useEffect(() => {
+    // Hydrate admin-managed zone mappings so getAreaCluster reflects them.
+    loadZoneMappings().catch(() => {});
     fetchProjects().then(all => {
       const available = all.filter(p =>
         (p.status === 'Active' || p.status === 'Scheduled') &&
