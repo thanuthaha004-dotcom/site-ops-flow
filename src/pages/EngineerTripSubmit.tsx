@@ -127,6 +127,10 @@ export default function EngineerTripSubmit() {
         setDrafts(ordered.map(r => {
           const pickup = r.pickup_location || DEFAULT_PICKUP;
           const hasProject = r.project_id && projects.some(p => p.id === r.project_id);
+          const rawNotes = r.notes || '';
+          const materialMatch = rawNotes.match(MATERIAL_TAG_RE);
+          const isMaterial = !!materialMatch;
+          const cleanNotes = isMaterial ? rawNotes.replace(MATERIAL_TAG_RE, '') : rawNotes;
           return {
             tempId: r.id,
             project_id: hasProject ? r.project_id : '',
@@ -135,14 +139,20 @@ export default function EngineerTripSubmit() {
             end_time: r.end_time || '',
             vehicle_number: r.vehicle_number || '',
             driver_name: r.driver_name || '',
-            notes: r.notes || '',
+            notes: cleanNotes,
             pickup_location: pickup,
             pickup_custom: pickup !== DEFAULT_PICKUP && !(projects.some(p => (p.site || '').trim() === pickup.trim())),
+            transport_type: isMaterial ? 'material' : 'staff',
+            material_category: isMaterial ? (r.work_type || '') : undefined,
+            material_direction: isMaterial
+              ? (materialMatch![1].toUpperCase() === 'DELIVERY' ? 'delivery' : 'pickup')
+              : 'pickup',
             custom_project_name: hasProject ? undefined : (r.project_name || ''),
             custom_site: hasProject ? undefined : (r.site || ''),
             custom_work_type: hasProject ? undefined : (r.work_type || ''),
           };
         }));
+
         setSubmitted(true);
       }
     } catch {
