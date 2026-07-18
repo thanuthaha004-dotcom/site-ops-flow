@@ -299,6 +299,8 @@ export interface TripScheduleRow {
   completed_at?: string | null;
   notes: string;
   execution_order?: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
 }
 
 type TripScheduleInput = Omit<TripScheduleRow, 'id' | 'status' | 'started_at' | 'completed_at'> & {
