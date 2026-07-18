@@ -556,9 +556,11 @@ export default function EngineerTripSubmit() {
             onChange={handleExcelUpload}
             className="hidden"
           />
+        </div>
       </div>
 
       <VehicleCapacityPanel />
+
 
 
 
