@@ -195,15 +195,29 @@ export default function MyTripRequests() {
 
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-start gap-2">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-muted-foreground">Workers ({r.worker_names?.length || 0})</p>
-                      <p className="font-medium">
-                        {r.worker_names?.length ? r.worker_names.join(', ') : <span className="italic text-muted-foreground">No workers — {r.notes || 'reason not specified'}</span>}
-                      </p>
+                  {material.isMaterial ? (
+                    <div className="flex items-start gap-2 sm:col-span-2">
+                      <Package className="h-3.5 w-3.5 text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="text-muted-foreground">Material</p>
+                        <p className="font-medium">
+                          {directionLabel(material.direction)}
+                          {r.work_type ? <> · <span className="text-muted-foreground">Category:</span> {r.work_type}</> : null}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-muted-foreground">Workers ({r.worker_names?.length || 0})</p>
+                        <p className="font-medium">
+                          {r.worker_names?.length ? r.worker_names.join(', ') : <span className="italic text-muted-foreground">No workers — {material.cleanNotes || 'reason not specified'}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-2">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
                     <div>
