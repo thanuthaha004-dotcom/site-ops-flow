@@ -109,6 +109,11 @@ export default function MyTrips() {
                           {trip.segments.length} stops
                         </span>
                       )}
+                      {material.isMaterial && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                          <Package className="h-3 w-3" /> {directionLabel(material.direction)}
+                        </span>
+                      )}
                     </div>
                     {/* Pickup → Drop-off */}
                     <div className="space-y-1 text-sm">
@@ -131,17 +136,22 @@ export default function MyTrips() {
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}</span>
+                      {material.isMaterial ? (
+                        <span className="flex items-center gap-1"><Package className="h-3.5 w-3.5" /> {materialCategory || 'Material'}</span>
+                      ) : (
+                        <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}</span>
+                      )}
                       {trip.vehicle_number && (
                         <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> {trip.vehicle_number}</span>
                       )}
                     </div>
-                    {trip.notes && trip.notes.trim() && (
+                    {material.cleanNotes && material.cleanNotes.trim() && (
                       <div className="rounded-md border border-accent/30 bg-accent/5 px-2.5 py-1.5 flex items-start gap-1.5">
                         <StickyNote className="h-3.5 w-3.5 text-accent mt-0.5 shrink-0" />
-                        <span className="text-xs text-foreground line-clamp-2"><span className="font-semibold">Note:</span> {trip.notes}</span>
+                        <span className="text-xs text-foreground line-clamp-2"><span className="font-semibold">Note:</span> {material.cleanNotes}</span>
                       </div>
                     )}
+
                     {/* Live progress: started / completed / duration */}
                     {(trip.started_at || trip.completed_at) && (
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs pt-1.5 border-t border-border/60">
