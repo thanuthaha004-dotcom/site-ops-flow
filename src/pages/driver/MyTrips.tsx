@@ -79,7 +79,11 @@ export default function MyTrips() {
           </h2>
           <div className="space-y-2">
             {grouped[date].map(trip => {
-              const passengers = (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+              const material = parseMaterialNotes(trip.notes);
+              const passengers = material.isMaterial
+                ? []
+                : (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+              const materialCategory = (trip as any).work_type || (trip as any).department || '';
               const dropoff = trip.segments.length > 0
                 ? trip.segments.map(s => s.site).join(' → ')
                 : trip.site;
