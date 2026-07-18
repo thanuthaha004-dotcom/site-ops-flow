@@ -486,6 +486,8 @@ export default function TripPlanning() {
       names: string[];
       notes: string[];
       execution_order: number | null;
+      expected_completion_time: string | null;
+      is_urgent: boolean;
     };
     const buckets = new Map<string, Bucket>();
 
