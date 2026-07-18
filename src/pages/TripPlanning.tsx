@@ -1775,6 +1775,28 @@ export default function TripPlanning() {
                           )}
                         </div>
                       )}
+
+                      {(() => {
+                        const notes = g.liveTripId ? (dispatchIssueNotes.get(g.liveTripId) || []) : [];
+                        if (!notes.length) return null;
+                        return (
+                          <div className="mt-2 pt-2 border-t border-warning/30 space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-warning">
+                              <AlertTriangle className="h-3 w-3" /> Driver Notes ({notes.length})
+                            </div>
+                            <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                              {notes.map(n => (
+                                <div key={n.id} className="rounded border border-warning/30 bg-warning/5 px-2 py-1.5">
+                                  <p className="text-[11px] whitespace-pre-wrap">{n.note}</p>
+                                  <p className="text-[9px] text-muted-foreground mt-0.5">
+                                    {n.driver_name || 'Driver'} · {new Date(n.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}
