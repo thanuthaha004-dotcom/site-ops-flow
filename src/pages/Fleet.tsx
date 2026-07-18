@@ -23,6 +23,8 @@ export default function Fleet() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Vehicle | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const { rows: occupancyRows } = useAllOccupancy();
+  const occupancyByVehicle = new Map(occupancyRows.map(o => [o.vehicle_number, o]));
 
   const handleEditSave = async (id: string, updates: Partial<Vehicle>) => {
     try {
