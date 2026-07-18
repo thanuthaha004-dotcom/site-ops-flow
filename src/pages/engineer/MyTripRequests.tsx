@@ -176,7 +176,14 @@ export default function MyTripRequests() {
                       #{r.execution_order ?? idx + 1}
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{r.project_name}</h3>
+                      <h3 className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+                        {r.project_name}
+                        {material.isMaterial && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                            <Package className="h-3 w-3" /> {directionLabel(material.direction)}
+                          </span>
+                        )}
+                      </h3>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3" /> {r.site || '—'}
                       </p>
@@ -184,6 +191,8 @@ export default function MyTripRequests() {
                   </div>
                   <StatusBadge status={status} />
                 </div>
+
+
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="flex items-start gap-2">
