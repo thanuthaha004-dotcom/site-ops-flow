@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
+import { fetchIssueNotesForTrips, type TripIssueNote } from '@/lib/tripIssueNotes';
 
 type PlanningStep = 'requests' | 'review' | 'optimize' | 'dispatch';
 
