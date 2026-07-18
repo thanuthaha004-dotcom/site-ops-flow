@@ -3,8 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, addDays } from 'date-fns';
 import {
   CalendarIcon, Loader2, MapPin, Users, Clock, Truck, UserCog,
-  CheckCircle2, PlayCircle, Send, ClipboardList, FolderKanban,
+  CheckCircle2, PlayCircle, Send, ClipboardList, FolderKanban, Package,
 } from 'lucide-react';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
