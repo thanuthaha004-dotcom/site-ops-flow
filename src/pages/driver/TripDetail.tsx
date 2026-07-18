@@ -55,7 +55,11 @@ export default function TripDetail() {
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (error || !trip) return <div className="p-6 text-sm text-destructive">{error || 'Not found'}</div>;
 
-  const passengers = (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+  const material = parseMaterialNotes(trip.notes);
+  const passengers = material.isMaterial
+    ? []
+    : (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+  const materialCategory = (trip as any).work_type || (trip as any).department || '';
   const segments = trip.segments;
   const allSegmentsCompleted = segments.length > 0 && segments.every(s => s.status === 'completed');
   const tripCompleted = trip.status === 'completed';
