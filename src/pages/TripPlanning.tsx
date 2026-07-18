@@ -830,7 +830,7 @@ export default function TripPlanning() {
 
           startTime: req.start_time || '',
           endTime: req.end_time || '',
-          urgent: req.priority === 'High',
+          urgent: req.priority === 'High' || !!(req as any).is_urgent,
           projectId: req.project_id,
           projectName: req.project_name,
           engineerName: req.engineer_name || '',
@@ -859,7 +859,7 @@ export default function TripPlanning() {
 
           startTime: req.start_time || '',
           endTime: req.end_time || '',
-          urgent: req.priority === 'High',
+          urgent: req.priority === 'High' || !!(req as any).is_urgent,
           projectId: req.project_id,
           projectName: req.project_name,
           engineerName: req.engineer_name || '',
