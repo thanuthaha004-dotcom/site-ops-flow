@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   TripGroup, TripWorker, TripStats,
   optimizeTrips, TIME_SLOTS, MIN_UTILIZATION,
-  snapToTimeSlot, getAreaCluster, setCachedVehicles,
+  snapToTimeSlot, getAreaCluster, setCachedVehicles, suggestVehicleType,
 } from '@/lib/tripPlanning';
 import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, saveDispatchedTripAssignments, getRecentTripDates,
