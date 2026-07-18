@@ -34,6 +34,20 @@ const DEFAULT_MATERIAL_CATEGORIES = [
 ];
 
 const MATERIAL_TAG_RE = /^\s*\[MATERIAL:(PICKUP|DELIVERY)\]\s*/i;
+const DEFAULT_MATERIAL_CATEGORIES = [
+  'Fire Fighting',
+  'Fire Alarm and Panel',
+  'Pipes',
+  'Fittings',
+  'Consumables',
+  'Gas Meters and Detectors',
+  'Cables',
+  'Extinguishers',
+  'Sprinklers',
+  'PVC Conduits and Fittings',
+  'Machine Transfer',
+  'Others',
+];
 
 type TripDraft = {
   tempId: string;
