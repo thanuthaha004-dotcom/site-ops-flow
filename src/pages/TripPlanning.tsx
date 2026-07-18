@@ -509,6 +509,10 @@ export default function TripPlanning() {
           // Skip placeholder names so a real passenger doesn't get prefixed by "— No personnel —"
           if (!w.noPersonnel && !bucket.names.includes(w.name)) bucket.names.push(w.name);
           if (w.urgent) bucket.urgent = true;
+          if (w.isUrgent) bucket.is_urgent = true;
+          if (w.expectedCompletionTime && !bucket.expected_completion_time) {
+            bucket.expected_completion_time = w.expectedCompletionTime;
+          }
           if (w.notes && !bucket.notes.includes(w.notes)) bucket.notes.push(w.notes);
           // Bucket inherits the LOWEST Trip No — that trip runs first for the driver.
           if (w.executionOrder != null) {
@@ -533,6 +537,8 @@ export default function TripPlanning() {
             names: w.noPersonnel ? [] : [w.name],
             notes: w.notes ? [w.notes] : [],
             execution_order: w.executionOrder ?? null,
+            expected_completion_time: w.expectedCompletionTime || null,
+            is_urgent: !!w.isUrgent,
           });
         }
       });
