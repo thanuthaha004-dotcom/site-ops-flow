@@ -90,11 +90,23 @@ export default function TripDetail() {
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">{trip.trip_date} · {trip.time_slot}</p>
             <h1 className="text-xl font-bold mt-1">{trip.project_name || trip.site}</h1>
-            {material.isMaterial && (
-              <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400">
-                <Package className="h-3.5 w-3.5" /> {directionLabel(material.direction)}
-              </span>
-            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {material.isMaterial && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                  <Package className="h-3.5 w-3.5" /> {directionLabel(material.direction)}
+                </span>
+              )}
+              {(trip.is_urgent || trip.urgent) && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-destructive/15 text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Urgent
+                </span>
+              )}
+              {trip.expected_completion_time && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                  <Timer className="h-3.5 w-3.5" /> Expected completion {trip.expected_completion_time}
+                </span>
+              )}
+            </div>
           </div>
           {tripCompleted && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary">
