@@ -868,6 +868,8 @@ export default function TripPlanning() {
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
           executionOrder: req.execution_order ?? null,
+          expectedCompletionTime: (req as any).expected_completion_time || null,
+          isUrgent: !!(req as any).is_urgent,
         });
       });
     });
