@@ -1646,7 +1646,24 @@ export default function TripPlanning() {
                           <div className="flex items-center gap-2 text-xs">
                             <UserCog className="h-3 w-3 text-muted-foreground" />
                             <span className="text-muted-foreground">Driver:</span>
-                            <span className="font-medium">{g.suggestedVehicle.driver || 'No driver linked to vehicle'}</span>
+                            {g.status !== 'dispatched' ? (
+                              <>
+                                <select
+                                  value={allDrivers.includes(g.suggestedVehicle.driver) ? g.suggestedVehicle.driver : ''}
+                                  onChange={e => handleSelectDriver(g.id, e.target.value)}
+                                  className="flex-1 min-w-0 px-1.5 py-0.5 rounded border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring">
+                                  <option value="">— Select driver —</option>
+                                  {allDrivers.map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                  ))}
+                                  {g.suggestedVehicle.driver && !allDrivers.includes(g.suggestedVehicle.driver) && (
+                                    <option value={g.suggestedVehicle.driver}>{g.suggestedVehicle.driver} (requested)</option>
+                                  )}
+                                </select>
+                              </>
+                            ) : (
+                              <span className="font-medium">{g.suggestedVehicle.driver || 'No driver assigned'}</span>
+                            )}
                           </div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-muted-foreground">Capacity {g.workers.length}/{g.suggestedVehicle.capacity}</span>
