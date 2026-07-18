@@ -400,6 +400,7 @@ export default function EngineerTripSubmit() {
           <p className="text-muted-foreground text-sm">Build one or more trips per day. Vehicle, driver and time are suggestions — dispatcher may adjust.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <ZoneReferenceDialog />
           <button
             onClick={downloadTripRequestsTemplate}
             title="Download the Excel template for bulk trip request uploads"
