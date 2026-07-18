@@ -6,6 +6,7 @@ import ZoneReferenceDialog from '@/components/zones/ZoneReferenceDialog';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
 import { loadZoneMappings } from '@/lib/zoneMappings';
+import { fetchDeliveryPoints, addDeliveryPoint, type DeliveryPoint } from '@/lib/deliveryPoints';
 import { getAreaCluster } from '@/lib/tripPlanning';
 import type { Project, Vehicle, Worker } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
