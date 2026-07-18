@@ -129,6 +129,8 @@ export async function submitTripRequests(
       driver_name: r.driver_name || null,
       pickup_location: r.pickup_location || 'Al Quoz Labour Camp',
       execution_order: r.execution_order ?? nextOrder + idx + 1,
+      expected_completion_time: r.expected_completion_time || null,
+      is_urgent: !!r.is_urgent,
     }));
 
   if (rows.length === 0) return;
