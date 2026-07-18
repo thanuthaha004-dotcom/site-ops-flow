@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, MapPin, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { loadGoogleMaps } from '@/lib/googleMaps';
+import { useAllOccupancy } from '@/lib/vehicleOccupancy';
+import { Users, Package } from 'lucide-react';
 
 interface DriverLocation {
   user_id: string;
