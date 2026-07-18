@@ -92,6 +92,14 @@ export default function TripPlanning() {
     import('@/lib/zoneMappings').then(m => m.loadZoneMappings().catch(() => {}));
   }, []);
 
+  // Load driver-submitted issue notes whenever entering the Dispatch view.
+  useEffect(() => {
+    if (step !== 'dispatch') return;
+    const ids = tripGroups.map(g => g.liveTripId).filter((v): v is string => !!v);
+    if (!ids.length) { setDispatchIssueNotes(new Map()); return; }
+    fetchIssueNotesForTrips(ids).then(setDispatchIssueNotes).catch(() => {});
+  }, [step, tripGroups]);
+
 
   // Initialize selected projects when project list loads
   useEffect(() => {
