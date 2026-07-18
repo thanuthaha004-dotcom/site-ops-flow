@@ -6,7 +6,7 @@ import {
 } from '@/lib/tripPlanning';
 import {
   fetchProjects, fetchWorkers, fetchVehicles, fetchTripsByDate, saveTripAssignments, saveDispatchedTripAssignments, getRecentTripDates,
-  fetchDriverAreaDefaults, upsertDriverAreaDefaults,
+  fetchDriverAreaDefaults, upsertDriverAreaDefaults, reassignDispatchedTripVehicle,
 } from '@/lib/supabaseData';
 import { fetchTripRequestsByDate, fetchRequestLiveStatuses, fetchCompletedWorkerKeys, buildCompletedWorkerKey, type DailyTripRequest, type RequestLiveStatus } from '@/lib/tripRequestsData';
 import type { DriverAreaDefault } from '@/lib/supabaseData';
