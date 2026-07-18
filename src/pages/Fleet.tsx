@@ -171,6 +171,24 @@ export default function Fleet() {
                 <span className="flex items-center gap-1.5 text-muted-foreground">Driver</span>
                 <span className="text-xs">{v.driver}</span>
               </div>
+              {(() => {
+                const occ = occupancyByVehicle.get(v.number);
+                const pax = occ?.passenger_count ?? 0;
+                const mat = occ?.material_percent ?? 0;
+                const matColor = mat >= 100 ? 'text-destructive' : mat >= 75 ? 'text-warning' : mat >= 50 ? 'text-accent' : 'text-success';
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-muted-foreground"><Users className="h-3.5 w-3.5" />Passengers</span>
+                      <span className="text-xs font-medium">{pax} / {v.capacity}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-muted-foreground"><Package className="h-3.5 w-3.5" />Material</span>
+                      <span className={`text-xs font-medium ${matColor}`}>{mat}%</span>
+                    </div>
+                  </>
+                );
+              })()}
               <div className="pt-2 border-t border-border">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Route className="h-3 w-3" />{v.currentRoute}</span>
               </div>
