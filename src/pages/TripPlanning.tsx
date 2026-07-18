@@ -624,6 +624,39 @@ export default function TripPlanning() {
     }
   };
 
+  // Reassign a dispatched (not-yet-started) trip to a different vehicle+driver.
+  const handleReassignDispatched = async (groupId: string, newVehicleId: string) => {
+    const group = tripGroups.find(g => g.id === groupId);
+    if (!group || !group.suggestedVehicle) return;
+    if (group.status !== 'dispatched') {
+      toast({ title: 'Cannot reassign', description: 'This trip has already started or completed.', variant: 'destructive' });
+      return;
+    }
+    const newVeh = vehicleList.find(v => v.id === newVehicleId);
+    if (!newVeh) return;
+    if (newVeh.number === group.suggestedVehicle.number) return;
+    try {
+      const updatedCount = await reassignDispatchedTripVehicle(
+        toDateStr(selectedDate),
+        group.suggestedVehicle.number,
+        group.timeSlot,
+        group.sites,
+        { number: newVeh.number, type: newVeh.type },
+      );
+      if (updatedCount === 0) {
+        toast({ title: 'Nothing reassigned', description: 'The trip may have already started.', variant: 'destructive' });
+        return;
+      }
+      setTripGroups(prev => prev.map(g => g.id === groupId
+        ? { ...g, suggestedVehicle: { id: newVeh.id, number: newVeh.number, type: newVeh.type, capacity: newVeh.capacity, driver: newVeh.driver || '' } }
+        : g
+      ));
+      toast({ title: `Reassigned to ${newVeh.number}${newVeh.driver ? ` · ${newVeh.driver}` : ''}` });
+    } catch (e: any) {
+      toast({ title: 'Failed to reassign', description: e?.message, variant: 'destructive' });
+    }
+  };
+
   // Admin moves a worker from one trip to another (or to a brand-new trip).
   const handleMoveWorker = (fromGroupId: string, workerId: string, toGroupId: string) => {
     setTripGroups(prev => {
