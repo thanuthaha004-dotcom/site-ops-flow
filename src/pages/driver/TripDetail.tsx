@@ -90,12 +90,18 @@ export default function TripDetail() {
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">{trip.trip_date} · {trip.time_slot}</p>
             <h1 className="text-xl font-bold mt-1">{trip.project_name || trip.site}</h1>
+            {material.isMaterial && (
+              <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <Package className="h-3.5 w-3.5" /> {directionLabel(material.direction)}
+              </span>
+            )}
           </div>
           {tripCompleted && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary">
               <CheckCircle2 className="h-3.5 w-3.5" /> Completed
             </span>
           )}
+
         </div>
 
         {/* Pickup → Drop-off */}
