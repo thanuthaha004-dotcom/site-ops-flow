@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import TripCard from '@/components/driver/TripCard';
 import DaySelector from '@/components/driver/DaySelector';
 import LocationPermissionCard from '@/components/driver/LocationPermissionCard';
+import VehicleOccupancyCard from '@/components/driver/VehicleOccupancyCard';
 import { useDriverLocationBroadcast } from '@/hooks/useDriverLocationBroadcast';
 
 function dateKey(d: Date): string {
