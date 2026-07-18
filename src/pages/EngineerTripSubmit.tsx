@@ -556,8 +556,11 @@ export default function EngineerTripSubmit() {
             onChange={handleExcelUpload}
             className="hidden"
           />
-        </div>
       </div>
+
+      <VehicleCapacityPanel />
+
+
 
       {/* Date picker */}
       <div className="kpi-card flex flex-col sm:flex-row items-start sm:items-center gap-3">
