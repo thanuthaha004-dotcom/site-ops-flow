@@ -1783,6 +1783,30 @@ export default function TripPlanning() {
                         </div>
                       </div>
 
+                      {g.status === 'dispatched' && (
+                        <div className="mb-2 p-2 rounded border border-accent/30 bg-accent/5">
+                          <label className="text-[10px] font-bold uppercase tracking-wide text-accent flex items-center gap-1 mb-1">
+                            <UserCog className="h-3 w-3" /> Reassign driver / vehicle
+                          </label>
+                          <select
+                            className="w-full text-xs bg-background border border-border rounded px-2 py-1"
+                            value={vehicleList.find(v => v.number === g.suggestedVehicle?.number)?.id || ''}
+                            onChange={(e) => handleReassignDispatched(g.id, e.target.value)}
+                          >
+                            <option value="" disabled>Select a different driver…</option>
+                            {vehicleList.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.number} · {v.type}{v.driver ? ` · ${v.driver}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Only available until the driver starts the trip.
+                          </p>
+                        </div>
+                      )}
+
+
                       <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
                         {g.workers.map(w => (
                           <div key={w.id} className="text-[11px] flex items-center justify-between border-b border-border/40 last:border-0 py-0.5">
