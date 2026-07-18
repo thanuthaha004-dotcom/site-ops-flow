@@ -396,6 +396,9 @@ export default function EngineerTripSubmit() {
               notes: row.notes,
               pickup_location: pickup,
               pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
+              transport_type: 'staff',
+              material_direction: 'pickup',
+
               custom_project_name: row.project || '',
               custom_site: row.project_location || '',
               custom_work_type: row.department || '',
