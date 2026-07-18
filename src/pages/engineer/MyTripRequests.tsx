@@ -167,6 +167,7 @@ export default function MyTripRequests() {
             const status = live?.status || 'pending';
             const vehicle = live?.vehicle_number || r.vehicle_number;
             const slot = live?.time_slot || (r.start_time && r.end_time ? `${r.start_time} - ${r.end_time}` : null);
+            const material = parseMaterialNotes(r.notes);
             return (
               <div key={r.id} className="kpi-card space-y-3">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
