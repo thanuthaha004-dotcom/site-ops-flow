@@ -59,6 +59,9 @@ type TripDraft = {
   custom_project_name?: string;
   custom_site?: string;
   custom_work_type?: string;
+  // NEW: Engineer-provided expected completion time (HH:mm) + urgent flag.
+  expected_completion_time: string;
+  is_urgent: boolean;
 };
 
 const newDraft = (): TripDraft => ({
@@ -74,6 +77,8 @@ const newDraft = (): TripDraft => ({
   pickup_custom: false,
   transport_type: 'staff',
   material_direction: 'pickup',
+  expected_completion_time: '',
+  is_urgent: false,
 });
 
 
