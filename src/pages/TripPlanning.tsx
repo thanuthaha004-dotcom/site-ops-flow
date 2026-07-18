@@ -731,6 +731,15 @@ export default function TripPlanning() {
     }));
   };
 
+  // Admin overrides driver name independently of the vehicle assignment.
+  const handleSelectDriver = (groupId: string, driverName: string) => {
+    setTripGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      const base = g.suggestedVehicle ?? { id: `manual-${groupId}`, number: '—', type: suggestVehicleType(g.workers.length).type, capacity: suggestVehicleType(g.workers.length).capacity, driver: '' };
+      return { ...g, suggestedVehicle: { ...base, driver: driverName } };
+    }));
+  };
+
   const handleExcelImport = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
