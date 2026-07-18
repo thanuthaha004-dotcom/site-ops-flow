@@ -115,6 +115,7 @@ export default function EngineerTripSubmit() {
     }).catch(() => {});
     fetchVehicles().then(setVehicles).catch(() => {});
     fetchWorkers().then(setWorkforce).catch(() => {});
+    fetchDeliveryPoints().then(setDeliveryPoints).catch(() => {});
   }, []);
 
 
