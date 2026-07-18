@@ -1,39 +1,47 @@
 ## Goal
-On the Engineer → Submit Trip Requests page, upgrade the "Add a name not on the project" text field so it suggests names from the full workforce (workers table) as the engineer types, while still accepting any free-text name that isn't in the list.
+Add a **Transport Type** selector (Staff Transport vs Material Transport) to each trip draft in Engineer → Submit Trip Requests. Staff keeps today's exact flow. Material swaps the Workers block for a Material Category dropdown (with custom-add) and a Pickup/Delivery direction selector. All other fields (project, site, timing, vehicle, driver, notes, execution order) stay identical.
 
-## Current behavior
-- Each trip draft has a project-worker chip picker (names already assigned to the project).
-- Below it, a plain `<input>` lets the engineer type any name and press Enter / click Add. There is no visibility into the wider workforce master list.
+## UX
 
-## Proposed change (UI only, no schema/business-logic change)
+1. New segmented control at the top of each trip card: **Staff Transport** | **Material Transport**. Default = Staff (preserves current behavior).
+2. **Staff Transport** → renders the current Workers section unchanged (chips picker + WorkerAutocomplete + duplicates warning).
+3. **Material Transport** → hides Workers block and shows:
+   - **Material Category** dropdown with preset options:
+     Fire Fighting, Fire Alarm and Panel, Pipes, Fittings, Consumables, Gas Meters and Detectors, Cables, Extinguishers, Sprinklers, PVC Conduits and Fittings, Machine Transfer, Others.
+     Includes an "➕ Add custom category…" row → small inline input; custom values persist for the session (per-page state) and appear at the bottom of the dropdown.
+   - **Direction** side-by-side toggle: **Material Pickup** | **Material Delivery** (radio-style buttons).
+   - Notes field remains and is no longer forced to "required (solo trip)" — for material trips the worker-less warning is suppressed.
 
-1. **Load workforce once per page load**
-   - In `src/pages/EngineerTripSubmit.tsx`, fetch all workers via existing `fetchWorkers()` from `@/lib/supabaseData` on mount, store as `allWorkforce: Worker[]`.
-   - Show a small "loading workforce…" hint while pending; failures fall back silently to plain input (never block submission).
+## Data mapping (no schema change)
 
-2. **Replace the plain input with a combobox-style autocomplete**
-   - Keep the same layout (input + Add button) but wrap the input in a popover that shows filtered suggestions as the engineer types (min 1 char).
-   - Suggestion row shows: name, staff code, department.
-   - Filter: case-insensitive substring match on name or staff code. Cap list to ~8 results.
-   - Exclude names already in `d.worker_names` for the current draft.
-   - Clicking a suggestion → adds that worker name to `worker_names` and clears the input (same code path as `addCustomWorker`).
-   - Pressing Enter → if a suggestion is highlighted, add it; otherwise fall through to existing free-text add (so custom names still work).
-   - Keyboard: ArrowUp/Down to move highlight, Esc to close popover.
+To avoid a migration, encode material info into existing free-text columns:
+- `worker_names` → `[]` for material trips (empty array is already supported for solo trips).
+- `work_type` → set to the chosen material category (e.g. "Fire Fighting"). This overrides the project's default work_type only when Material Transport is selected.
+- `notes` → prefixed with a machine-readable tag so downstream dispatch/UI can recognize it:
+  `[MATERIAL:PICKUP] <engineer notes>` or `[MATERIAL:DELIVERY] <engineer notes>`.
+- `pickup_location` stays as-is (Al Quoz camp default) for pickup trips; for delivery trips the site remains the destination.
 
-3. **Preserve free-text entry**
-   - If typed text has no exact match, still show an "Add '<typed>' as custom name" row at the bottom of the popover so the engineer can clearly add off-list people (visitors, subcontractors).
-   - Placeholder updates to: "Search workforce or type a new name…".
+The submit path (`submitTripRequests`) needs no signature change — only the values inside each `TripRequestInput` change.
 
-4. **No changes to**
-   - Data model, submission payload, project quick-pick chips, notes/warnings, RLS, or any backend logic.
-   - The "Selected" chips list and duplicate warnings remain unchanged.
+The reverse mapping (loading previous submissions to edit) parses the `[MATERIAL:...]` prefix out of `notes` and re-hydrates the transport type + direction; if the tag is absent the draft loads as Staff (backward compatible).
 
 ## Files touched
-- `src/pages/EngineerTripSubmit.tsx` — add workforce fetch state, replace the custom-name input block (~lines 675–692) with the new autocomplete component.
-- Optionally extract the autocomplete into `src/components/forms/WorkerAutocomplete.tsx` for readability (single small component, ~80 lines). Uses existing shadcn `Command`/`Popover` primitives already in the project.
+
+- `src/pages/EngineerTripSubmit.tsx`
+  - Extend the draft type with `transport_type: 'staff' | 'material'`, `material_category?: string`, `material_direction?: 'pickup' | 'delivery'`.
+  - Add segmented control + conditional rendering (Workers block vs Material block).
+  - Add small `MaterialCategorySelect` inline (native `<select>` styled like the existing project select, with a "custom…" affordance that reveals an input and pushes into a local `customCategories` state array).
+  - Update `handleSubmit` payload build (lines ~255–270): when material, set `worker_names: []`, `work_type: material_category`, `notes: '[MATERIAL:PICKUP|DELIVERY] ' + notes`.
+  - Update the previous-submissions hydrator (~lines 100–125): detect `[MATERIAL:...]` prefix in `notes`, set draft transport fields, strip prefix from displayed notes.
+  - Suppress "Notes required for solo trip" warning when `transport_type === 'material'`.
+  - Excel import rows (lines ~330–370) stay as Staff (no changes).
+
+- No backend / RLS / types changes. No changes to `tripRequestsData.ts`, dispatch, driver views, or admin trip planning (they continue to treat these rows as normal trip requests — a material trip simply has zero workers and a material category in `work_type`; the existing "solo trip" handling already covers empty worker lists end-to-end).
 
 ## Verification
-- Type 2–3 letters of an existing worker → suggestions appear with staff code/department; click adds them.
-- Type a brand-new name → "Add '<name>' as custom" row appears; Enter adds it.
-- Already-selected workers do not appear in suggestions.
-- Submission payload identical to today (spot-check one trip end-to-end).
+
+- Toggle a draft to Material → Workers block disappears, Category dropdown + Pickup/Delivery toggle appear.
+- Add a custom category → it appears at the bottom of the dropdown for other drafts on the same page.
+- Submit one Staff + one Material trip → both rows appear in DB; material row has empty worker_names, category in work_type, `[MATERIAL:PICKUP]` prefix in notes.
+- Click "Load previous submissions to edit" → material trip re-hydrates with correct transport type, category, and direction; notes shown without the tag.
+- Existing Staff-only submissions still load and submit exactly as before.
