@@ -78,6 +78,7 @@ export default function TripPlanning() {
   const [showDriverSettings, setShowDriverSettings] = useState(false);
   const [editingDriver, setEditingDriver] = useState('');
   const [editingAreas, setEditingAreas] = useState<string[]>([]);
+  const [dispatchIssueNotes, setDispatchIssueNotes] = useState<Map<string, TripIssueNote[]>>(new Map());
 
   useEffect(() => {
     fetchProjects().then(setProjectList).catch(() => {});
