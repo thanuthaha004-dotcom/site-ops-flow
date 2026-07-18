@@ -226,6 +226,8 @@ export function downloadTripRequestsTemplate() {
     ['Pickup Location', 'No', 'Defaults to "Al Quoz Labour Camp" if empty.'],
     ['Drop-off Location', 'No', 'Destination site. Defaults to the project location if empty.'],
     ['Pickup Time', 'No', 'Format HH:MM (24-hour), e.g. 07:00.'],
+    ['Expected Completion Time', 'No', 'Engineer estimate for when the trip should finish (HH:MM, 24-hour). Shown to admin & driver. Actual end time is captured by the driver.'],
+    ['Urgent', 'No', 'Yes / No — mark the trip as urgent so it is highlighted for admin & driver.'],
     ['Passenger Details', 'Yes*', 'Comma-separated worker names. *Required unless Purpose/Notes explains a solo trip.'],
     ['Engineer Information', 'No', 'Engineer responsible for the trip / project.'],
     ['Vehicle Number', 'No', 'Optional preferred vehicle. Dispatcher may reassign.'],
