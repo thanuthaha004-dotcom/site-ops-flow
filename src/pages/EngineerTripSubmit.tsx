@@ -249,15 +249,21 @@ export default function EngineerTripSubmit() {
       const d = drafts[i];
       const hasCustomProject = (d.custom_project_name || '').trim().length > 0;
       if (!d.project_id && !hasCustomProject) return `Trip ${i + 1}: select a project`;
-      if (d.worker_names.length === 0 && !d.notes.trim()) {
+      if (d.transport_type === 'material') {
+        if (!d.material_category || !d.material_category.trim()) {
+          return `Trip ${i + 1}: select a material category`;
+        }
+        if (d.material_direction !== 'pickup' && d.material_direction !== 'delivery') {
+          return `Trip ${i + 1}: choose Material Pickup or Material Delivery`;
+        }
+      } else if (d.worker_names.length === 0 && !d.notes.trim()) {
         return `Trip ${i + 1}: add workers, or fill Notes with the reason (e.g. site inspection, material drop)`;
       }
       if (!d.pickup_location.trim()) return `Trip ${i + 1}: pickup location required`;
-      // End time is captured by the driver, not by the engineer, so no
-      // start/end ordering check is needed here.
     }
     return null;
   };
+
 
   const addCustomWorker = (id: string) => {
     const raw = (customNameInputs[id] || '').trim();
