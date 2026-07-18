@@ -95,6 +95,8 @@ export default function DriverDashboard() {
         onDismiss={location.dismiss}
       />
 
+      {/* Vehicle occupancy */}
+      <VehicleOccupancyCard />
 
 
       {/* KPI cards */}
