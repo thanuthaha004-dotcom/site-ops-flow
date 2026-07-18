@@ -4,7 +4,7 @@ import { fetchProjects, fetchVehicles, fetchWorkers } from '@/lib/supabaseData';
 import WorkerAutocomplete from '@/components/forms/WorkerAutocomplete';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
-import type { Project, Vehicle } from '@/data/mockData';
+import type { Project, Vehicle, Worker } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
 import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown, AlertTriangle, X, Upload, Download } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
