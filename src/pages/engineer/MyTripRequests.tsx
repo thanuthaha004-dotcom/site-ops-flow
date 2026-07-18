@@ -3,8 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, addDays } from 'date-fns';
 import {
   CalendarIcon, Loader2, MapPin, Users, Clock, Truck, UserCog,
-  CheckCircle2, PlayCircle, Send, ClipboardList, FolderKanban,
+  CheckCircle2, PlayCircle, Send, ClipboardList, FolderKanban, Package,
 } from 'lucide-react';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -166,6 +167,7 @@ export default function MyTripRequests() {
             const status = live?.status || 'pending';
             const vehicle = live?.vehicle_number || r.vehicle_number;
             const slot = live?.time_slot || (r.start_time && r.end_time ? `${r.start_time} - ${r.end_time}` : null);
+            const material = parseMaterialNotes(r.notes);
             return (
               <div key={r.id} className="kpi-card space-y-3">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -174,7 +176,14 @@ export default function MyTripRequests() {
                       #{r.execution_order ?? idx + 1}
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{r.project_name}</h3>
+                      <h3 className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+                        {r.project_name}
+                        {material.isMaterial && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                            <Package className="h-3 w-3" /> {directionLabel(material.direction)}
+                          </span>
+                        )}
+                      </h3>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3" /> {r.site || '—'}
                       </p>
@@ -183,16 +192,32 @@ export default function MyTripRequests() {
                   <StatusBadge status={status} />
                 </div>
 
+
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-start gap-2">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-                    <div>
-                      <p className="text-muted-foreground">Workers ({r.worker_names?.length || 0})</p>
-                      <p className="font-medium">
-                        {r.worker_names?.length ? r.worker_names.join(', ') : <span className="italic text-muted-foreground">No workers — {r.notes || 'reason not specified'}</span>}
-                      </p>
+                  {material.isMaterial ? (
+                    <div className="flex items-start gap-2 sm:col-span-2">
+                      <Package className="h-3.5 w-3.5 text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="text-muted-foreground">Material</p>
+                        <p className="font-medium">
+                          {directionLabel(material.direction)}
+                          {r.work_type ? <> · <span className="text-muted-foreground">Category:</span> {r.work_type}</> : null}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-muted-foreground">Workers ({r.worker_names?.length || 0})</p>
+                        <p className="font-medium">
+                          {r.worker_names?.length ? r.worker_names.join(', ') : <span className="italic text-muted-foreground">No workers — {material.cleanNotes || 'reason not specified'}</span>}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-2">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
                     <div>
@@ -235,11 +260,12 @@ export default function MyTripRequests() {
                   )}
                 </div>
 
-                {r.notes && r.worker_names?.length > 0 && (
+                {material.cleanNotes && (material.isMaterial || (r.worker_names?.length ?? 0) > 0) && (
                   <p className="text-xs text-muted-foreground border-t border-border pt-2">
-                    <span className="font-medium">Notes:</span> {r.notes}
+                    <span className="font-medium">Notes:</span> {material.cleanNotes}
                   </p>
                 )}
+
               </div>
             );
           })}

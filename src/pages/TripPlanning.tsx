@@ -26,6 +26,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 
 type PlanningStep = 'requests' | 'review' | 'optimize' | 'dispatch';
 
@@ -1081,6 +1082,7 @@ export default function TripPlanning() {
                       : 'bg-success/10 text-success';
                     const fmtTime = (iso: string | null) =>
                       iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+                    const material = parseMaterialNotes(req.notes);
                     return (
                     <div key={req.id} className={`p-4 rounded-md border transition-colors ${req.status === 'pending' && !liveStatus ? 'border-accent/40 bg-accent/5' : 'border-border'}`}>
                       <div className="flex items-start justify-between gap-3">
@@ -1092,7 +1094,20 @@ export default function TripPlanning() {
                               </span>
                             )}
                             <span className="text-sm font-medium">{req.project_name}</span>
-                            <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{req.work_type || 'General'}</span>
+                            {material.isMaterial ? (
+                              <>
+                                <span className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded font-semibold">
+                                  📦 {directionLabel(material.direction)}
+                                </span>
+                                {req.work_type && (
+                                  <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
+                                    {req.work_type}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">{req.work_type || 'General'}</span>
+                            )}
                             <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${chipClass}`}>
                               {chipLabel}
                             </span>
@@ -1102,7 +1117,9 @@ export default function TripPlanning() {
                           </div>
                           <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {req.site}</span>
-                            <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(req.worker_names || []).length} workers</span>
+                            {!material.isMaterial && (
+                              <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {(req.worker_names || []).length} workers</span>
+                            )}
                             <span className="flex items-center gap-1"><UserCog className="h-3 w-3" /> {req.engineer_name}</span>
                             {req.pickup_location && (
                               <span className="flex items-center gap-1" title="Pickup point">
@@ -1135,7 +1152,15 @@ export default function TripPlanning() {
                               )}
                             </div>
                           )}
-                          {(req.worker_names || []).length > 0 ? (
+                          {material.isMaterial ? (
+                            <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Material Transport</p>
+                              <p className="text-xs text-foreground">
+                                <span className="font-semibold">{directionLabel(material.direction)}</span>
+                                {req.work_type ? <> · Category: <span className="font-medium">{req.work_type}</span></> : null}
+                              </p>
+                            </div>
+                          ) : (req.worker_names || []).length > 0 ? (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {(req.worker_names || []).map((n, i) => (
                                 <span key={i} className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">{n}</span>
@@ -1148,16 +1173,17 @@ export default function TripPlanning() {
                               </span>
                             </div>
                           )}
-                          {req.notes && req.notes.trim() && (
+                          {material.cleanNotes && material.cleanNotes.trim() && (
                             <div className="mt-2 rounded-md border border-accent/30 bg-accent/5 px-2.5 py-2">
                               <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-0.5">Engineer note</p>
-                              <p className="text-xs text-foreground whitespace-pre-wrap">{req.notes}</p>
+                              <p className="text-xs text-foreground whitespace-pre-wrap">{material.cleanNotes}</p>
                             </div>
                           )}
                         </div>
                       </div>
                     </div>
                     );
+
                   })}
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t border-border mt-4">

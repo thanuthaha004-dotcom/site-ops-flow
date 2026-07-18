@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, MapPin, Users, Truck, Play, Pause, CheckCircle2, AlertCircle, Clock,
-  Navigation, FolderKanban, UserCog, StickyNote,
+  Navigation, FolderKanban, UserCog, StickyNote, Package,
 } from 'lucide-react';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { toast } from '@/hooks/use-toast';
 import {
   fetchDriverTrip, startTrip, completeTrip,
@@ -54,7 +55,11 @@ export default function TripDetail() {
   if (loading) return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   if (error || !trip) return <div className="p-6 text-sm text-destructive">{error || 'Not found'}</div>;
 
-  const passengers = (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+  const material = parseMaterialNotes(trip.notes);
+  const passengers = material.isMaterial
+    ? []
+    : (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+  const materialCategory = (trip as any).work_type || (trip as any).department || '';
   const segments = trip.segments;
   const allSegmentsCompleted = segments.length > 0 && segments.every(s => s.status === 'completed');
   const tripCompleted = trip.status === 'completed';
@@ -85,12 +90,18 @@ export default function TripDetail() {
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wide">{trip.trip_date} · {trip.time_slot}</p>
             <h1 className="text-xl font-bold mt-1">{trip.project_name || trip.site}</h1>
+            {material.isMaterial && (
+              <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <Package className="h-3.5 w-3.5" /> {directionLabel(material.direction)}
+              </span>
+            )}
           </div>
           {tripCompleted && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary">
               <CheckCircle2 className="h-3.5 w-3.5" /> Completed
             </span>
           )}
+
         </div>
 
         {/* Pickup → Drop-off */}
@@ -135,26 +146,44 @@ export default function TripDetail() {
             </div>
           )}
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Users className="h-4 w-4" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}
+            {material.isMaterial ? (
+              <><Package className="h-4 w-4" /> {materialCategory || 'Material'}</>
+            ) : (
+              <><Users className="h-4 w-4" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}</>
+            )}
           </div>
         </div>
 
-        {passengers.length > 0 && (
+        {material.isMaterial && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Package className="h-3.5 w-3.5 text-amber-600" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">Material Transport</p>
+            </div>
+            <p className="text-sm text-foreground">
+              <span className="font-semibold">{directionLabel(material.direction)}</span>
+              {materialCategory ? <> · Category: <span className="font-medium">{materialCategory}</span></> : null}
+            </p>
+          </div>
+        )}
+
+        {!material.isMaterial && passengers.length > 0 && (
           <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
             <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Passengers</p>
             <p>{passengers.join(', ')}</p>
           </div>
         )}
 
-        {trip.notes && trip.notes.trim() && (
+        {material.cleanNotes && material.cleanNotes.trim() && (
           <div className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2.5">
             <div className="flex items-center gap-1.5 mb-1">
               <StickyNote className="h-3.5 w-3.5 text-accent" />
               <p className="text-xs font-semibold text-accent uppercase tracking-wide">Engineer's Note</p>
             </div>
-            <p className="text-sm text-foreground whitespace-pre-wrap">{trip.notes}</p>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{material.cleanNotes}</p>
           </div>
         )}
+
 
         {/* Live duration */}
         {(tripStarted || tripCompleted) && (

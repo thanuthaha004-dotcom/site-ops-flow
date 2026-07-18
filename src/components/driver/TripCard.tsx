@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Users, Truck, Clock, ChevronRight, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote } from 'lucide-react';
+import { MapPin, Users, Truck, Clock, ChevronRight, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote, Package } from 'lucide-react';
 import { tripActiveSeconds, formatDuration, type DriverTrip } from '@/lib/driverData';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 
 function statusPill(status: string) {
   const map: Record<string, string> = {
@@ -14,13 +15,19 @@ function statusPill(status: string) {
 }
 
 export default function TripCard({ trip }: { trip: DriverTrip }) {
-  const passengers = (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+  const material = parseMaterialNotes(trip.notes);
+  const passengers = material.isMaterial
+    ? []
+    : (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
   const dropoff = trip.segments.length > 0
     ? trip.segments.map(s => s.site).join(' → ')
     : trip.site;
   const projectLabel = trip.segments.length > 1
     ? [...new Set(trip.segments.map(s => s.project_name).filter(Boolean))].join(' · ')
     : (trip.project_name || '—');
+  // work_type on the schedule row carries the material category for
+  // material trips (engineer entered category is stored there).
+  const materialCategory = (trip as any).work_type || (trip as any).department || '';
 
   return (
     <Link to={`/trip/${trip.id}`} className="kpi-card flex items-start gap-3 hover:border-accent transition-colors group">
@@ -33,6 +40,11 @@ export default function TripCard({ trip }: { trip: DriverTrip }) {
           {trip.segments.length > 1 && (
             <span className="text-[10px] font-semibold uppercase text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
               {trip.segments.length} stops
+            </span>
+          )}
+          {material.isMaterial && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
+              <Package className="h-3 w-3" /> {directionLabel(material.direction)}
             </span>
           )}
         </div>
@@ -55,17 +67,22 @@ export default function TripCard({ trip }: { trip: DriverTrip }) {
           )}
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}</span>
+          {material.isMaterial ? (
+            <span className="flex items-center gap-1"><Package className="h-3.5 w-3.5" /> {materialCategory || 'Material'}</span>
+          ) : (
+            <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {passengers.length} passenger{passengers.length !== 1 ? 's' : ''}</span>
+          )}
           {trip.vehicle_number && (
             <span className="flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> {trip.vehicle_number}</span>
           )}
         </div>
-        {trip.notes && trip.notes.trim() && (
+        {material.cleanNotes && material.cleanNotes.trim() && (
           <div className="rounded-md border border-accent/30 bg-accent/5 px-2.5 py-1.5 flex items-start gap-1.5">
             <StickyNote className="h-3.5 w-3.5 text-accent mt-0.5 shrink-0" />
-            <span className="text-xs text-foreground line-clamp-2"><span className="font-semibold">Note:</span> {trip.notes}</span>
+            <span className="text-xs text-foreground line-clamp-2"><span className="font-semibold">Note:</span> {material.cleanNotes}</span>
           </div>
         )}
+
         {(trip.started_at || trip.completed_at) && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs pt-1.5 border-t border-border/60">
             {trip.started_at && (
