@@ -317,9 +317,13 @@ export default function EngineerTripSubmit() {
           ? `[MATERIAL:${(d.material_direction || 'pickup').toUpperCase()}] `
           : '';
         return {
-          project_id: d.project_id || '',
-          project_name: p?.name || d.custom_project_name || '',
-          site: p?.site || d.custom_site || '',
+          project_id: isMaterial ? '' : (d.project_id || ''),
+          project_name: isMaterial
+            ? 'Material Transport'
+            : (p?.name || d.custom_project_name || ''),
+          site: isMaterial
+            ? (d.delivery_point || '')
+            : (p?.site || d.custom_site || ''),
           worker_names: isMaterial ? [] : d.worker_names,
           work_type: isMaterial
             ? (d.material_category || '')
