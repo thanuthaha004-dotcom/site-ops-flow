@@ -243,9 +243,9 @@ export default function EngineerTripSubmit() {
     return [DEFAULT_PICKUP, ...sites];
   }, [projects]);
 
-  // Delivery Point options for Material Transport: unique project sites + saved custom delivery points
+  // Delivery Point options for Material Transport: project names + saved custom delivery points
   const deliveryPointOptions = useMemo(() => {
-    const sites = projects.map(p => (p.site || '').trim()).filter(Boolean);
+    const names = projects.map(p => (p.name || '').trim()).filter(Boolean);
     const customs = deliveryPoints.map(dp => dp.name.trim()).filter(Boolean);
     const seen = new Set<string>();
     const merged: string[] = [];
