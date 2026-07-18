@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Users, Truck, Clock, ChevronRight, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote, Package, AlertTriangle, Timer } from 'lucide-react';
+import { MapPin, Users, Truck, Clock, ChevronRight, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote, Package, AlertTriangle, Timer, MessageSquareWarning } from 'lucide-react';
 import { tripActiveSeconds, formatDuration, type DriverTrip } from '@/lib/driverData';
 import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
+import ReportIssueDialog from './ReportIssueDialog';
 
 function statusPill(status: string) {
   const map: Record<string, string> = {
@@ -15,6 +17,7 @@ function statusPill(status: string) {
 }
 
 export default function TripCard({ trip }: { trip: DriverTrip }) {
+  const [reportOpen, setReportOpen] = useState(false);
   const material = parseMaterialNotes(trip.notes);
   const passengers = material.isMaterial
     ? []
@@ -114,8 +117,24 @@ export default function TripCard({ trip }: { trip: DriverTrip }) {
             )}
           </div>
         )}
+
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportOpen(true); }}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border border-warning/40 text-warning hover:bg-warning/10"
+          >
+            <MessageSquareWarning className="h-3.5 w-3.5" /> Report Issue
+          </button>
+        </div>
       </div>
       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors mt-1" />
+      <ReportIssueDialog
+        tripId={trip.id}
+        tripLabel={`${trip.trip_date} · ${trip.time_slot} · ${trip.project_name || trip.site}`}
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+      />
     </Link>
   );
 }

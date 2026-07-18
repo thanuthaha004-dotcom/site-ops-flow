@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
+import { fetchIssueNotesForTrips, type TripIssueNote } from '@/lib/tripIssueNotes';
 
 type PlanningStep = 'requests' | 'review' | 'optimize' | 'dispatch';
 
@@ -77,6 +78,7 @@ export default function TripPlanning() {
   const [showDriverSettings, setShowDriverSettings] = useState(false);
   const [editingDriver, setEditingDriver] = useState('');
   const [editingAreas, setEditingAreas] = useState<string[]>([]);
+  const [dispatchIssueNotes, setDispatchIssueNotes] = useState<Map<string, TripIssueNote[]>>(new Map());
 
   useEffect(() => {
     fetchProjects().then(setProjectList).catch(() => {});
@@ -89,6 +91,14 @@ export default function TripPlanning() {
     fetchDriverAreaDefaults().then(setDriverAreaDefaults).catch(() => {});
     import('@/lib/zoneMappings').then(m => m.loadZoneMappings().catch(() => {}));
   }, []);
+
+  // Load driver-submitted issue notes whenever entering the Dispatch view.
+  useEffect(() => {
+    if (step !== 'dispatch') return;
+    const ids = tripGroups.map(g => g.liveTripId).filter((v): v is string => !!v);
+    if (!ids.length) { setDispatchIssueNotes(new Map()); return; }
+    fetchIssueNotesForTrips(ids).then(setDispatchIssueNotes).catch(() => {});
+  }, [step, tripGroups]);
 
 
   // Initialize selected projects when project list loads
@@ -1765,6 +1775,28 @@ export default function TripPlanning() {
                           )}
                         </div>
                       )}
+
+                      {(() => {
+                        const notes = g.liveTripId ? (dispatchIssueNotes.get(g.liveTripId) || []) : [];
+                        if (!notes.length) return null;
+                        return (
+                          <div className="mt-2 pt-2 border-t border-warning/30 space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-warning">
+                              <AlertTriangle className="h-3 w-3" /> Driver Notes ({notes.length})
+                            </div>
+                            <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                              {notes.map(n => (
+                                <div key={n.id} className="rounded border border-warning/30 bg-warning/5 px-2 py-1.5">
+                                  <p className="text-[11px] whitespace-pre-wrap">{n.note}</p>
+                                  <p className="text-[9px] text-muted-foreground mt-0.5">
+                                    {n.driver_name || 'Driver'} · {new Date(n.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })}

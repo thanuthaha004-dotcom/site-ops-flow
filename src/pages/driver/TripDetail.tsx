@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, MapPin, Users, Truck, Play, Pause, CheckCircle2, AlertCircle, Clock,
-  Navigation, FolderKanban, UserCog, StickyNote, Package, AlertTriangle, Timer,
+  Navigation, FolderKanban, UserCog, StickyNote, Package, AlertTriangle, Timer, MessageSquareWarning,
 } from 'lucide-react';
 import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { toast } from '@/hooks/use-toast';
@@ -12,6 +12,8 @@ import {
   segmentActiveSeconds, tripActiveSeconds, formatDuration,
   type DriverTrip, type TripSegment,
 } from '@/lib/driverData';
+import ReportIssueDialog from '@/components/driver/ReportIssueDialog';
+import { fetchTripIssueNotes, type TripIssueNote } from '@/lib/tripIssueNotes';
 
 function segStatusPill(s: TripSegment['status']) {
   const map = {
@@ -31,11 +33,19 @@ export default function TripDetail() {
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [notes, setNotes] = useState<TripIssueNote[]>([]);
+
+  const reloadNotes = async () => {
+    if (!id) return;
+    try { setNotes(await fetchTripIssueNotes(id)); } catch {}
+  };
 
   const reload = async () => {
     if (!id) return;
     const t = await fetchDriverTrip(id);
     setTrip(t);
+    await reloadNotes();
   };
 
   useEffect(() => {
@@ -44,6 +54,7 @@ export default function TripDetail() {
       .then(t => { setTrip(t); if (!t) setError('Trip not found or access denied.'); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
+    reloadNotes();
   }, [id]);
 
   // Live timer tick
@@ -322,6 +333,42 @@ export default function TripDetail() {
           })}
         </div>
       )}
+
+      {/* Issue notes */}
+      <div className="kpi-card space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <MessageSquareWarning className="h-4 w-4 text-warning" /> Issue Notes
+          </h2>
+          <button
+            onClick={() => setReportOpen(true)}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-md border border-warning/40 text-warning hover:bg-warning/10"
+          >
+            <MessageSquareWarning className="h-3.5 w-3.5" /> Report Issue
+          </button>
+        </div>
+        {notes.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No issues reported for this trip.</p>
+        ) : (
+          <div className="space-y-2">
+            {notes.map(n => (
+              <div key={n.id} className="rounded-md border border-border bg-muted/30 px-3 py-2">
+                <p className="text-sm whitespace-pre-wrap">{n.note}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {n.driver_name || 'Driver'} · {new Date(n.created_at).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ReportIssueDialog
+        tripId={trip.id}
+        tripLabel={`${trip.trip_date} · ${trip.time_slot} · ${trip.project_name || trip.site}`}
+        open={reportOpen}
+        onOpenChange={(v) => { setReportOpen(v); if (!v) reloadNotes(); }}
+      />
     </div>
   );
 }
