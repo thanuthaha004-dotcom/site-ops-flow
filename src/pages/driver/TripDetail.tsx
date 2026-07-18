@@ -47,10 +47,6 @@ export default function TripDetail() {
     setTrip(t);
     await reloadNotes();
   };
-    if (!id) return;
-    const t = await fetchDriverTrip(id);
-    setTrip(t);
-  };
 
   useEffect(() => {
     if (!id) return;
