@@ -59,6 +59,9 @@ type TripDraft = {
   custom_project_name?: string;
   custom_site?: string;
   custom_work_type?: string;
+  // NEW: Engineer-provided expected completion time (HH:mm) + urgent flag.
+  expected_completion_time: string;
+  is_urgent: boolean;
 };
 
 const newDraft = (): TripDraft => ({
@@ -74,6 +77,8 @@ const newDraft = (): TripDraft => ({
   pickup_custom: false,
   transport_type: 'staff',
   material_direction: 'pickup',
+  expected_completion_time: '',
+  is_urgent: false,
 });
 
 
@@ -167,6 +172,8 @@ export default function EngineerTripSubmit() {
             custom_project_name: hasProject || isMaterial ? undefined : (r.project_name || ''),
             custom_site: hasProject || isMaterial ? undefined : (r.site || ''),
             custom_work_type: hasProject || isMaterial ? undefined : (r.work_type || ''),
+            expected_completion_time: r.expected_completion_time || '',
+            is_urgent: !!r.is_urgent,
           };
         }));
 
@@ -384,6 +391,8 @@ export default function EngineerTripSubmit() {
           driver_name: d.driver_name || null,
           pickup_location: d.pickup_location || DEFAULT_PICKUP,
           execution_order: idx + 1,
+          expected_completion_time: d.expected_completion_time || null,
+          is_urgent: !!d.is_urgent,
         };
       });
 
@@ -461,6 +470,8 @@ export default function EngineerTripSubmit() {
               pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
               transport_type: 'staff',
               material_direction: 'pickup',
+              expected_completion_time: (row as any).expected_completion_time || '',
+              is_urgent: !!(row as any).is_urgent,
 
             });
           } else {
@@ -479,6 +490,8 @@ export default function EngineerTripSubmit() {
               pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
               transport_type: 'staff',
               material_direction: 'pickup',
+              expected_completion_time: (row as any).expected_completion_time || '',
+              is_urgent: !!(row as any).is_urgent,
 
               custom_project_name: row.project || '',
               custom_site: row.project_location || '',
@@ -1060,6 +1073,30 @@ export default function EngineerTripSubmit() {
                       End time will be recorded automatically when the driver marks the trip complete.
                     </p>
                   </div>
+
+                  {/* Expected completion time + Urgent flag (both optional).
+                      Actual end time is still captured by the driver on completion. */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                        <Clock className="h-3 w-3" /> Expected completion time (optional)
+                      </label>
+                      <input type="time" value={d.expected_completion_time}
+                        onChange={e => updateDraft(d.tempId, { expected_completion_time: e.target.value })}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    </div>
+                    <div className="flex items-end">
+                      <label className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer w-full text-sm ${
+                        d.is_urgent ? 'border-destructive bg-destructive/10 text-destructive font-semibold' : 'border-input bg-background text-muted-foreground'
+                      }`}>
+                        <input type="checkbox" checked={d.is_urgent}
+                          onChange={e => updateDraft(d.tempId, { is_urgent: e.target.checked })}
+                          className="h-4 w-4" />
+                        <AlertTriangle className="h-3.5 w-3.5" /> Urgent requirement
+                      </label>
+                    </div>
+                  </div>
+
 
                   {/* Vehicle + Driver */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

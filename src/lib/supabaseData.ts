@@ -299,6 +299,8 @@ export interface TripScheduleRow {
   completed_at?: string | null;
   notes: string;
   execution_order?: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
 }
 
 type TripScheduleInput = Omit<TripScheduleRow, 'id' | 'status' | 'started_at' | 'completed_at'> & {
@@ -343,6 +345,8 @@ export async function saveTripAssignments(
     notes: a.notes || '',
     status: a.status || 'pending',
     execution_order: a.execution_order ?? null,
+    expected_completion_time: a.expected_completion_time ?? null,
+    is_urgent: a.is_urgent ?? false,
   }));
 
   const { data, error } = await supabase
@@ -397,6 +401,8 @@ export async function saveDispatchedTripAssignments(
     notes: a.notes || '',
     status: 'assigned',
     execution_order: a.execution_order ?? null,
+    expected_completion_time: a.expected_completion_time ?? null,
+    is_urgent: a.is_urgent ?? false,
   }));
 
   const { data, error } = await supabase

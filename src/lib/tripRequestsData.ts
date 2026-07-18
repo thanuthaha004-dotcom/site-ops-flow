@@ -22,6 +22,8 @@ export interface DailyTripRequest {
   driver_name?: string | null;
   pickup_location?: string | null;
   execution_order?: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
 }
 
 export interface TripRequestInput {
@@ -39,6 +41,8 @@ export interface TripRequestInput {
   driver_name?: string | null;
   pickup_location?: string | null;
   execution_order?: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
 }
 
 export async function fetchTripRequestsByDate(date: string): Promise<DailyTripRequest[]> {
@@ -125,6 +129,8 @@ export async function submitTripRequests(
       driver_name: r.driver_name || null,
       pickup_location: r.pickup_location || 'Al Quoz Labour Camp',
       execution_order: r.execution_order ?? nextOrder + idx + 1,
+      expected_completion_time: r.expected_completion_time || null,
+      is_urgent: !!r.is_urgent,
     }));
 
   if (rows.length === 0) return;

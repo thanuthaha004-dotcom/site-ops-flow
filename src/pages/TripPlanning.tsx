@@ -133,6 +133,8 @@ export default function TripPlanning() {
             requestedVehicleNumber: r.vehicle_number || null,
             requestedDriver: (r as any).driver_name || null,
             executionOrder: (r as any).execution_order ?? null,
+            expectedCompletionTime: (r as any).expected_completion_time ?? null,
+            isUrgent: !!(r as any).is_urgent || !!r.urgent,
           }));
         });
         const groupMap = new Map<string, TripGroup>();
@@ -160,6 +162,8 @@ export default function TripPlanning() {
             noPersonnel: isPlaceholder,
             requestedVehicleNumber: r.vehicle_number || null,
             executionOrder: (r as any).execution_order ?? null,
+            expectedCompletionTime: (r as any).expected_completion_time ?? null,
+            isUrgent: !!(r as any).is_urgent || !!r.urgent,
           }));
           if (existing) {
             existing.workers.push(...rowWorkers);
@@ -435,6 +439,8 @@ export default function TripPlanning() {
         vehicle_type: null,
         vehicle_number: null,
         execution_order: w.executionOrder ?? null,
+        expected_completion_time: w.expectedCompletionTime ?? null,
+        is_urgent: !!w.isUrgent || !!w.urgent,
       }));
       await saveTripAssignments(toDateStr(selectedDate), assignments);
       setSaved(true);
@@ -484,6 +490,8 @@ export default function TripPlanning() {
       names: string[];
       notes: string[];
       execution_order: number | null;
+      expected_completion_time: string | null;
+      is_urgent: boolean;
     };
     const buckets = new Map<string, Bucket>();
 
@@ -505,6 +513,10 @@ export default function TripPlanning() {
           // Skip placeholder names so a real passenger doesn't get prefixed by "— No personnel —"
           if (!w.noPersonnel && !bucket.names.includes(w.name)) bucket.names.push(w.name);
           if (w.urgent) bucket.urgent = true;
+          if (w.isUrgent) bucket.is_urgent = true;
+          if (w.expectedCompletionTime && !bucket.expected_completion_time) {
+            bucket.expected_completion_time = w.expectedCompletionTime;
+          }
           if (w.notes && !bucket.notes.includes(w.notes)) bucket.notes.push(w.notes);
           // Bucket inherits the LOWEST Trip No — that trip runs first for the driver.
           if (w.executionOrder != null) {
@@ -529,6 +541,8 @@ export default function TripPlanning() {
             names: w.noPersonnel ? [] : [w.name],
             notes: w.notes ? [w.notes] : [],
             execution_order: w.executionOrder ?? null,
+            expected_completion_time: w.expectedCompletionTime || null,
+            is_urgent: !!w.isUrgent,
           });
         }
       });
@@ -551,6 +565,8 @@ export default function TripPlanning() {
       vehicle_type: b.vehicle_type,
       vehicle_number: b.vehicle_number,
       execution_order: b.execution_order,
+      expected_completion_time: b.expected_completion_time,
+      is_urgent: b.is_urgent || b.urgent,
     }));
 
     await saveDispatchedTripAssignments(toDateStr(selectedDate), assignments);
@@ -830,7 +846,7 @@ export default function TripPlanning() {
 
           startTime: req.start_time || '',
           endTime: req.end_time || '',
-          urgent: req.priority === 'High',
+          urgent: req.priority === 'High' || !!(req as any).is_urgent,
           projectId: req.project_id,
           projectName: req.project_name,
           engineerName: req.engineer_name || '',
@@ -840,6 +856,8 @@ export default function TripPlanning() {
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
           executionOrder: req.execution_order ?? null,
+          expectedCompletionTime: (req as any).expected_completion_time || null,
+          isUrgent: !!(req as any).is_urgent,
         });
         return;
       }
@@ -857,7 +875,7 @@ export default function TripPlanning() {
 
           startTime: req.start_time || '',
           endTime: req.end_time || '',
-          urgent: req.priority === 'High',
+          urgent: req.priority === 'High' || !!(req as any).is_urgent,
           projectId: req.project_id,
           projectName: req.project_name,
           engineerName: req.engineer_name || '',
@@ -866,6 +884,8 @@ export default function TripPlanning() {
           requestedVehicleNumber: req.vehicle_number || null,
           requestedDriver: req.driver_name || null,
           executionOrder: req.execution_order ?? null,
+          expectedCompletionTime: (req as any).expected_completion_time || null,
+          isUrgent: !!(req as any).is_urgent,
         });
       });
     });
@@ -1111,6 +1131,16 @@ export default function TripPlanning() {
                             <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${chipClass}`}>
                               {chipLabel}
                             </span>
+                            {req.is_urgent && (
+                              <span className="text-xs bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-semibold uppercase">
+                                ⚠ Urgent
+                              </span>
+                            )}
+                            {req.expected_completion_time && (
+                              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">
+                                ⏱ ETA {req.expected_completion_time}
+                              </span>
+                            )}
                             {live?.vehicle_number && (
                               <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">🚐 {live.vehicle_number}</span>
                             )}

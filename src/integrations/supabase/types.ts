@@ -22,7 +22,9 @@ export type Database = {
           engineer_id: string
           engineer_name: string
           execution_order: number | null
+          expected_completion_time: string | null
           id: string
+          is_urgent: boolean
           notes: string
           pickup_location: string | null
           priority: string
@@ -45,7 +47,9 @@ export type Database = {
           engineer_id: string
           engineer_name?: string
           execution_order?: number | null
+          expected_completion_time?: string | null
           id?: string
+          is_urgent?: boolean
           notes?: string
           pickup_location?: string | null
           priority?: string
@@ -68,7 +72,9 @@ export type Database = {
           engineer_id?: string
           engineer_name?: string
           execution_order?: number | null
+          expected_completion_time?: string | null
           id?: string
+          is_urgent?: boolean
           notes?: string
           pickup_location?: string | null
           priority?: string
@@ -288,7 +294,9 @@ export type Database = {
           end_time: string | null
           engineer_name: string
           execution_order: number | null
+          expected_completion_time: string | null
           id: string
+          is_urgent: boolean
           notes: string
           pickup_location: string
           project_id: string | null
@@ -311,7 +319,9 @@ export type Database = {
           end_time?: string | null
           engineer_name?: string
           execution_order?: number | null
+          expected_completion_time?: string | null
           id?: string
+          is_urgent?: boolean
           notes?: string
           pickup_location?: string
           project_id?: string | null
@@ -334,7 +344,9 @@ export type Database = {
           end_time?: string | null
           engineer_name?: string
           execution_order?: number | null
+          expected_completion_time?: string | null
           id?: string
+          is_urgent?: boolean
           notes?: string
           pickup_location?: string
           project_id?: string | null

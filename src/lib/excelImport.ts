@@ -87,6 +87,8 @@ export type TripRequestRow = {
   driver_name: string;
   notes: string;
   execution_order?: number;
+  expected_completion_time?: string;
+  is_urgent?: boolean;
 };
 
 const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -154,6 +156,8 @@ export async function parseTripRequestsExcel(file: File): Promise<TripRequestRow
       driver_name: pick(r, 'Driver Name', 'DriverName', 'Driver_Name', 'Driver', 'driver', 'driver_name', 'Assigned Driver'),
       notes: pick(r, 'Purpose of Trip', 'Trip Purpose', 'Purpose', 'purpose', 'purpose_of_trip', 'Notes', 'notes', 'Remarks'),
       execution_order: Number(pick(r, 'Trip No', 'Trip No.', 'Trip Number', 'trip_no', 'trip_number', 'Execution Order', 'execution_order', 'Order', 'Sequence')) || (i + 1),
+      expected_completion_time: normalizeTime(pick(r, 'Expected Completion Time', 'Expected Completion', 'expected_completion_time', 'ETA')),
+      is_urgent: ['yes', 'y', 'true', '1', 'urgent'].includes(pick(r, 'Urgent', 'Urgent Requirement', 'is_urgent', 'urgent').toLowerCase()),
     }))
     .filter(r => r.project || r.workers.length > 0 || r.notes);
 }
@@ -161,7 +165,8 @@ export async function parseTripRequestsExcel(file: File): Promise<TripRequestRow
 export function downloadTripRequestsTemplate() {
   const headers = [
     'Trip No', 'Trip Date', 'Department', 'Project Name', 'Project Location',
-    'Pickup Location', 'Drop-off Location', 'Pickup Time', 'Passenger Details',
+    'Pickup Location', 'Drop-off Location', 'Pickup Time', 'Expected Completion Time',
+    'Urgent', 'Passenger Details',
     'Engineer Information', 'Vehicle Number', 'Driver Name', 'Purpose of Trip', 'Notes',
   ];
   const example = [
@@ -174,6 +179,8 @@ export function downloadTripRequestsTemplate() {
       'Pickup Location': 'Al Quoz Labour Camp',
       'Drop-off Location': 'Ambuja Tower, Business Bay',
       'Pickup Time': '07:00',
+      'Expected Completion Time': '11:00',
+      'Urgent': 'No',
       'Passenger Details': 'Ahmed Khan, Ravi Kumar, John Doe',
       'Engineer Information': 'Eng. Mohammed Ali',
       'Vehicle Number': 'DXB-12345',
@@ -190,6 +197,8 @@ export function downloadTripRequestsTemplate() {
       'Pickup Location': 'Al Quoz Labour Camp',
       'Drop-off Location': 'Marina Heights Tower B',
       'Pickup Time': '08:30',
+      'Expected Completion Time': '',
+      'Urgent': 'Yes',
       'Passenger Details': 'Suresh, Imran',
       'Engineer Information': 'Eng. Rahul Verma',
       'Vehicle Number': '',
@@ -201,7 +210,7 @@ export function downloadTripRequestsTemplate() {
   const ws = XLSX.utils.json_to_sheet(example, { header: headers });
   ws['!cols'] = [
     { wch: 8 }, { wch: 12 }, { wch: 16 }, { wch: 28 }, { wch: 24 },
-    { wch: 22 }, { wch: 26 }, { wch: 11 }, { wch: 36 },
+    { wch: 22 }, { wch: 26 }, { wch: 11 }, { wch: 22 }, { wch: 10 }, { wch: 36 },
     { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 32 }, { wch: 28 },
   ];
   const wb = XLSX.utils.book_new();
@@ -217,6 +226,8 @@ export function downloadTripRequestsTemplate() {
     ['Pickup Location', 'No', 'Defaults to "Al Quoz Labour Camp" if empty.'],
     ['Drop-off Location', 'No', 'Destination site. Defaults to the project location if empty.'],
     ['Pickup Time', 'No', 'Format HH:MM (24-hour), e.g. 07:00.'],
+    ['Expected Completion Time', 'No', 'Engineer estimate for when the trip should finish (HH:MM, 24-hour). Shown to admin & driver. Actual end time is captured by the driver.'],
+    ['Urgent', 'No', 'Yes / No — mark the trip as urgent so it is highlighted for admin & driver.'],
     ['Passenger Details', 'Yes*', 'Comma-separated worker names. *Required unless Purpose/Notes explains a solo trip.'],
     ['Engineer Information', 'No', 'Engineer responsible for the trip / project.'],
     ['Vehicle Number', 'No', 'Optional preferred vehicle. Dispatcher may reassign.'],

@@ -27,6 +27,10 @@ export interface TripWorker {
   requestedDriver?: string | null;
   /** Trip No from the engineer's submission — drives driver execution order. */
   executionOrder?: number | null;
+  /** Engineer-provided expected completion time (HH:mm). Informational. */
+  expectedCompletionTime?: string | null;
+  /** Engineer flagged this trip as urgent (independent from priority=High). */
+  isUrgent?: boolean;
 }
 
 export interface TripGroup {

@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, addDays } from 'date-fns';
 import {
   CalendarIcon, Loader2, MapPin, Users, Clock, Truck, UserCog,
-  CheckCircle2, PlayCircle, Send, ClipboardList, FolderKanban, Package,
+  CheckCircle2, PlayCircle, Send, ClipboardList, FolderKanban, Package, AlertTriangle, Timer,
 } from 'lucide-react';
 import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -181,6 +181,16 @@ export default function MyTripRequests() {
                         {material.isMaterial && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400">
                             <Package className="h-3 w-3" /> {directionLabel(material.direction)}
+                          </span>
+                        )}
+                        {r.is_urgent && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                            <AlertTriangle className="h-3 w-3" /> Urgent
+                          </span>
+                        )}
+                        {r.expected_completion_time && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                            <Timer className="h-3 w-3" /> ETA {r.expected_completion_time}
                           </span>
                         )}
                       </h3>
