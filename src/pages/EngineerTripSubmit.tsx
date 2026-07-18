@@ -34,7 +34,7 @@ const DEFAULT_MATERIAL_CATEGORIES = [
   'Others',
 ];
 
-const MATERIAL_TAG_RE = /^\s*\[MATERIAL:(PICKUP|DELIVERY)\]\s*/i;
+const MATERIAL_TAG_RE = /^\s*\[MATERIAL:(PICKUP|DELIVERY|DIRECT)\]\s*/i;
 
 type TripDraft = {
   tempId: string;
@@ -50,7 +50,7 @@ type TripDraft = {
   // Transport type: staff (workers) vs material (category + direction)
   transport_type: 'staff' | 'material';
   material_category?: string;
-  material_direction?: 'pickup' | 'delivery';
+  material_direction?: 'pickup' | 'delivery' | 'direct';
   // For material transport: chosen delivery point (project site or saved custom point)
   delivery_point?: string;
   // Free-text overrides used when the row came from an Excel upload with a
@@ -157,7 +157,11 @@ export default function EngineerTripSubmit() {
             transport_type: isMaterial ? 'material' : 'staff',
             material_category: isMaterial ? (r.work_type || '') : undefined,
             material_direction: isMaterial
-              ? (materialMatch![1].toUpperCase() === 'DELIVERY' ? 'delivery' : 'pickup')
+              ? (materialMatch![1].toUpperCase() === 'DELIVERY'
+                  ? 'delivery'
+                  : materialMatch![1].toUpperCase() === 'DIRECT'
+                    ? 'direct'
+                    : 'pickup')
               : 'pickup',
             delivery_point: isMaterial ? (r.site || '') : undefined,
             custom_project_name: hasProject || isMaterial ? undefined : (r.project_name || ''),
@@ -310,7 +314,7 @@ export default function EngineerTripSubmit() {
         if (!d.material_category || !d.material_category.trim()) {
           return `Trip ${i + 1}: select a material category`;
         }
-        if (d.material_direction !== 'pickup' && d.material_direction !== 'delivery') {
+        if (d.material_direction !== 'pickup' && d.material_direction !== 'delivery' && d.material_direction !== 'direct') {
           return `Trip ${i + 1}: choose Material Pickup or Material Delivery`;
         }
       } else {
@@ -924,8 +928,8 @@ export default function EngineerTripSubmit() {
                         <label className="text-xs font-medium text-muted-foreground block mb-1">
                           Direction
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {(['pickup', 'delivery'] as const).map(dir => (
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['pickup', 'delivery', 'direct'] as const).map(dir => (
                             <button
                               key={dir}
                               type="button"
@@ -935,7 +939,7 @@ export default function EngineerTripSubmit() {
                                   ? 'border-primary bg-primary text-primary-foreground'
                                   : 'border-input bg-background text-foreground hover:bg-muted'
                               }`}>
-                              {dir === 'pickup' ? 'Material Pickup' : 'Material Delivery'}
+                              {dir === 'pickup' ? 'Material Pickup' : dir === 'delivery' ? 'Material Delivery' : 'Direct Delivery'}
                             </button>
                           ))}
                         </div>
