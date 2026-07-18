@@ -1074,6 +1074,30 @@ export default function EngineerTripSubmit() {
                     </p>
                   </div>
 
+                  {/* Expected completion time + Urgent flag (both optional).
+                      Actual end time is still captured by the driver on completion. */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                        <Clock className="h-3 w-3" /> Expected completion time (optional)
+                      </label>
+                      <input type="time" value={d.expected_completion_time}
+                        onChange={e => updateDraft(d.tempId, { expected_completion_time: e.target.value })}
+                        className="w-full text-sm rounded-md border border-input bg-background px-3 py-2" />
+                    </div>
+                    <div className="flex items-end">
+                      <label className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer w-full text-sm ${
+                        d.is_urgent ? 'border-destructive bg-destructive/10 text-destructive font-semibold' : 'border-input bg-background text-muted-foreground'
+                      }`}>
+                        <input type="checkbox" checked={d.is_urgent}
+                          onChange={e => updateDraft(d.tempId, { is_urgent: e.target.checked })}
+                          className="h-4 w-4" />
+                        <AlertTriangle className="h-3.5 w-3.5" /> Urgent requirement
+                      </label>
+                    </div>
+                  </div>
+
+
                   {/* Vehicle + Driver */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
