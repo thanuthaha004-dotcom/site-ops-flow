@@ -179,6 +179,8 @@ export function downloadTripRequestsTemplate() {
       'Pickup Location': 'Al Quoz Labour Camp',
       'Drop-off Location': 'Ambuja Tower, Business Bay',
       'Pickup Time': '07:00',
+      'Expected Completion Time': '11:00',
+      'Urgent': 'No',
       'Passenger Details': 'Ahmed Khan, Ravi Kumar, John Doe',
       'Engineer Information': 'Eng. Mohammed Ali',
       'Vehicle Number': 'DXB-12345',
