@@ -561,6 +561,8 @@ export default function TripPlanning() {
       vehicle_type: b.vehicle_type,
       vehicle_number: b.vehicle_number,
       execution_order: b.execution_order,
+      expected_completion_time: b.expected_completion_time,
+      is_urgent: b.is_urgent || b.urgent,
     }));
 
     await saveDispatchedTripAssignments(toDateStr(selectedDate), assignments);
