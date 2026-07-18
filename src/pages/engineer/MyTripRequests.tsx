@@ -260,11 +260,12 @@ export default function MyTripRequests() {
                   )}
                 </div>
 
-                {r.notes && r.worker_names?.length > 0 && (
+                {material.cleanNotes && (material.isMaterial || (r.worker_names?.length ?? 0) > 0) && (
                   <p className="text-xs text-muted-foreground border-t border-border pt-2">
-                    <span className="font-medium">Notes:</span> {r.notes}
+                    <span className="font-medium">Notes:</span> {material.cleanNotes}
                   </p>
                 )}
+
               </div>
             );
           })}
