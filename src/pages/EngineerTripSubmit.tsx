@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchProjects, fetchVehicles, fetchWorkers } from '@/lib/supabaseData';
 import WorkerAutocomplete from '@/components/forms/WorkerAutocomplete';
+import ZoneReferenceDialog from '@/components/zones/ZoneReferenceDialog';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
+import { loadZoneMappings } from '@/lib/zoneMappings';
+import { getAreaCluster } from '@/lib/tripPlanning';
 import type { Project, Vehicle, Worker } from '@/data/mockData';
 import { format, subDays, addDays } from 'date-fns';
 import { CalendarIcon, CheckCircle2, FolderKanban, MapPin, Users, Send, Loader2, Plus, Trash2, Clock, Truck, UserCog, ArrowUp, ArrowDown, AlertTriangle, X, Upload, Download } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -65,6 +69,8 @@ export default function EngineerTripSubmit() {
   // Load all active/scheduled projects across departments — any engineer can
   // submit trip requests for any project, regardless of which engineer "owns" it.
   useEffect(() => {
+    // Hydrate admin-managed zone mappings so getAreaCluster reflects them.
+    loadZoneMappings().catch(() => {});
     fetchProjects().then(all => {
       const available = all.filter(p =>
         (p.status === 'Active' || p.status === 'Scheduled') &&
@@ -394,6 +400,7 @@ export default function EngineerTripSubmit() {
           <p className="text-muted-foreground text-sm">Build one or more trips per day. Vehicle, driver and time are suggestions — dispatcher may adjust.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <ZoneReferenceDialog />
           <button
             onClick={downloadTripRequestsTemplate}
             title="Download the Excel template for bulk trip request uploads"
@@ -543,7 +550,22 @@ export default function EngineerTripSubmit() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {/* Project */}
                     <div className="md:col-span-2">
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Project</label>
+                      {(() => {
+                        const site = d.custom_project_name !== undefined
+                          ? (d.custom_site || '')
+                          : (projects.find(p => p.id === d.project_id)?.site || '');
+                        const zone = site ? getAreaCluster(site) : '';
+                        return (
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <label className="text-xs font-medium text-muted-foreground">Project</label>
+                            {zone && zone !== 'Other' && (
+                              <Badge variant="outline" className="text-[10px] font-normal gap-1" title="Auto-detected zone (managed by admin)">
+                                <MapPin className="h-3 w-3" /> {zone}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {(d.custom_project_name !== undefined) ? (
                         <div className="flex gap-2">
                           <input
