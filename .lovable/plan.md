@@ -1,15 +1,24 @@
-## Goal
-Let Engineer users see the Workforce page (already visible to Admins).
+## Problem
+The sidebar link **Workforce** was added for engineers, but `src/App.tsx` only registers the `/workforce` route inside the `role === 'admin'` branch. When an engineer navigates there, React Router falls through to `NotFound`, producing the "404 /workforce" seen in the console — the data never gets a chance to load.
 
-## Current state (verified)
-- Route `/workforce` exists in `src/App.tsx` and renders `Workforce` for any signed-in user.
-- Sidebar only shows the Workforce link in `adminNavItems`; `engineerNavItems` has no entry, so engineers can't navigate there.
-- Database RLS on `workers` already permits engineers to SELECT (`Admins and engineers read workers` policy confirmed via query), so no backend changes needed.
+## Fix
+Add the `/workforce` route to the engineer branch in `src/App.tsx` so the `Workforce` page renders for engineers as well.
 
-## Changes
-1. `src/components/layout/AppSidebar.tsx`
-   - Add `{ path: '/workforce', label: 'Workforce', icon: Users }` to `engineerNavItems` (read-only navigation entry).
+```tsx
+) : (
+  <>
+    <Route path="/" element={<EngineerTripSubmit />} />
+    <Route path="/projects" element={<Projects />} />
+    <Route path="/submit-trips" element={<EngineerTripSubmit />} />
+    <Route path="/my-requests" element={<MyTripRequests />} />
+    <Route path="/workforce" element={<Workforce />} />   {/* NEW */}
+  </>
+)
+```
 
-## Not changed
-- No RLS/policy migration needed — engineers already have read access.
-- Workforce page write actions (add/edit/delete/import) will still fail for engineers at the DB layer because the "Admins manage workers" policy restricts writes to admins. This matches the request ("details should be visible"). If you also want engineers to add/edit workers, tell me and I'll extend the policy plus surface a plan for it.
+No changes to the `Workforce` page, RLS policies, or data fetching — those already permit engineers (confirmed earlier). This is purely a missing route registration.
+
+## Verification
+- Log in as an engineer, click **Workforce** in the sidebar → page renders, workers list loads.
+- Admin `/workforce` continues to work (unchanged).
+- No more `404 Error: /workforce` in console.
