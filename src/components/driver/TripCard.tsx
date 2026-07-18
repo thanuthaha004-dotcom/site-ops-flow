@@ -47,6 +47,16 @@ export default function TripCard({ trip }: { trip: DriverTrip }) {
               <Package className="h-3 w-3" /> {directionLabel(material.direction)}
             </span>
           )}
+          {(trip.is_urgent || trip.urgent) && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+              <AlertTriangle className="h-3 w-3" /> Urgent
+            </span>
+          )}
+          {trip.expected_completion_time && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+              <Timer className="h-3 w-3" /> ETA {trip.expected_completion_time}
+            </span>
+          )}
         </div>
         <div className="space-y-1 text-sm">
           <div className="flex items-start gap-2 text-muted-foreground">
