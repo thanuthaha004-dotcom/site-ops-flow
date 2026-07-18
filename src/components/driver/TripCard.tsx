@@ -17,6 +17,7 @@ function statusPill(status: string) {
 }
 
 export default function TripCard({ trip }: { trip: DriverTrip }) {
+  const [reportOpen, setReportOpen] = useState(false);
   const material = parseMaterialNotes(trip.notes);
   const passengers = material.isMaterial
     ? []
