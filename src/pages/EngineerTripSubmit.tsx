@@ -665,16 +665,21 @@ export default function EngineerTripSubmit() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Project */}
+                    {/* Project OR Delivery Point (for Material Transport) */}
                     <div className="md:col-span-2">
                       {(() => {
-                        const site = d.custom_project_name !== undefined
-                          ? (d.custom_site || '')
-                          : (projects.find(p => p.id === d.project_id)?.site || '');
+                        const isMaterial = d.transport_type === 'material';
+                        const site = isMaterial
+                          ? (d.delivery_point || '')
+                          : d.custom_project_name !== undefined
+                            ? (d.custom_site || '')
+                            : (projects.find(p => p.id === d.project_id)?.site || '');
                         const zone = site ? getAreaCluster(site) : '';
                         return (
                           <div className="flex items-center justify-between mb-1 gap-2">
-                            <label className="text-xs font-medium text-muted-foreground">Project</label>
+                            <label className="text-xs font-medium text-muted-foreground">
+                              {isMaterial ? 'Delivery Point' : 'Project'}
+                            </label>
                             {zone && zone !== 'Other' && (
                               <Badge variant="outline" className="text-[10px] font-normal gap-1" title="Auto-detected zone (managed by admin)">
                                 <MapPin className="h-3 w-3" /> {zone}
@@ -683,7 +688,60 @@ export default function EngineerTripSubmit() {
                           </div>
                         );
                       })()}
-                      {(d.custom_project_name !== undefined) ? (
+                      {d.transport_type === 'material' ? (
+                        <>
+                          <select
+                            value={
+                              d.delivery_point && deliveryPointOptions.some(o => o.toLowerCase() === d.delivery_point!.toLowerCase())
+                                ? deliveryPointOptions.find(o => o.toLowerCase() === d.delivery_point!.toLowerCase())!
+                                : (d.delivery_point ? '__existing__' : '')
+                            }
+                            onChange={e => {
+                              const v = e.target.value;
+                              if (v === '__add__') {
+                                setShowAddDelivery(prev => ({ ...prev, [d.tempId]: true }));
+                              } else if (v === '__existing__') {
+                                // no-op: rehydrated value not in list; keep as is
+                              } else {
+                                updateDraft(d.tempId, { delivery_point: v });
+                              }
+                            }}
+                            className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                            <option value="">Select delivery point…</option>
+                            {d.delivery_point && !deliveryPointOptions.some(o => o.toLowerCase() === d.delivery_point!.toLowerCase()) && (
+                              <option value="__existing__">{d.delivery_point}</option>
+                            )}
+                            {deliveryPointOptions.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                            <option value="__add__">➕ Add new delivery point…</option>
+                          </select>
+                          {showAddDelivery[d.tempId] && (
+                            <div className="flex gap-2 mt-2">
+                              <input
+                                type="text"
+                                value={newDeliveryInputs[d.tempId] || ''}
+                                onChange={e => setNewDeliveryInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
+                                placeholder="e.g. Petrosafe Store, Supplier A…"
+                                className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                              />
+                              <button
+                                type="button"
+                                disabled={!!addingDelivery[d.tempId]}
+                                onClick={() => handleAddDeliveryPoint(d.tempId)}
+                                className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50">
+                                {addingDelivery[d.tempId] ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowAddDelivery(prev => ({ ...prev, [d.tempId]: false }))}
+                                className="text-xs px-3 py-2 rounded-md bg-muted text-muted-foreground hover:bg-muted/80">
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (d.custom_project_name !== undefined) ? (
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -717,6 +775,7 @@ export default function EngineerTripSubmit() {
                         </select>
                       )}
                     </div>
+
 
 
                     {/* Trip No (drives driver execution order) */}
