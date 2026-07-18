@@ -468,6 +468,8 @@ export default function EngineerTripSubmit() {
               pickup_custom: pickup !== DEFAULT_PICKUP && !projects.some(p => (p.site || '').trim() === pickup.trim()),
               transport_type: 'staff',
               material_direction: 'pickup',
+              expected_completion_time: (row as any).expected_completion_time || '',
+              is_urgent: !!(row as any).is_urgent,
 
             });
           } else {
