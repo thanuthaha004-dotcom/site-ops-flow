@@ -294,15 +294,21 @@ export default function EngineerTripSubmit() {
       const payload: TripRequestInput[] = drafts.map((d, idx) => {
         const p = projects.find(x => x.id === d.project_id);
         const v = vehicles.find(x => x.number === d.vehicle_number);
+        const isMaterial = d.transport_type === 'material';
+        const materialTag = isMaterial
+          ? `[MATERIAL:${(d.material_direction || 'pickup').toUpperCase()}] `
+          : '';
         return {
           project_id: d.project_id || '',
           project_name: p?.name || d.custom_project_name || '',
           site: p?.site || d.custom_site || '',
-          worker_names: d.worker_names,
-          work_type: p?.workType || d.custom_work_type || '',
+          worker_names: isMaterial ? [] : d.worker_names,
+          work_type: isMaterial
+            ? (d.material_category || '')
+            : (p?.workType || d.custom_work_type || ''),
           // Priority is now derived from execution order (lower # = higher priority)
           priority: idx === 0 ? 'High' : idx <= 2 ? 'Medium' : 'Low',
-          notes: d.notes,
+          notes: `${materialTag}${d.notes}`.trim(),
           start_time: d.start_time || null,
           end_time: null, // captured by driver on trip completion
           vehicle_number: d.vehicle_number || null,
@@ -312,6 +318,7 @@ export default function EngineerTripSubmit() {
           execution_order: idx + 1,
         };
       });
+
       await submitTripRequests(dateStr, user.id, profileName || user.email || '', payload);
       setSubmitted(true);
       toast({ title: `Submitted ${payload.length} trip${payload.length === 1 ? '' : 's'} for ${format(selectedDate, 'MMM d, yyyy')}` });
