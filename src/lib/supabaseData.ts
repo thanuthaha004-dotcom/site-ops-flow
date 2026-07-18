@@ -421,6 +421,33 @@ export async function updateTripStatus(id: string, status: string) {
   if (error) throw error;
 }
 
+/**
+ * Reassign a dispatched-but-not-yet-started trip to a different vehicle/driver.
+ * Updates every trip_schedules row that shares the same date + time_slot +
+ * current vehicle_number + one of the given sites, provided status is still
+ * 'pending' or 'assigned' (i.e. the driver has not started the trip).
+ */
+export async function reassignDispatchedTripVehicle(
+  date: string,
+  currentVehicleNumber: string,
+  timeSlot: string,
+  sites: string[],
+  newVehicle: { number: string; type: string },
+): Promise<number> {
+  if (!currentVehicleNumber || !newVehicle?.number || sites.length === 0) return 0;
+  const { data, error } = await supabase
+    .from('trip_schedules')
+    .update({ vehicle_number: newVehicle.number, vehicle_type: newVehicle.type })
+    .eq('trip_date', date)
+    .eq('time_slot', timeSlot)
+    .eq('vehicle_number', currentVehicleNumber)
+    .in('site', sites)
+    .in('status', ['pending', 'assigned'])
+    .select('id');
+  if (error) throw error;
+  return (data || []).length;
+}
+
 export async function getRecentTripDates(): Promise<string[]> {
   const { data, error } = await supabase
     .from('trip_schedules')
