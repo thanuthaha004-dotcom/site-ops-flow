@@ -243,6 +243,48 @@ export default function EngineerTripSubmit() {
     return [DEFAULT_PICKUP, ...sites];
   }, [projects]);
 
+  // Delivery Point options for Material Transport: unique project sites + saved custom delivery points
+  const deliveryPointOptions = useMemo(() => {
+    const sites = projects.map(p => (p.site || '').trim()).filter(Boolean);
+    const customs = deliveryPoints.map(dp => dp.name.trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const merged: string[] = [];
+    [...sites, ...customs].forEach(name => {
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(name);
+    });
+    return merged.sort((a, b) => a.localeCompare(b));
+  }, [projects, deliveryPoints]);
+
+  const handleAddDeliveryPoint = async (draftId: string) => {
+    const raw = (newDeliveryInputs[draftId] || '').trim();
+    if (!raw) return;
+    if (!user) return;
+    const existsAlready = deliveryPointOptions.some(o => o.toLowerCase() === raw.toLowerCase());
+    if (existsAlready) {
+      updateDraft(draftId, { delivery_point: raw });
+      setNewDeliveryInputs(prev => ({ ...prev, [draftId]: '' }));
+      setShowAddDelivery(prev => ({ ...prev, [draftId]: false }));
+      return;
+    }
+    setAddingDelivery(prev => ({ ...prev, [draftId]: true }));
+    try {
+      const created = await addDeliveryPoint(raw, user.id);
+      setDeliveryPoints(prev => [...prev, created]);
+      updateDraft(draftId, { delivery_point: created.name });
+      setNewDeliveryInputs(prev => ({ ...prev, [draftId]: '' }));
+      setShowAddDelivery(prev => ({ ...prev, [draftId]: false }));
+      toast({ title: `Added delivery point "${created.name}"` });
+    } catch (err: any) {
+      toast({ title: 'Could not save delivery point', description: err?.message || '', variant: 'destructive' });
+    } finally {
+      setAddingDelivery(prev => ({ ...prev, [draftId]: false }));
+    }
+  };
+
+
   // Map worker name -> count of trips it appears on (for duplicate warnings)
   const workerOccurrences = useMemo(() => {
     const map = new Map<string, number>();
