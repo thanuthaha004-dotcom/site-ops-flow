@@ -1131,6 +1131,16 @@ export default function TripPlanning() {
                             <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${chipClass}`}>
                               {chipLabel}
                             </span>
+                            {req.is_urgent && (
+                              <span className="text-xs bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-semibold uppercase">
+                                ⚠ Urgent
+                              </span>
+                            )}
+                            {req.expected_completion_time && (
+                              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">
+                                ⏱ ETA {req.expected_completion_time}
+                              </span>
+                            )}
                             {live?.vehicle_number && (
                               <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">🚐 {live.vehicle_number}</span>
                             )}
