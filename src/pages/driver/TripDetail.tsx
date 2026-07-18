@@ -33,8 +33,20 @@ export default function TripDetail() {
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [notes, setNotes] = useState<TripIssueNote[]>([]);
+
+  const reloadNotes = async () => {
+    if (!id) return;
+    try { setNotes(await fetchTripIssueNotes(id)); } catch {}
+  };
 
   const reload = async () => {
+    if (!id) return;
+    const t = await fetchDriverTrip(id);
+    setTrip(t);
+    await reloadNotes();
+  };
     if (!id) return;
     const t = await fetchDriverTrip(id);
     setTrip(t);
