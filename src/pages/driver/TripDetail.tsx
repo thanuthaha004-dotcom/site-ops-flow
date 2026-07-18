@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, MapPin, Users, Truck, Play, Pause, CheckCircle2, AlertCircle, Clock,
-  Navigation, FolderKanban, UserCog, StickyNote,
+  Navigation, FolderKanban, UserCog, StickyNote, Package,
 } from 'lucide-react';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 import { toast } from '@/hooks/use-toast';
 import {
   fetchDriverTrip, startTrip, completeTrip,
