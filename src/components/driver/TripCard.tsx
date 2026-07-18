@@ -15,13 +15,19 @@ function statusPill(status: string) {
 }
 
 export default function TripCard({ trip }: { trip: DriverTrip }) {
-  const passengers = (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
+  const material = parseMaterialNotes(trip.notes);
+  const passengers = material.isMaterial
+    ? []
+    : (trip.worker_name || '').split(',').map(s => s.trim()).filter(Boolean);
   const dropoff = trip.segments.length > 0
     ? trip.segments.map(s => s.site).join(' → ')
     : trip.site;
   const projectLabel = trip.segments.length > 1
     ? [...new Set(trip.segments.map(s => s.project_name).filter(Boolean))].join(' · ')
     : (trip.project_name || '—');
+  // work_type on the schedule row carries the material category for
+  // material trips (engineer entered category is stored there).
+  const materialCategory = (trip as any).work_type || (trip as any).department || '';
 
   return (
     <Link to={`/trip/${trip.id}`} className="kpi-card flex items-start gap-3 hover:border-accent transition-colors group">
