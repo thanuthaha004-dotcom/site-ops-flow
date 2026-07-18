@@ -675,24 +675,22 @@ export default function EngineerTripSubmit() {
                       </>
                     )}
 
-                    {/* Custom name input — visitors, subcontractors, swing labor */}
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        type="text"
-                        value={customNameInputs[d.tempId] || ''}
-                        onChange={e => setCustomNameInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') { e.preventDefault(); addCustomWorker(d.tempId); }
-                        }}
-                        placeholder="Add a name not on the project (e.g. visitor, subcontractor)…"
-                        className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
-                      />
-                      <button
-                        onClick={() => addCustomWorker(d.tempId)}
-                        className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-1">
-                        <Plus className="h-3 w-3" /> Add
-                      </button>
-                    </div>
+                    {/* Workforce search + free-text entry (visitors, subcontractors, swing labor) */}
+                    <WorkerAutocomplete
+                      workforce={workforce}
+                      excludeNames={d.worker_names}
+                      value={customNameInputs[d.tempId] || ''}
+                      onChange={(v) => setCustomNameInputs(prev => ({ ...prev, [d.tempId]: v }))}
+                      onAdd={(name) => {
+                        setDrafts(prev => prev.map(x => {
+                          if (x.tempId !== d.tempId) return x;
+                          const exists = x.worker_names.some(n => n.trim().toUpperCase() === name.trim().toUpperCase());
+                          return exists ? x : { ...x, worker_names: [...x.worker_names, name] };
+                        }));
+                        setSubmitted(false);
+                      }}
+                      placeholder="Search workforce or type a new name…"
+                    />
 
                     {/* Selected list with removable chips + duplicate warnings */}
                     {d.worker_names.length > 0 && (
