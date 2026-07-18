@@ -435,6 +435,8 @@ export default function TripPlanning() {
         vehicle_type: null,
         vehicle_number: null,
         execution_order: w.executionOrder ?? null,
+        expected_completion_time: w.expectedCompletionTime ?? null,
+        is_urgent: !!w.isUrgent || !!w.urgent,
       }));
       await saveTripAssignments(toDateStr(selectedDate), assignments);
       setSaved(true);
