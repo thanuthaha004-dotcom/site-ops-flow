@@ -195,6 +195,23 @@ export default function LiveFleet() {
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {l.vehicle_number ?? 'No vehicle assigned'} · updated {timeAgo(l.updated_at)}
                   </div>
+                  {l.vehicle_number && (() => {
+                    const occ = occByVehicle.get(l.vehicle_number);
+                    const cap = vehCaps.get(l.vehicle_number) ?? 0;
+                    const pax = occ?.passenger_count ?? 0;
+                    const mat = occ?.material_percent ?? 0;
+                    const matCls = mat >= 100 ? 'bg-destructive/15 text-destructive' : mat >= 75 ? 'bg-warning/15 text-warning' : mat >= 50 ? 'bg-accent/15 text-accent' : 'bg-success/15 text-success';
+                    return (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted">
+                          <Users className="h-3 w-3" /> Pax {pax}/{cap}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${matCls}`}>
+                          <Package className="h-3 w-3" /> Material {mat}%
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </li>
               );
             })}
