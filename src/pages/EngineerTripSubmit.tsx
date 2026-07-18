@@ -51,6 +51,8 @@ type TripDraft = {
   transport_type: 'staff' | 'material';
   material_category?: string;
   material_direction?: 'pickup' | 'delivery';
+  // For material transport: chosen delivery point (project site or saved custom point)
+  delivery_point?: string;
   // Free-text overrides used when the row came from an Excel upload with a
   // project name that doesn't match any existing project. When set, project_id
   // is left blank and these values are submitted verbatim.
