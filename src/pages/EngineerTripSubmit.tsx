@@ -249,7 +249,7 @@ export default function EngineerTripSubmit() {
     const customs = deliveryPoints.map(dp => dp.name.trim()).filter(Boolean);
     const seen = new Set<string>();
     const merged: string[] = [];
-    [...sites, ...customs].forEach(name => {
+    [...names, ...customs].forEach(name => {
       const key = name.toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
