@@ -22,6 +22,8 @@ export interface DailyTripRequest {
   driver_name?: string | null;
   pickup_location?: string | null;
   execution_order?: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
 }
 
 export interface TripRequestInput {
@@ -39,6 +41,8 @@ export interface TripRequestInput {
   driver_name?: string | null;
   pickup_location?: string | null;
   execution_order?: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
 }
 
 export async function fetchTripRequestsByDate(date: string): Promise<DailyTripRequest[]> {
