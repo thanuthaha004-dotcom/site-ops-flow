@@ -716,7 +716,113 @@ export default function EngineerTripSubmit() {
                     )}
                   </div>
 
-                  {/* Workers */}
+                  {/* Transport Type toggle */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Transport Type
+                    </label>
+                    <div className="inline-flex rounded-md border border-input overflow-hidden">
+                      {(['staff', 'material'] as const).map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => updateDraft(d.tempId, { transport_type: t })}
+                          className={`text-xs px-3 py-1.5 transition-colors ${
+                            d.transport_type === t
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background text-foreground hover:bg-muted'
+                          }`}>
+                          {t === 'staff' ? 'Staff Transport' : 'Material Transport'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {d.transport_type === 'material' ? (
+                    <>
+                      {/* Material Category */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground block mb-1">
+                          Material Category
+                        </label>
+                        <select
+                          value={d.material_category || ''}
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === '__add__') {
+                              setShowAddCategory(prev => ({ ...prev, [d.tempId]: true }));
+                            } else {
+                              updateDraft(d.tempId, { material_category: v });
+                            }
+                          }}
+                          className="w-full text-sm rounded-md border border-input bg-background px-3 py-2">
+                          <option value="">Select category…</option>
+                          {DEFAULT_MATERIAL_CATEGORIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          {customCategories.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          <option value="__add__">➕ Add custom category…</option>
+                        </select>
+                        {showAddCategory[d.tempId] && (
+                          <div className="flex gap-2 mt-2">
+                            <input
+                              type="text"
+                              value={newCategoryInputs[d.tempId] || ''}
+                              onChange={e => setNewCategoryInputs(prev => ({ ...prev, [d.tempId]: e.target.value }))}
+                              placeholder="New category name…"
+                              className="flex-1 text-sm rounded-md border border-input bg-background px-3 py-2"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const raw = (newCategoryInputs[d.tempId] || '').trim();
+                                if (!raw) return;
+                                const all = [...DEFAULT_MATERIAL_CATEGORIES, ...customCategories];
+                                if (!all.some(c => c.toLowerCase() === raw.toLowerCase())) {
+                                  setCustomCategories(prev => [...prev, raw]);
+                                }
+                                updateDraft(d.tempId, { material_category: raw });
+                                setNewCategoryInputs(prev => ({ ...prev, [d.tempId]: '' }));
+                                setShowAddCategory(prev => ({ ...prev, [d.tempId]: false }));
+                              }}
+                              className="text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                              Add
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddCategory(prev => ({ ...prev, [d.tempId]: false }))}
+                              className="text-xs px-3 py-2 rounded-md bg-muted text-muted-foreground hover:bg-muted/80">
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Direction: Pickup vs Delivery */}
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground block mb-1">
+                          Direction
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['pickup', 'delivery'] as const).map(dir => (
+                            <button
+                              key={dir}
+                              type="button"
+                              onClick={() => updateDraft(d.tempId, { material_direction: dir })}
+                              className={`text-sm py-2 rounded-md border transition-colors ${
+                                d.material_direction === dir
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-input bg-background text-foreground hover:bg-muted'
+                              }`}>
+                              {dir === 'pickup' ? 'Material Pickup' : 'Material Delivery'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground block mb-1">
                       Workers ({d.worker_names.length} selected{project ? ` • ${allWorkers.length} on project` : ''})
@@ -816,6 +922,8 @@ export default function EngineerTripSubmit() {
                       </p>
                     )}
                   </div>
+                  )}
+
 
                   {/* Start time (End time is captured by the driver on trip completion) */}
                   <div>
