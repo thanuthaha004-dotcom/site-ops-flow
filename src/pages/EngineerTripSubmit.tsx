@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchProjects, fetchVehicles, fetchWorkers } from '@/lib/supabaseData';
 import WorkerAutocomplete from '@/components/forms/WorkerAutocomplete';
 import ZoneReferenceDialog from '@/components/zones/ZoneReferenceDialog';
+import VehicleCapacityPanel from '@/components/fleet/VehicleCapacityPanel';
 import { fetchMyTripRequests, submitTripRequests, type TripRequestInput } from '@/lib/tripRequestsData';
 import { parseTripRequestsExcel, downloadTripRequestsTemplate } from '@/lib/excelImport';
 import { loadZoneMappings } from '@/lib/zoneMappings';
@@ -557,6 +558,11 @@ export default function EngineerTripSubmit() {
           />
         </div>
       </div>
+
+      <VehicleCapacityPanel />
+
+
+
 
       {/* Date picker */}
       <div className="kpi-card flex flex-col sm:flex-row items-start sm:items-center gap-3">

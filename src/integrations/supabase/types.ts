@@ -459,6 +459,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_occupancy: {
+        Row: {
+          material_percent: number
+          passenger_count: number
+          updated_at: string
+          updated_by: string | null
+          vehicle_number: string
+        }
+        Insert: {
+          material_percent?: number
+          passenger_count?: number
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_number: string
+        }
+        Update: {
+          material_percent?: number
+          passenger_count?: number
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_number?: string
+        }
+        Relationships: []
+      }
       vehicles: {
         Row: {
           brand: string

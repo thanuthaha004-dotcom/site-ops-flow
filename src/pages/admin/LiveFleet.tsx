@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, MapPin, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { loadGoogleMaps } from '@/lib/googleMaps';
+import { useAllOccupancy } from '@/lib/vehicleOccupancy';
+import { Users, Package } from 'lucide-react';
 
 interface DriverLocation {
   user_id: string;
@@ -53,6 +55,15 @@ export default function LiveFleet() {
   const [locations, setLocations] = useState<DriverLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { rows: occupancyRows } = useAllOccupancy();
+  const occByVehicle = new Map(occupancyRows.map(o => [o.vehicle_number, o]));
+  const [vehCaps, setVehCaps] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    supabase.from('vehicles').select('number, capacity').then(({ data }) => {
+      if (data) setVehCaps(new Map(data.map((v: any) => [v.number, v.capacity ?? 0])));
+    });
+  }, []);
 
   const refresh = () => {
     fetchAllDriverLocations().then(setLocations).catch((e) => setError(e.message)).finally(() => setLoading(false));
@@ -184,6 +195,23 @@ export default function LiveFleet() {
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {l.vehicle_number ?? 'No vehicle assigned'} · updated {timeAgo(l.updated_at)}
                   </div>
+                  {l.vehicle_number && (() => {
+                    const occ = occByVehicle.get(l.vehicle_number);
+                    const cap = vehCaps.get(l.vehicle_number) ?? 0;
+                    const pax = occ?.passenger_count ?? 0;
+                    const mat = occ?.material_percent ?? 0;
+                    const matCls = mat >= 100 ? 'bg-destructive/15 text-destructive' : mat >= 75 ? 'bg-warning/15 text-warning' : mat >= 50 ? 'bg-accent/15 text-accent' : 'bg-success/15 text-success';
+                    return (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted">
+                          <Users className="h-3 w-3" /> Pax {pax}/{cap}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${matCls}`}>
+                          <Package className="h-3 w-3" /> Material {mat}%
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </li>
               );
             })}

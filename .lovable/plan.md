@@ -1,40 +1,49 @@
+# Vehicle Occupancy — Live Capacity Tracking
+
 ## Goal
-Let engineers optionally set an **Expected Completion Time** and mark a trip as **Urgent** during submission (for both Staff and Material Transport). Both fields should flow through to Admin (Smart Trip Planning + engineer request cards) and Driver (trip list + trip detail) views. The driver-captured actual end time behavior stays unchanged.
+Let a driver update, at any time (idle or on a trip), how full their vehicle is. Admins and Engineers can see this live to know which vehicles have spare capacity.
 
-## Database
-Add two nullable columns to both `daily_trip_requests` and `trip_schedules`:
-- `expected_completion_time text` (free-form HH:MM string, matching how `start_time` is stored today)
-- `is_urgent boolean not null default false`
+## What the driver sees
+A new **Vehicle Occupancy** card on the Driver Dashboard, always visible (not tied to a trip):
+- **Vehicle**: shows the driver's assigned vehicle number + seating capacity (e.g. "U 38743 · 15 seats").
+- **Passengers on board**: number input / +– stepper, clamped between 0 and the vehicle's seating capacity. Shows "12 / 15 seats used" and a small progress bar.
+- **Material occupancy**: dropdown with 4 options — **25%**, **50%**, **75%**, **100%** (plus "Empty / 0%").
+- **Last updated** timestamp + "Save" button. Saves instantly to the backend.
 
-No RLS/grant changes — new columns inherit existing table policies.
+If the driver isn't linked to any vehicle yet, the card shows a friendly note telling them to contact the admin.
 
-## Engineer submission — `src/pages/EngineerTripSubmit.tsx`
-- Extend `TripDraft` with `expected_completion_time: string` and `is_urgent: boolean`.
-- Add a small time input + a checkbox/toggle labeled "Urgent Requirement" in each draft card, visible for both transport types (placed near start_time).
-- Include the new fields in `submitTripRequests` payloads and Excel rehydration/import (optional columns; missing = empty/false).
+## What Admin & Engineers see
+- **Live Fleet page (Admin)**: each vehicle marker/list row gains two badges — `Pax 12/15` and `Material 50%`, colored by fill level (green < 50%, amber 50–75%, red ≥ 100%). Updates in real time.
+- **Fleet page (Admin)**: same two columns added to the vehicle table.
+- **Engineer trip submission page**: a small "Vehicle capacity" panel (read-only) listing current passenger and material load per active vehicle, so engineers know which vehicles have room before requesting a trip.
 
-## Backend types & mapping — `src/lib/tripRequestsData.ts`
-- Add `expected_completion_time?: string | null` and `is_urgent?: boolean` to `TripRequestInput` and the fetched request shape.
-- Persist them on insert into `daily_trip_requests`.
-- When dispatching (existing code that copies requests → `trip_schedules`), copy both fields through.
+## Data model (new table)
+`vehicle_occupancy` — one row per vehicle, updated in place:
+- `vehicle_number` (PK, text)
+- `passenger_count` (int, default 0)
+- `material_percent` (int, one of 0/25/50/75/100)
+- `updated_by` (uuid → auth user)
+- `updated_at` (timestamptz)
 
-## Admin views
-- `src/pages/TripPlanning.tsx` engineer-request cards and dispatched-trip cards: show an "Urgent" badge (amber/red) and an "Expected by HH:MM" line when set.
-- `src/pages/engineer/MyTripRequests.tsx`: same badge + expected time line so the engineer sees what they submitted.
+RLS:
+- **Drivers**: can `SELECT` all, but can only `INSERT/UPDATE` the row for a vehicle they're assigned to (reuses `current_user_drives_vehicle`).
+- **Admins & Engineers**: `SELECT` all (read-only).
+- Realtime enabled so Admin/Engineer views update instantly.
 
-## Driver views
-- `src/components/driver/TripCard.tsx`, `src/pages/driver/MyTrips.tsx`, `src/pages/driver/TripDetail.tsx`: show the same Urgent badge and Expected completion time line. Do NOT change actual end-time capture — that continues to be set when the driver marks the trip complete.
-
-## Excel import (light touch)
-- `src/lib/excelImport.ts`: recognize optional headers "Expected Completion Time" / "Expected End" and "Urgent" (yes/true/1). Missing columns default to unset/false. No template redesign required unless you ask for it.
+## Files to add / change
+```text
+supabase migration        create vehicle_occupancy table + RLS + realtime
+src/lib/vehicleOccupancy.ts        fetch / upsert helpers + realtime hook
+src/components/driver/VehicleOccupancyCard.tsx   new driver UI card
+src/pages/driver/Dashboard.tsx     mount the new card
+src/pages/admin/LiveFleet.tsx      show pax + material badges (live)
+src/pages/Fleet.tsx                two extra columns in the vehicles table
+src/pages/EngineerTripSubmit.tsx   read-only capacity panel
+```
 
 ## Out of scope
-- No changes to how actual end time / duration are captured.
-- No sorting/prioritization logic based on the Urgent flag in this pass (flag is display-only for now — can be wired into optimizer priority in a follow-up if you want).
-- No notification/alerting on urgent trips.
+- No history/audit log of occupancy changes (only the latest value is kept).
+- No automatic passenger count from trip assignments — driver updates it manually as requested.
 
-## Execution order
-1. Migration for the two columns on both tables (needs your approval).
-2. After types regenerate: update `tripRequestsData.ts`, submission form, Excel import, then admin/driver display components.
-
-Confirm and I'll run the migration first, then wire the UI.
+---
+Please confirm and I'll implement it exactly as above (or tell me what to adjust).
