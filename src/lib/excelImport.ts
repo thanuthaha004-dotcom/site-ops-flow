@@ -165,7 +165,8 @@ export async function parseTripRequestsExcel(file: File): Promise<TripRequestRow
 export function downloadTripRequestsTemplate() {
   const headers = [
     'Trip No', 'Trip Date', 'Department', 'Project Name', 'Project Location',
-    'Pickup Location', 'Drop-off Location', 'Pickup Time', 'Passenger Details',
+    'Pickup Location', 'Drop-off Location', 'Pickup Time', 'Expected Completion Time',
+    'Urgent', 'Passenger Details',
     'Engineer Information', 'Vehicle Number', 'Driver Name', 'Purpose of Trip', 'Notes',
   ];
   const example = [
