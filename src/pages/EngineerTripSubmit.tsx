@@ -50,6 +50,7 @@ export default function EngineerTripSubmit() {
   const { user, profileName } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [workforce, setWorkforce] = useState<Worker[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [drafts, setDrafts] = useState<TripDraft[]>([]);
   const [customNameInputs, setCustomNameInputs] = useState<Record<string, string>>({});
