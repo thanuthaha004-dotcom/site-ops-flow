@@ -34,6 +34,9 @@ export interface DriverTrip {
   end_time: string | null;
   notes: string;
   execution_order: number | null;
+  expected_completion_time?: string | null;
+  is_urgent?: boolean | null;
+  urgent?: boolean | null;
   segments: TripSegment[];
 }
 
