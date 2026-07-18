@@ -133,6 +133,8 @@ export default function TripPlanning() {
             requestedVehicleNumber: r.vehicle_number || null,
             requestedDriver: (r as any).driver_name || null,
             executionOrder: (r as any).execution_order ?? null,
+            expectedCompletionTime: (r as any).expected_completion_time ?? null,
+            isUrgent: !!(r as any).is_urgent || !!r.urgent,
           }));
         });
         const groupMap = new Map<string, TripGroup>();
