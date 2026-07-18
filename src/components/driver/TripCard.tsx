@@ -117,8 +117,24 @@ export default function TripCard({ trip }: { trip: DriverTrip }) {
             )}
           </div>
         )}
+
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportOpen(true); }}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md border border-warning/40 text-warning hover:bg-warning/10"
+          >
+            <MessageSquareWarning className="h-3.5 w-3.5" /> Report Issue
+          </button>
+        </div>
       </div>
       <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-accent transition-colors mt-1" />
+      <ReportIssueDialog
+        tripId={trip.id}
+        tripLabel={`${trip.trip_date} · ${trip.time_slot} · ${trip.project_name || trip.site}`}
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+      />
     </Link>
   );
 }
