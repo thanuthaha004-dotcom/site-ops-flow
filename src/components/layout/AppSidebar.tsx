@@ -26,6 +26,7 @@ const engineerNavItems = [
   { path: '/', label: 'Submit Trips', icon: Send },
   { path: '/my-requests', label: 'My Trip Requests', icon: ListChecks },
   { path: '/projects', label: 'My Projects', icon: FolderKanban },
+  { path: '/workforce', label: 'Workforce', icon: Users },
 ];
 
 const driverNavItems = [
