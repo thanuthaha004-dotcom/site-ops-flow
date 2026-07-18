@@ -88,6 +88,10 @@ export default function EngineerTripSubmit() {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [newCategoryInputs, setNewCategoryInputs] = useState<Record<string, string>>({});
   const [showAddCategory, setShowAddCategory] = useState<Record<string, boolean>>({});
+  const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+  const [newDeliveryInputs, setNewDeliveryInputs] = useState<Record<string, string>>({});
+  const [showAddDelivery, setShowAddDelivery] = useState<Record<string, boolean>>({});
+  const [addingDelivery, setAddingDelivery] = useState<Record<string, boolean>>({});
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
