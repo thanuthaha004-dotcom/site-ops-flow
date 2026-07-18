@@ -86,19 +86,25 @@ export async function submitTripRequests(
 
   if (requests.length === 0) return;
 
-  // Skip new rows that exactly duplicate an existing row (same project + site +
-  // overlapping workers) so accidental re-submits don't create dupes.
+  // Only skip a new row if it is an EXACT re-submission of an existing row
+  // (same project + site + start_time + identical worker set). Engineers are
+  // allowed to submit multiple distinct trip requests against the same
+  // project — those are treated as separate valid trips.
   const norm = (s: string) => (s || '').trim().toUpperCase();
+  const setsEqual = (a: Set<string>, b: Set<string>) => {
+    if (a.size !== b.size) return false;
+    for (const v of a) if (!b.has(v)) return false;
+    return true;
+  };
   const isDuplicate = (r: TripRequestInput) => {
     const newWorkers = new Set((r.worker_names || []).map(norm).filter(Boolean));
     return existingRows.some(p => {
       if (norm(p.site) !== norm(r.site)) return false;
       const projMatches = r.project_id ? p.project_id === r.project_id : norm(p.project_name) === norm(r.project_name);
       if (!projMatches) return false;
+      if ((p.start_time || '') !== (r.start_time || '')) return false;
       const pWorkers = new Set((p.worker_names || []).map(norm).filter(Boolean));
-      if (newWorkers.size === 0 && pWorkers.size === 0) return true;
-      for (const n of newWorkers) if (pWorkers.has(n)) return true;
-      return false;
+      return setsEqual(newWorkers, pWorkers);
     });
   };
 
