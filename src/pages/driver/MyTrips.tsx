@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote } from 'lucide-react';
+import { Loader2, MapPin, Users, Truck, Clock, ChevronRight, Calendar, FolderKanban, UserCog, Navigation, CheckCircle2, PlayCircle, StickyNote, Package } from 'lucide-react';
 import { fetchDriverTrips, tripActiveSeconds, formatDuration, type DriverTrip } from '@/lib/driverData';
+import { parseMaterialNotes, directionLabel } from '@/lib/materialTransport';
 
 function statusPill(status: string) {
   const map: Record<string, string> = {
